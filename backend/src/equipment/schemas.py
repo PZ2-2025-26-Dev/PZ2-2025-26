@@ -25,6 +25,9 @@ class EquipmentBase(BaseModel):
     owner_id: int
     manager_id: int
     description: str | None = None
+    room_id: int
+    cabinet_id: int | None = None
+    shelf_id: int | None = None
 
 
 class EquipmentCreate(EquipmentBase):
