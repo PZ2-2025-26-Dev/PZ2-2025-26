@@ -36,6 +36,10 @@ class Equipment(Base):
         "EquipmentDescriptionHistory", back_populates="equipment", cascade="all, delete-orphan"
     )
 
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=False)
+    cabinet_id = Column(Integer, ForeignKey("cabinets.id"), nullable=True)
+    shelf_id = Column(Integer, ForeignKey("shelves.id"), nullable=True)
+
 
 class EquipmentDescriptionHistory(Base):
     __tablename__ = "equipment_description_history"
