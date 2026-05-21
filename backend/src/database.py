@@ -1,7 +1,7 @@
 from typing import Generator
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-from sqlalchemy import create_engine
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 # TODO: zrobić pydantic BaseSetting config pod to
 DATABASE_URL = "sqlite:///pz.db"
@@ -16,10 +16,10 @@ engine = create_engine(
 )
 
 SessionLocal = sessionmaker(
-        bind=engine,
-        autoflush=False,
-        expire_on_commit=False,
-        )
+    bind=engine,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 
 def get_db() -> Generator[Session, None, None]:
