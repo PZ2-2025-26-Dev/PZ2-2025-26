@@ -10,6 +10,7 @@ run() {
 
     printf '=== RUN: %s ===\n' "$CMD"
     $CMD || exit $?
+    printf '\n'
 }
 
 run "${SCRIPTS_DIR}/fmt.sh" || exit $?
