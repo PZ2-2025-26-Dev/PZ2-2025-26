@@ -1,1 +1,1 @@
-uv run ruff check src || exit "$?"
+uv run ruff check src || exit $?

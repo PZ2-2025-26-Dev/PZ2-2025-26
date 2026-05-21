@@ -12,7 +12,7 @@ from sqlalchemy import (
     Text,
 )
 
-from database import Base
+from src.database import Base
 
 
 class BorrowStatus(str, enum.Enum):

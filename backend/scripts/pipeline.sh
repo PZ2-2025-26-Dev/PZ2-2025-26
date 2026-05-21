@@ -15,3 +15,4 @@ run() {
 
 run "${SCRIPTS_DIR}/fmt.sh" || exit $?
 run "${SCRIPTS_DIR}/lint.sh" || exit $?
+run "${SCRIPTS_DIR}/unit-tests.sh" || exit $?

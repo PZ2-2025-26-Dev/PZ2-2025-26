@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from database import get_db
 from src.borrowing.schemas import (
     BorrowRequestCreate,
     BorrowRequestRead,
@@ -10,6 +9,7 @@ from src.borrowing.schemas import (
     GuestRead,
 )
 from src.borrowing.service import BorrowingService
+from src.database import get_db
 
 
 # Podmień na swoje prawdziwe zależności z modułu auth
