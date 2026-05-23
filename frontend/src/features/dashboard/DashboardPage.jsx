@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import SystemClock from '../../components/SystemClock';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
@@ -6,7 +7,9 @@ import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
 
-export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMode, setIsDarkMode }) {
+export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
+    const { t, i18n } = useTranslation();
+
     const [items, setItems] = useState([
         { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski' },
         { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01' },
@@ -34,73 +37,6 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
         else root.classList.remove('dark');
     }, [isDarkMode]);
 
-    const t = {
-        PL: {
-            dashboard: 'Panel Inwentaryzacyjny',
-            welcome: 'Witaj',
-            role: 'Rola',
-            logout: 'Wyloguj',
-            tabInventory: 'Inwentarz',
-            tabUsers: 'Wnioski o dostęp',
-            tabCategories: 'Kategorie',
-            totalAssets: 'Zasoby ogółem',
-            borrowedAssets: 'Wypożyczone',
-            pendingApprovals: 'Oczekujące wnioski',
-            damagedAssets: 'Uszkodzone',
-            searchPlaceholder: 'Szukaj po nazwie, producencie, nr seryjnym...',
-            filterStatus: 'Status',
-            filterCategory: 'Kategoria',
-            all: 'Wszystkie',
-            thId: 'Asset ID',
-            thName: 'Nazwa / Przyrząd',
-            thCategory: 'Kategoria',
-            thLocation: 'Lokalizacja docelowa',
-            thStatus: 'Status',
-            thOwner: 'Opiekun',
-            noResults: 'Brak przyrządów pomiarowych spełniających zadane kryteria filtrowania.',
-            exportXlsx: 'Eksportuj (.xlsx)',
-            addAsset: 'Dodaj przedmiot',
-            accessDeniedTitle: 'Brak aktywnego dostępu',
-            accessDeniedDesc: 'Twoje konto nie posiada uprawnień odczytu. Oczekuj na konfigurację ról przez Administratora.',
-            userReqTitle: 'Zarządzanie rejestracjami lokalnymi',
-            userReqDesc: 'Konta utworzone poza AGH SSO wymagają Twojej weryfikacji i ręcznego nadania uprawnień.',
-            approveBtn: 'Zatwierdź',
-            rejectBtn: 'Odrzuć'
-        },
-        EN: {
-            dashboard: 'Inventory Dashboard',
-            welcome: 'Welcome',
-            role: 'Role',
-            logout: 'Sign Out',
-            tabInventory: 'Inventory',
-            tabUsers: 'Access Requests',
-            tabCategories: 'Categories',
-            totalAssets: 'Total Assets',
-            borrowedAssets: 'Borrowed',
-            pendingApprovals: 'Pending',
-            damagedAssets: 'Damaged',
-            searchPlaceholder: 'Search by asset name, producer, serial...',
-            filterStatus: 'Status',
-            filterCategory: 'Category',
-            all: 'All',
-            thId: 'Asset ID',
-            thName: 'Asset / Device',
-            thCategory: 'Category',
-            thLocation: 'Target Location',
-            thStatus: 'Status',
-            thOwner: 'Supervisor',
-            noResults: 'No equipment matches the chosen filter metrics.',
-            exportXlsx: 'Export (.xlsx)',
-            addAsset: 'Add Item',
-            accessDeniedTitle: 'Access Restriction',
-            accessDeniedDesc: 'Your account holds zero permissions. Please wait until an admin configures your role.',
-            userReqTitle: 'Local Registration Management',
-            userReqDesc: 'Accounts created outside of AGH SSO require your verification and manual role assignment.',
-            approveBtn: 'Approve',
-            rejectBtn: 'Reject'
-        }
-    }[lang];
-
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
 
     const filteredItems = canViewList ? items.filter(item => {
@@ -114,19 +50,16 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
         setPendingUsers(pendingUsers.filter(u => u.id !== id));
     };
 
-    // Dodanie nowego obiektu do lokalnego stanu (wyszczególnione pod integrację z API w przyszłości)
     const handleSaveAsset = (newAsset) => {
         setItems([newAsset, ...items]);
     };
 
-    // Zaktualizowana funkcja do pełnej obsługi cyklu wypożyczenia
     const handleUpdateItemStatus = (itemId, newStatus, clearBorrower = false, newBorrower = null, newDueDate = null) => {
         setItems(prevItems => prevItems.map(item => {
             if (item.id === itemId) {
                 return {
                     ...item,
                     status: newStatus,
-                    // Jeśli przekazano nowe dane (wniosek o wypożyczenie), zapisz je
                     borrower: newBorrower ? newBorrower : (clearBorrower ? null : item.borrower),
                     dueDate: newDueDate ? newDueDate : (clearBorrower ? null : item.dueDate)
                 };
@@ -136,6 +69,10 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
         setIsDetailsModalOpen(false);
     };
 
+    const toggleLanguage = () => {
+        i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL');
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 flex flex-col font-sans">
             <nav className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
@@ -143,22 +80,22 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                     <div className="flex items-center space-x-3">
                         <div className="w-9 h-9 bg-emerald-700 dark:bg-emerald-600 text-white rounded-xl flex items-center justify-center font-bold text-xs tracking-wider">AGH</div>
                         <div>
-                            <h1 className="font-bold text-xs tracking-tight text-slate-900 dark:text-white uppercase">{t.dashboard}</h1>
+                            <h1 className="font-bold text-xs tracking-tight text-slate-900 dark:text-white uppercase">{t('dashboard.dashboard')}</h1>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                                {t.welcome}, <span className="font-semibold text-slate-700 dark:text-slate-200">{user.name}</span>
-                                {' '}({t.role}: <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-600 dark:text-slate-400 text-[9px] font-bold">{user.role}</span>)
+                                {t('dashboard.welcome')}, <span className="font-semibold text-slate-700 dark:text-slate-200">{user.name}</span>
+                                {' '}({t('dashboard.role')}: <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-600 dark:text-slate-400 text-[9px] font-bold">{user.role}</span>)
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center space-x-4">
-                        <SystemClock lang={lang} />
+                        <SystemClock lang={i18n.language} />
                         <div className="flex items-center space-x-2 border-l border-slate-200 dark:border-slate-800 pl-4">
-                            <button onClick={() => setLang(lang === 'PL' ? 'EN' : 'PL')} className="px-2 py-1 text-xs font-bold rounded text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">{lang === 'PL' ? 'EN' : 'PL'}</button>
+                            <button onClick={toggleLanguage} className="px-2 py-1 text-xs font-bold rounded text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">{i18n.language === 'PL' ? 'EN' : 'PL'}</button>
                             <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
                                 {isDarkMode ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3" /></svg> : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646" /></svg>}
                             </button>
-                            <button onClick={onLogout} className="ml-2 px-2.5 py-1.5 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 text-xs font-medium rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/60 transition">{t.logout}</button>
+                            <button onClick={onLogout} className="ml-2 px-2.5 py-1.5 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 text-xs font-medium rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/60 transition">{t('dashboard.logout')}</button>
                         </div>
                     </div>
                 </div>
@@ -166,13 +103,13 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                 {canViewList && (
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100 dark:border-slate-800/50">
                         <div className="flex space-x-6">
-                            <button onClick={() => setActiveTab('inventory')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t.tabInventory}</button>
+                            <button onClick={() => setActiveTab('inventory')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabInventory')}</button>
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <button onClick={() => setActiveTab('users')} className={`py-3 text-xs font-semibold border-b-2 transition-colors flex items-center space-x-1.5 ${activeTab === 'users' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-                                    <span>{t.tabUsers}</span>
+                                    <span>{t('dashboard.tabUsers')}</span>
                                     {pendingUsers.length > 0 && <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingUsers.length}</span>}
                                 </button>
-                                <button onClick={() => setActiveTab('categories')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'categories' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t.tabCategories}</button>
+                                <button onClick={() => setActiveTab('categories')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'categories' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabCategories')}</button>
                             </RoleGuard>
                         </div>
                     </div>
@@ -183,8 +120,8 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                 {!canViewList ? (
                     <div className="my-auto max-w-md mx-auto text-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl shadow-sm space-y-4">
                         <div className="w-12 h-12 bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto text-xl font-bold">✕</div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white">{t.accessDeniedTitle}</h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{t.accessDeniedDesc}</p>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('dashboard.accessDeniedTitle')}</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{t('dashboard.accessDeniedDesc')}</p>
                     </div>
                 ) : (
                     <div className="space-y-6 animate-fadeIn">
@@ -193,10 +130,10 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                             <>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                     {[
-                                        { title: t.totalAssets, count: items.length + 1245, color: 'text-slate-900 dark:text-white' }, // Dynamiczny licznik oparty na stanie
-                                        { title: t.borrowedAssets, count: '142', color: 'text-blue-600 dark:text-blue-400' },
-                                        { title: t.pendingApprovals, count: '7', color: 'text-amber-600 dark:text-amber-400' },
-                                        { title: t.damagedAssets, count: '3', color: 'text-rose-600 dark:text-rose-400' }
+                                        { title: t('dashboard.totalAssets'), count: items.length + 1245, color: 'text-slate-900 dark:text-white' }, // Dynamiczny licznik oparty na stanie
+                                        { title: t('dashboard.borrowedAssets'), count: '142', color: 'text-blue-600 dark:text-blue-400' },
+                                        { title: t('dashboard.pendingApprovals'), count: '7', color: 'text-amber-600 dark:text-amber-400' },
+                                        { title: t('dashboard.damagedAssets'), count: '3', color: 'text-rose-600 dark:text-rose-400' }
                                     ].map((stat, idx) => (
                                         <div key={idx} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-sm">
                                             <div className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase">{stat.title}</div>
@@ -208,27 +145,26 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                                 <section className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm space-y-4">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                         <div className="relative flex-grow max-w-md">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                      </span>
-                                            <input type="text" placeholder={t.searchPlaceholder} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 transition text-slate-800 dark:text-slate-100" />
+                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                            </span>
+                                            <input type="text" placeholder={t('dashboard.searchPlaceholder')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 transition text-slate-800 dark:text-slate-100" />
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                                                <button className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>⬇</span><span>{t.exportXlsx}</span></button>
+                                                <button className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>⬇</span><span>{t('dashboard.exportXlsx')}</span></button>
                                             </RoleGuard>
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
-                                                {/* Podpięcie zdarzenia otwierającego modal formularza przedmiotów */}
-                                                <button onClick={() => setIsAddModalOpen(true)} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>+</span><span>{t.addAsset}</span></button>
+                                                <button onClick={() => setIsAddModalOpen(true)} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>+</span><span>{t('dashboard.addAsset')}</span></button>
                                             </RoleGuard>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap gap-4 pt-3 border-t border-slate-100 dark:border-slate-900 text-xs">
                                         <div className="flex items-center space-x-1.5">
-                                            <span className="text-slate-400 font-medium">{t.filterStatus}:</span>
+                                            <span className="text-slate-400 font-medium">{t('dashboard.filterStatus')}:</span>
                                             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs">
-                                                <option value="all">{t.all}</option>
+                                                <option value="all">{t('dashboard.all')}</option>
                                                 <option value="dostępny">dostępny</option>
                                                 <option value="wypożyczony">wypożyczony</option>
                                                 <option value="oczekuje akceptacji">oczekuje akceptacji</option>
@@ -237,9 +173,9 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                                             </select>
                                         </div>
                                         <div className="flex items-center space-x-1.5">
-                                            <span className="text-slate-400 font-medium">{t.filterCategory}:</span>
+                                            <span className="text-slate-400 font-medium">{t('dashboard.filterCategory')}:</span>
                                             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs">
-                                                <option value="all">{t.all}</option>
+                                                <option value="all">{t('dashboard.all')}</option>
                                                 <option value="Aparatura pomiarowa">Aparatura pomiarowa</option>
                                                 <option value="Oscyloskopy">Oscyloskopy</option>
                                                 <option value="Generatory funkcyjne">Generatory funkcyjne</option>
@@ -258,12 +194,12 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                                         <table className="w-full text-left border-collapse text-xs">
                                             <thead>
                                             <tr className="bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                                                <th className="py-2.5 px-4">{t.thId}</th>
-                                                <th className="py-2.5 px-4">{t.thName}</th>
-                                                <th className="py-2.5 px-4">{t.thCategory}</th>
-                                                <th className="py-2.5 px-4">{t.thLocation}</th>
-                                                <th className="py-2.5 px-4">{t.thStatus}</th>
-                                                <th className="py-2.5 px-4">{t.thOwner}</th>
+                                                <th className="py-2.5 px-4">{t('dashboard.thId')}</th>
+                                                <th className="py-2.5 px-4">{t('dashboard.thName')}</th>
+                                                <th className="py-2.5 px-4">{t('dashboard.thCategory')}</th>
+                                                <th className="py-2.5 px-4">{t('dashboard.thLocation')}</th>
+                                                <th className="py-2.5 px-4">{t('dashboard.thStatus')}</th>
+                                                <th className="py-2.5 px-4">{t('dashboard.thOwner')}</th>
                                             </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
@@ -297,7 +233,7 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                                                     </tr>
                                                 );
                                             }) : (
-                                                <tr><td colSpan="6" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">{t.noResults}</td></tr>
+                                                <tr><td colSpan="6" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">{t('dashboard.noResults')}</td></tr>
                                             )}
                                             </tbody>
                                         </table>
@@ -310,8 +246,8 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <div className="space-y-4 animate-fadeIn">
                                     <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-6">
-                                        <h2 className="text-base font-bold text-slate-900 dark:text-white">{t.userReqTitle}</h2>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t.userReqDesc}</p>
+                                        <h2 className="text-base font-bold text-slate-900 dark:text-white">{t('dashboard.userReqTitle')}</h2>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('dashboard.userReqDesc')}</p>
                                         <div className="mt-6 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
                                             <table className="w-full text-left border-collapse text-xs">
                                                 <thead>
@@ -332,8 +268,8 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{req.date}</td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400 italic">{req.reason}</td>
                                                         <td className="py-3 px-4 flex justify-end space-x-2">
-                                                            <button onClick={() => handleApproveUser(req.id)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-medium rounded transition">{t.approveBtn}</button>
-                                                            <button onClick={() => handleApproveUser(req.id)} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 font-medium rounded transition">{t.rejectBtn}</button>
+                                                            <button onClick={() => handleApproveUser(req.id)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-medium rounded transition">{t('dashboard.approveBtn')}</button>
+                                                            <button onClick={() => handleApproveUser(req.id)} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 font-medium rounded transition">{t('dashboard.rejectBtn')}</button>
                                                         </td>
                                                     </tr>
                                                 )) : (
@@ -349,7 +285,7 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
 
                         {activeTab === 'categories' && (
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
-                                <CategoryManager lang={lang} />
+                                <CategoryManager />
                             </RoleGuard>
                         )}
 
@@ -357,12 +293,10 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                 )}
             </main>
 
-            {/* Deklaracja okna modalnego dodawania przedmiotu w strukturze DOM */}
             <AddAssetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onSave={handleSaveAsset}
-                lang={lang}
             />
 
             <ItemDetailsModal
@@ -370,7 +304,6 @@ export default function DashboardPage({ user, onLogout, lang, setLang, isDarkMod
                 onClose={() => setIsDetailsModalOpen(false)}
                 item={selectedItem}
                 user={user}
-                lang={lang}
                 onUpdateStatus={handleUpdateItemStatus}
             />
         </div>

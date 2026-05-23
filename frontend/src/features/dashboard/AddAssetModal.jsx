@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
-export default function AddAssetModal({ isOpen, onClose, onSave, lang }) {
+export default function AddAssetModal({ isOpen, onClose, onSave }) {
+    const { t } = useTranslation();
 
     const categories = [
         { id: 'cat-1', name: 'Aparatura pomiarowa', parentId: null },
@@ -67,47 +69,6 @@ export default function AddAssetModal({ isOpen, onClose, onSave, lang }) {
 
     if (!isOpen) return null;
 
-    const t = {
-        PL: {
-            modalTitle: 'Dodaj Nowy Przedmiot do Systemu',
-            name: 'Nazwa przyrządu / obiektu',
-            producer: 'Producent',
-            model: 'Model',
-            serialNumber: 'Numer seryjny (S/N)',
-            description: 'Opis techniczny urządzenia',
-            purchaseDate: 'Data zakupu / dodania',
-            status: 'Status początkowy',
-            category: 'Kategoria (Struktura drzewiasta)',
-            locationTitle: 'Lokalizacja docelowa',
-            building: 'Budynek',
-            room: 'Pokój / Sala',
-            cabinet: 'Szafa / Półka (Opcjonalnie)',
-            owner: 'Opiekun / Właściciel',
-            cancel: 'Anuluj',
-            save: 'Dodaj przedmiot',
-            saving: 'Zapisywanie...'
-        },
-        EN: {
-            modalTitle: 'Add New Asset to System',
-            name: 'Asset / Device Name',
-            producer: 'Producer',
-            model: 'Model',
-            serialNumber: 'Serial Number (S/N)',
-            description: 'Technical Description',
-            purchaseDate: 'Date of Purchase / Entry',
-            status: 'Initial Status',
-            category: 'Category (Tree view)',
-            locationTitle: 'Target Location',
-            building: 'Building',
-            room: 'Room / Lab',
-            cabinet: 'Cabinet / Shelf (Optional)',
-            owner: 'Supervisor / Owner',
-            cancel: 'Cancel',
-            save: 'Add Asset',
-            saving: 'Saving...'
-        }
-    }[lang];
-
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!formData.name || !formData.producer || !formData.model || !formData.serialNumber || !formData.room) return;
@@ -142,42 +103,42 @@ export default function AddAssetModal({ isOpen, onClose, onSave, lang }) {
             <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/20">
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">{t.modalTitle}</h2>
+                    <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">{t('addAssetModal.modalTitle')}</h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">✕</button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-grow text-xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="sm:col-span-2">
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.name}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.name')}</label>
                             <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                         </div>
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.producer}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.producer')}</label>
                             <input type="text" required value={formData.producer} onChange={e => setFormData({...formData, producer: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                         </div>
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.model}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.model')}</label>
                             <input type="text" required value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                         </div>
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.serialNumber}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.serialNumber')}</label>
                             <input type="text" required value={formData.serialNumber} onChange={e => setFormData({...formData, serialNumber: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 font-mono" />
                         </div>
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.purchaseDate}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.purchaseDate')}</label>
                             <input type="date" required value={formData.purchaseDate} onChange={e => setFormData({...formData, purchaseDate: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.description}</label>
+                        <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.description')}</label>
                         <textarea rows="2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 resize-none" />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.status}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.status')}</label>
                             <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300">
                                 <option value="dostępny">dostępny</option>
                                 <option value="wypożyczony">wypożyczony</option>
@@ -187,7 +148,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, lang }) {
                             </select>
                         </div>
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.category}</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.category')}</label>
                             <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300">
                                 {indentedCats.map(cat => (
                                     <option key={cat.id} value={cat.name}>
@@ -199,10 +160,10 @@ export default function AddAssetModal({ isOpen, onClose, onSave, lang }) {
                     </div>
 
                     <div className="border-t border-slate-100 dark:border-slate-900 pt-3">
-                        <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase text-[10px] tracking-wide">{t.locationTitle}</h4>
+                        <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase text-[10px] tracking-wide">{t('addAssetModal.locationTitle')}</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.building}</label>
+                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.building')}</label>
                                 <select value={formData.building} onChange={e => setFormData({...formData, building: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300">
                                     <option value="D10">Budynek D10</option>
                                     <option value="D11">Budynek D11</option>
@@ -210,26 +171,25 @@ export default function AddAssetModal({ isOpen, onClose, onSave, lang }) {
                                 </select>
                             </div>
                             <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.room}</label>
+                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.room')}</label>
                                 <input type="text" required placeholder="np. 204" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                             </div>
                             <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.cabinet}</label>
+                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.cabinet')}</label>
                                 <input type="text" placeholder="np. A" value={formData.cabinet} onChange={e => setFormData({...formData, cabinet: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t.owner}</label>
+                        <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.owner')}</label>
                         <input type="text" required value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                     </div>
                     <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 flex justify-end space-x-2 text-xs">
-                        <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">{t.cancel}</button>
-                        <button type="button" onClick={handleSubmit} disabled={isSubmitting} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg transition disabled:opacity-50">{isSubmitting ? t.saving : t.save}</button>
+                        <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">{t('addAssetModal.cancel')}</button>
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg transition disabled:opacity-50">{isSubmitting ? t('addAssetModal.saving') : t('addAssetModal.save')}</button>
                     </div>
                 </form>
-
 
             </div>
         </div>
