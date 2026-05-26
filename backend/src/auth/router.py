@@ -1,9 +1,9 @@
 from fastapi import APIRouter, status
 
-from src.auth.constants import UserStatus
+from src.auth.constants import UserRole, UserStatus
 from src.schemas import ErrorResponse
 
-from .schemas import UserCreate, UserCreateResponse, UserLogin, UserLoginResponse
+from .schemas import User, UserCreate, UserCreateResponse, UserLogin, UserLoginResponse
 
 router = APIRouter(prefix="/auth")
 
@@ -47,4 +47,5 @@ def login(data: UserLogin) -> UserLoginResponse:
     return UserLoginResponse(
         access_token="JWT",
         refresh_token="REFRESH_TOKEN",
+        user=User(id="usr_1", role=UserRole.ACTIVE_USER)
     )

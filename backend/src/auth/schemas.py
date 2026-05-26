@@ -38,3 +38,4 @@ class UserLoginResponse(BaseModel):
     access_token: AccessToken
     token_type: str = "Bearer"
     refresh_token: RefreshToken
+    user: User
