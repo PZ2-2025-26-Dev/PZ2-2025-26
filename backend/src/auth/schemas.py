@@ -12,7 +12,6 @@ type AccessToken = Annotated[str, Field(min_length=1)]
 type RefreshToken = Annotated[str, Field(min_length=1)]
 
 
-
 class UserCreate(BaseModel):
     email: EmailStr
     password: Password

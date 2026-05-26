@@ -5,7 +5,6 @@ from src.schemas import ErrorResponse
 
 from .schemas import UserCreate, UserCreateResponse, UserLogin, UserLoginResponse
 
-
 router = APIRouter(prefix="/auth")
 
 
@@ -17,7 +16,7 @@ router = APIRouter(prefix="/auth")
     responses={
         status.HTTP_200_OK: {
             "model": UserCreateResponse,
-            "description": "Pomyślnie utworzono prośbę o rejestrację"
+            "description": "Pomyślnie utworzono prośbę o rejestrację",
         }
     },
 )
@@ -35,12 +34,12 @@ def register(data: UserCreate) -> UserCreateResponse:
     responses={
         status.HTTP_200_OK: {
             "model": UserLoginResponse,
-            "description": "Pomyślnie zalogowano."
+            "description": "Pomyślnie zalogowano.",
         },
         status.HTTP_401_UNAUTHORIZED: {
             "model": ErrorResponse,
-            "description": "Nieprawidłowy email lub hasło."
-        }
+            "description": "Nieprawidłowy email lub hasło.",
+        },
     },
 )
 def login(data: UserLogin) -> UserLoginResponse:
