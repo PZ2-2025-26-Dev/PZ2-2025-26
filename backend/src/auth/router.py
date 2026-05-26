@@ -11,10 +11,11 @@ router = APIRouter(prefix="/auth")
 @router.post(
     "/register",
     response_model=UserCreateResponse,
+    status_code=status.HTTP_201_CREATED,
     summary="Zarejestruj się",
     description="Rejestracja wymaga akceptacji administratora.",
     responses={
-        status.HTTP_200_OK: {
+        status.HTTP_201_CREATED: {
             "model": UserCreateResponse,
             "description": "Pomyślnie utworzono prośbę o rejestrację",
         }
