@@ -1,6 +1,6 @@
 # AGENTS.md - Wytyczne Projektowe i Standardy Deweloperskie
 
-Dokument ten definiuje stos technologiczny, architekturę, standardy kodowania oraz strukturę projektu dla zespołu deweloperskiego (oraz agentów AI) pracujących nad systemem API.
+Dokument definiuje stos technologiczny, architekturę, standardy kodowania oraz strukturę projektu dla zespołu deweloperskiego (oraz agentów AI) pracujących nad systemem API.
 
 ---
 
@@ -18,7 +18,6 @@ Dokument ten definiuje stos technologiczny, architekturę, standardy kodowania o
     * `pyjwt` (generowanie i walidacja tokenów JWT)
 * **Testowanie:**
     * `pytest` (testy jednostkowe wraz z `monkeypatch` lub `unittest.mock`)
-    * `behave` (testy funkcjonalne BDD w języku angielskim dla weryfikacji User Stories)
 
 ### Baza danych
 * **Silnik:** MySQL
@@ -54,7 +53,7 @@ FastAPI (Routery) -> Serwis (Logika biznesowa) -> CRUD (Opcjonalnie) -> Baza Dan
 ## 3. Standardy Kodowania i Typowania
 
 ### Nowoczesne Typowanie Pythona
-Zabrania się używania przestarzałych pakietów z modułu `typing` (np. `typing.List`, `typing.Optional`, `typing.Dict`).
+Zabrania się używania przestarzałych typów z modułu `typing` (np. `typing.List`, `typing.Optional`, `typing.Dict`).
 * Zamiast `Optional[T]` stosujemy `T | None`.
 * Zamiast `List[T]` stosujemy `list[T]`.
 * Zamiast `Dict[K, V]` stosujemy `dict[K, V]`.
@@ -181,7 +180,7 @@ src/
 │   ├── models.py          # Modele SQLAlchemy 2.0
 │   ├── service.py         # Logika biznesowa (hasła, tokeny)
 │   ├── dependencies.py    # Zależności routera (np. get_current_user)
-│   ├── config.py          # Konfiguracja specyficzna dla domeny (.env)
+│   ├── config.py          # Konfiguracja specyficzna dla domeny (Pydantic BaseSettings)
 │   ├── constants.py       # Stałe i kody błędów
 │   ├── exceptions.py      # Wyjątki domenowe
 │   └── utils.py           # Funkcje pomocnicze
@@ -189,7 +188,7 @@ src/
 │   ├── router.py
 │   ├── schemas.py
 │   └── ...
-├── config.py              # Globalna konfiguracja aplikacji (BaseSettings)
+├── config.py              # Globalna konfiguracja aplikacji (Pydantic BaseSettings)
 ├── models.py              # Wspólne klasy bazowe (np. Base dla ORM)
 ├── exceptions.py          # Globalne wyjątki i handlery
 ├── database.py            # Zarządzanie połączeniem z bazą (Engine, SessionLocal, get_db)
@@ -205,4 +204,3 @@ tests/
 ## 6. Organizacja Pracy i Testowanie
 
 * **Testy Jednostkowe (Unit Tests):** Każdy programista (lub agent) dopisuje testy jednostkowe (`pytest`) dla kluczowych elementów logiki biznesowej, które wprowadza w Merge Request (MR). Nie dążymy na siłę do 100% pokrycia kodu – liczy się jakość i testowanie warunków brzegowych. Mockowanie realizujemy poprzez `monkeypatch` lub `unittest.mock`.
-* **Testy Funkcjonalne (BDD):** Wykorzystujemy framework `behave`. Scenariusze testowe pisane są w 100% po angielsku (język naturalny). Pozwala to na bezpośrednią weryfikację kodu z wymaganiami biznesowymi (User Stories) oraz ułatwia współpracę z działem sprzedaży/produktu (Sales/Product Owners).
