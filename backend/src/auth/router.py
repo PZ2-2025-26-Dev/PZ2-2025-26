@@ -47,5 +47,5 @@ def login(data: UserLogin) -> UserLoginResponse:
     return UserLoginResponse(
         access_token="JWT",
         refresh_token="REFRESH_TOKEN",
-        user=User(id="usr_1", role=UserRole.ACTIVE_USER)
+        user=User(id="usr_1", role=UserRole.ACTIVE_USER),
     )
