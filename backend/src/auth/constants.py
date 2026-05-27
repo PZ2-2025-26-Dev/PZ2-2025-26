@@ -10,3 +10,8 @@ class UserRole(Enum):
     ADMIN = "admin"
     ACTIVE_USER = "active_user"
     OBSERVER = "observer"
+
+
+class AuthProvider(Enum):
+    LOCAL = "local"
+    GOOGLE = "google"
