@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -32,7 +33,7 @@ class ItemHistory(Base):
     updated_by: Mapped[int] = mapped_column(ForeignKey("user.id"))
 
     change_type: Mapped[ItemChangeLogType] = mapped_column(Enum(ItemChangeLogType))
-    
+
     description: Mapped[str | None] = mapped_column(String(512))
 
 
