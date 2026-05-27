@@ -6,7 +6,7 @@ from src.locations.constants import LocationType
 
 
 class Location(Base):
-    __tablename__ = "locations"
+    __tablename__ = "location"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
@@ -15,7 +15,7 @@ class Location(Base):
 
     # "RESTRICT" żeby nie usunąć przypadkowo rodzica
     # najpierw trzeba przenieść dzieci do innego rodzica, potem dopiero można usunąć
-    parent_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="RESTRICT"))
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("location.id", ondelete="RESTRICT"))
 
     # To pomaga w recursive CTE
     children: Mapped[list["Location"]] = relationship("Location", back_populates="parent")
