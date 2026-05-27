@@ -28,7 +28,7 @@ def read_users(
             email="nobody@example.com",
             first_name="John",
             last_name="Doe",
-            role=UserRole.ACTIVE_USER,
+            role=UserRole.USER,
             status=UserStatus.ACTIVE,
         )
     ]
