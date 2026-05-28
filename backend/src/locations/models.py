@@ -1,4 +1,4 @@
-from sqlalchemy import Enum, ForeignKey, String, Text
+from sqlalchemy import Boolean, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -16,6 +16,8 @@ class Location(Base):
     # "RESTRICT" żeby nie usunąć przypadkowo rodzica
     # najpierw trzeba przenieść dzieci do innego rodzica, potem dopiero można usunąć
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("location.id", ondelete="RESTRICT"))
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # To pomaga w recursive CTE
     children: Mapped[list["Location"]] = relationship("Location", back_populates="parent")
