@@ -6,7 +6,9 @@ from src.auth.schemas import UserID
 from src.items.constants import ItemStatus
 from src.items.schemas import (
     CategoryID,
+    Item,
     ItemCategory,
+    ItemCreateResponse,
     ItemDetails,
     ItemLocation,
     ItemOwner,
@@ -22,7 +24,7 @@ router = APIRouter(prefix="/items")
 @router.get(
     "",
     response_model=ItemsPaged,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     summary="Wylistuj przedmioty",
     responses={
         status.HTTP_200_OK: {
@@ -65,5 +67,56 @@ def read_items(
             page=page,
             limit=limit,
             total=1,
+        ),
+    )
+
+
+@router.post(
+    "",
+    response_model=ItemCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dodaj przedmiot do inwentaryzacji",
+    responses={
+        status.HTTP_201_CREATED: {
+            "model": ItemCreateResponse,
+            "description": "Pomyślnie dodano przedmiot",
+        }
+    },
+)
+def create_item(data: Item) -> ItemCreateResponse:
+    return ItemCreateResponse.model_validate({"id": 2, **data.model_dump()})
+
+
+@router.get(
+    "/{item_id}",
+    response_model=ItemDetails,
+    status_code=status.HTTP_200_OK,
+    summary="Wypisz szczegóły przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemDetails,
+            "description": "Pomyślnie zwrócono szczegóły przedmiotu",
+        }
+    },
+)
+def read_item(item_id: int):
+    return (
+        ItemDetails(
+            id=item_id,
+            name="Nokia 3310",
+            category=ItemCategory(
+                id=1,
+                name="Elektronika / Telefony",
+            ),
+            location=ItemLocation(
+                id=1,
+                path="D10 / 204",
+            ),
+            owner=ItemOwner(
+                id=1,
+                name="Batman",
+            ),
+            description=None,
+            legacy_id=None,
         ),
     )

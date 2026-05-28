@@ -25,6 +25,10 @@ class Item(BaseModel):
     legacy_id: int | None
 
 
+class ItemCreateResponse(Item):
+    id: ItemID
+
+
 class ItemCategory(BaseModel):
     id: CategoryID
     name: CategoryName
