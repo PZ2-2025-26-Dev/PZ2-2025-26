@@ -52,47 +52,65 @@ FastAPI (Routery) -> Serwis (Logika biznesowa) -> CRUD (Opcjonalnie) -> Baza Dan
 
 ## 3. Standardy Kodowania i Typowania
 
-### Nowoczesne Typowanie Pythona
+### 3.1 Nowoczesne Typowanie Pythona
 Zabrania się używania przestarzałych typów z modułu `typing` (np. `typing.List`, `typing.Optional`, `typing.Dict`).
 * Zamiast `Optional[T]` stosujemy `T | None`.
 * Zamiast `List[T]` stosujemy `list[T]`.
 * Zamiast `Dict[K, V]` stosujemy `dict[K, V]`.
 
-### SQLAlchemy 2.0 Style Guide
+### 3.2 SQLAlchemy 2.0 Style Guide
 Wszystkie modele i zapytania muszą bezwzględnie korzystać ze składni SQLAlchemy 2.0 (deklaratywne mapowanie imperatywne jest zakazane).
 
 * Używamy `Mapped[T]` oraz `mapped_column()`.
 * Relacje definiujemy przez `relationship()`.
 * Zapytania wykonujemy przez `session.execute(select(...))`, a proste pobieranie przez `session.get()`.
 
+### 3.3 Dokumentacja Endpointów (OpenAPI / Swagger)
+Każdy punkt wejścia (endpoint) musi być precyzyjnie opisany w dekoratorze routera. Pozwala to na automatyczne generowanie czytelnej dokumentacji dla zespołu frontendowego i zewnętrznych integracji.
+
+* **Wymagane parametry dekoratora:** `summary` (krótki, jasny opis po polsku), `status_code` (jawnie wskazany z modułu `status`) oraz `response_model`.
+* **Obsługa jawnych odpowiedzi (`responses`):** Każdy przewidywany kod odpowiedzi (zarówno sukcesy, jak i błędy typu 400, 401, 403, 404) musi być jawnie omapowany w słowniku `responses` wraz z przypisanym modelem Pydantic oraz biznesowym opisem (`description`).
+
+### 3.4. Wzorzec Annotated i Reużywalne Typy Danych
+W celu zachowania zasady DRY (Don't Repeat Yourself) oraz pełnej spójności typów, definicje walidacji Pydantic dla powtarzających się pól (np. nazwy, hasła, klucze) muszą być wynoszone do reużywalnych typów z wykorzystaniem słowa kluczowego `type` oraz `Annotated`.
+
+* Typy domenowe definujemy na górze pliku `schemas.py` lub w dedykowanym pliku.
+* Agenci i deweloperzy mają bezwzględny nakaz mapowania pól w nowych modelach z użyciem tych typów, zamiast pisania generycznych `str` czy `int`.
+
+### 3.5. Single Source of Truth dla Stałych (`constants.py`)
+Zabrania się wpisywania wartości liczbowych lub tekstowych "z palca" (hardkodowania) bezpośrednio w dekoratorach, modelach Pydantic czy modelach SQLAlchemy.
+
+* Wszystkie limity (np. maksymalna długość znaków, zakresy liczb) muszą być zdefiniowane jako stałe w pliku `constants.py` danej domeny.
+* Ta sama stała musi być użyta w definicji tabeli SQLAlchemy (`String(STAŁA)`) oraz w typie Pydantic (`Field(max_length=STAŁA)`).
+
 ---
 
 ## 4. Przykłady Implementacji
+Poniżej znajdują się przykłady implementacyjne, które uwzględniają reguły opisane wyżej.
+To nie jest rzeczywista implementacja w projekcie dla modeli `Item`, to tylko przykłady, które obrazują standardy programowania.
+
+### Stałe wartości (`constants.py`)
+```
+# constants.py
+ITEM_NAME_MAX_LENGTH = 100
+```
 
 ### Modele bazy danych i Schematy (`models.py` i `schemas.py`)
 
 ```python
 # models.py (SQLAlchemy 2.0)
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-
-class Base(DeclarativeBase):
-    pass
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True)
-    
-    borrowed_items: Mapped[list["Item"]] = relationship(back_populates="borrower")
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from src.database import Base
+from src.users.models import User
+from .constants import ITEM_NAME_MAX_LENGTH
 
 class Item(Base):
     __tablename__ = "items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255))
-    borrowed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(ITEM_NAME_MAX_LENGTH))
+    borrowed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
     borrower: Mapped[User | None] = relationship(back_populates="borrowed_items")
 
@@ -100,15 +118,20 @@ class Item(Base):
 
 ```python
 # schemas.py (Pydantic v2)
-from pydantic import BaseModel, ConfigDict
+from typing import Annotated
+from pydantic import BaseModel, ConfigDict, Field
+from .constants import ITEM_NAME_MAX_LENGTH
+
+type ItemID = int
+type ItemName = Annotated[str, Field(min_length=1, max_length=ITEM_NAME_MAX_LENGTH)]
+type ItemStatus = Annotated[str, Field(min_length=1)]
 
 class ItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    name: str
-    status: str
-
+    id: ItemID
+    name: ItemName
+    status: ItemStatus
 ```
 
 ### Warstwa Logiki Biznesowej (`service.py`)
@@ -143,19 +166,39 @@ class ItemService:
 
 ```python
 # router.py (FastAPI)
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from src.database import get_db
 from src.auth.dependencies import get_current_user
-from src.auth.models import User
-from .schemas import ItemResponse
+from src.users.models import User
+from src.schemas import ErrorResponse
+from .schemas import ItemID, ItemResponse
 from .service import ItemService
 
 router = APIRouter(prefix="/items", tags=["items"])
 
-@router.post("/{item_id}/borrow", response_model=ItemResponse)
+@router.post(
+    "/{item_id}/borrow",
+    response_model=ItemResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Wypożycz przedmiot",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemResponse,
+            "description": "Przedmiot został pomyślnie wypożyczony.",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Przedmiot jest już wypożyczony przez innego użytkownika.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu o podanym ID.",
+        },
+    },
+)
 def borrow_item(
-    item_id: int,
+    item_id: ItemID,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_db),
 ):
@@ -184,7 +227,7 @@ src/
 │   ├── constants.py       # Stałe i kody błędów
 │   ├── exceptions.py      # Wyjątki domenowe
 │   └── utils.py           # Funkcje pomocnicze
-├── items/                 # Domena przedmiotów (analogicznie jak wyżej)
+├── {domain}/              # Inna domena aplikacji (analogicznie jak wyżej)
 │   ├── router.py
 │   ├── schemas.py
 │   └── ...
@@ -195,7 +238,7 @@ src/
 └── main.py                # Inicjalizacja FastAPI, routerów /v1 i lifespan
 tests/
 └── auth/                  # Testy jednostkowe dla domeny auth
-└── items/                 # Testy jednostkowe dla domeny items
+└── {domain}/              # Testy jednostkowe dla ..., analogicznie dla każdej domeny z `src`
 
 ```
 
