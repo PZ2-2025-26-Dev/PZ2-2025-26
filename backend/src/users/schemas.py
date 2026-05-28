@@ -8,10 +8,18 @@ from src.auth.schemas import Name, UserID
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
 
 
-class UserDetail(BaseModel):
-    id: UserID
+class BaseUserDetails(BaseModel):
     email: EmailStr
     first_name: Name
     last_name: Name
     role: UserRole
     status: UserStatus
+
+
+class UserDetails(BaseUserDetails):
+    id: UserID
+
+
+class UsersPaged(BaseModel):
+    users: list[UserDetails]
+    total_count: int
