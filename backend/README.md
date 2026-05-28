@@ -24,7 +24,7 @@ Zanim uruchomisz kontenery, musisz ustawić zmienne środowiskowe opisane w plik
 Zamiast manualnie ustawiać te zmienne możesz po prostu skopiować przykładowe środowisko: `cp example.env .env`.
 Docker automatycznie je zaczyta.
 
-Uruchomianie API + DB:
+Uruchomienie API + DB:
 ```sh
 docker compose up --build
 ```
