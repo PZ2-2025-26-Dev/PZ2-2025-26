@@ -1,8 +1,33 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+# WORKAROUND:
+# W trakcie projektu przerzucimy się na alembic
+# póki co musimy importować modele SQLALchemy explicite.
+# Inaczej nie są podlinkowane do toplevel Base
+# i nie są automatycznie tworzone
+from src.auth import models as auth_models  # noqa: F401
 from src.auth.router import router as auth_router
+from src.categories import models as categories_models  # noqa: F401
+from src.database import Base, engine
+from src.guests import models as guests_models  # noqa: F401
+from src.items import models as items_models  # noqa: F401
+from src.items.router import router as items_router
+from src.loans import models as loans_models  # noqa: F401
+from src.locations import models as locations_models  # noqa: F401
+from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+
+    yield
+
+
+app = FastAPI(version="0.1.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(items_router)
