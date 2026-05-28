@@ -1,7 +1,3 @@
-# 3.14-slim
-#FROM python@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97
-
-#COPY --from=ghcr.io/astral-sh/uv:0.11.16-alpine /uv /uvx /bin/
 FROM ghcr.io/astral-sh/uv:0.11.16-python3.14-alpine
 
 WORKDIR /app
@@ -10,8 +6,9 @@ WORKDIR /app
 ENV UV_NO_DEV=1
 
 # ---
-# Changing the UV_LINK_MODE silences warnings about
-# not being able to link files since the cache and sync target are on separate file systems.
+# 'Changing the UV_LINK_MODE silences warnings about
+# not being able to link files since the cache and sync target are on separate file systems.'
+# https://docs.astral.sh/uv/guides/integration/docker/#caching
 # ---
 ENV UV_LINK_MODE=copy
 
