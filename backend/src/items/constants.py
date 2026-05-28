@@ -1,5 +1,8 @@
 from enum import Enum
 
+ITEM_NAME_LENGTH = 128
+ITEM_DESC_LENGTH = 256
+
 
 class ItemStatus(Enum):
     AVAILABLE = "available"
