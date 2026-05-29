@@ -1,0 +1,212 @@
+--- 
+
+config: 
+
+  layout: elk 
+
+--- 
+
+erDiagram 
+
+    User { 
+
+        int id PK 
+
+        string(100) first_name 
+
+        string(100) last_name "Nullable"
+
+        string(512) email "Unique"
+
+        ENUM role "ADMIN,</br>USER,</br>OBSERVER"
+
+        ENUM status "ACTIVE,</br>PENDING_APPROVAL,</br>DEACTIVATED"
+
+    } 
+
+    UserAccount {
+
+        int id PK
+
+        int user_id FK
+
+        string pwd_hash "Nullable"
+
+        ENUM provider "LOCAL,</br>GOOGLE"
+
+        string(512) provider_user_id "Nullable"
+
+    }
+
+    Category {
+
+        int id PK
+
+        string(100) name
+
+        int parent_id FK "Nullable"
+
+    }
+
+    Guest {
+
+        int id PK
+
+        string(100) first_name
+
+        string(100) last_name "Nullable"
+
+        string(512) email "Nullable"
+
+        int registered_by FK
+
+        string description "Nullable"
+
+    }
+
+    Item {
+
+        int id PK
+
+        string(128) name
+
+        int location_id FK
+
+        int category_id FK
+
+        int owner_id FK
+
+        ENUM status "AVAILABLE,</br>PENDING_APPROVAL,</br>RESERVED,</br>LOANED,</br>BROKEN"
+
+        string(256) description "Nullable"
+
+    }
+
+
+    ItemHistory {
+
+        int id PK
+
+        int item_id FK
+
+        datetime updated_at
+
+        int updated_by FK
+
+        ENUM change_type "CREATED,</br>LOANED,</br>OWNER_CHANGED,</br>LOCATION_CHANGED,</br>CATEGORY_CHANGED"
+
+        string(512) description "Nullable"
+    }
+
+    ItemACL {
+
+        int id PK
+
+        int item_id FK
+
+        int user_id FK
+
+        ENUM permission "AUTO_APPROVED_LOAN,</br>EDIT_LOCATION"
+
+    }
+
+    Location {
+
+        int id PK
+
+        int parent_id FK "Nullable"
+
+        string(100) name
+
+        ENUM type "BUILDING,</br>ROOM,</br>CABINET,</br>SHELF"
+
+        string description "Nullable"
+
+        bool active
+
+    }
+
+    Loan {
+
+        int id PK
+
+        int item_id FK
+
+        int user_id FK "Nullable"
+
+        int guest_id FK "Nullable"
+
+        datetime created_at
+
+        datetime declared_return_date
+
+        string loan_purpose
+
+        datetime borrowed_at "Nullable"
+
+        datetime returned_at "Nullable"
+
+        ENUM status "PENDING,</br>APPROVED,</br>DENIED,</br>LOANED,</br>RETURNED"
+
+        int decision_by FK "Nullable"
+
+        datetime decision_at "Nullable"
+
+        string decision_comment "Nullable"
+    }
+
+
+    LegacyIdentifier { 
+
+        int id PK 
+
+        int item_id FK 
+
+        string legacy_id 
+
+    } 
+
+    ItemImage { 
+
+        int id PK 
+
+        int item_id FK 
+
+        string filepath 
+
+        string mime_type 
+
+        datetime uploaded_at 
+
+        int uploaded_by FK 
+
+    } 
+
+
+    Item ||--o{ ItemHistory : emits
+
+    Category }o--o| Category : subcategory_of 
+
+    LegacyIdentifier }o--|| Item : has 
+
+    ItemImage }o--|| Item : has
+
+    Location }o--o| Location : part_of 
+
+
+    classDef iam stroke:cyan,fill:mintcream 
+
+    classDef inventory stroke:purple,fill:lavender 
+
+    classDef space stroke:orange,fill:floralwhite 
+
+    classDef operations stroke:green,fill:honeydew 
+
+ 
+    class User,UserAccount,Guest,ItemACL iam 
+
+    class Item,ItemHistory,ItemImage,Category,LegacyIdentifier,inventory 
+
+    class Location space 
+
+    class Loan operations
