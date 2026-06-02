@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# isort
-uv run ruff check --select I --fix src || exit $?
+. "$(dirname $0)/lib.sh"
 
-uv run ruff format src || exit $?
+# isort
+uv run ruff check --select I --fix ${PZ_RUFF_TARGETS?} || exit $?
+
+uv run ruff format ${PZ_RUFF_TARGETS?} || exit $?
