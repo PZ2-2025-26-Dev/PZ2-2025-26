@@ -70,6 +70,8 @@ erDiagram
 
         string(128) name
 
+        UUID inventory_number "Unique, Indexed"
+
         int location_id FK
 
         int category_id FK
@@ -185,13 +187,39 @@ erDiagram
 
     Item ||--o{ ItemHistory : emits
 
+    Item }o--|| Category : belongs_to_category
+
+    Item }o--|| Location : located_in
+
+    Item }o--|| User : owned_by
+
+    ItemHistory }o--|| User : updated_by
+
+    ItemACL }o--|| Item : controls_access
+
+    ItemACL }o--|| User : grants_to
+
+    Loan }o--|| Item : borrows
+
+    Loan }o--|| User : borrowed_by
+
+    Loan }o--|| Guest : borrowed_by_guest
+
+    Loan }o--|| User : decision_maker
+
     Category }o--o| Category : subcategory_of 
 
-    LegacyIdentifier }o--|| Item : has 
+    LegacyIdentifier }o--|| Item : identifies 
 
-    ItemImage }o--|| Item : has
+    ItemImage }o--|| Item : attached_to
 
-    Location }o--o| Location : part_of 
+    ItemImage }o--|| User : uploaded_by
+
+    Location }o--o| Location : part_of
+
+    Guest }o--|| User : registered_by
+
+    UserAccount }o--|| User : belongs_to_user 
 
 
     classDef iam stroke:cyan,fill:mintcream 

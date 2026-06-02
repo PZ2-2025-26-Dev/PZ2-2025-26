@@ -1,14 +1,21 @@
+from datetime import datetime
 from typing import Annotated
+from uuid import uuid7
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.auth.schemas import UserID
-from src.items.constants import ItemStatus
+from src.categories.models import Category
+from src.database import get_db
+from src.items.constants import ItemChangeLogType, ItemStatus
+from src.items.models import Item, ItemHistory
 from src.items.schemas import (
     CategoryID,
-    Item,
-    ItemCategory,
+    ItemCreate,
     ItemCreateResponse,
+    ItemCategory,
     ItemDetails,
     ItemLocation,
     ItemOwner,
@@ -17,6 +24,8 @@ from src.items.schemas import (
     LocationID,
     SearchStr,
 )
+from src.locations.models import Location
+from src.users.models import User
 
 router = APIRouter(prefix="/items")
 
@@ -80,11 +89,83 @@ def read_items(
         status.HTTP_201_CREATED: {
             "model": ItemCreateResponse,
             "description": "Pomyślnie dodano przedmiot",
-        }
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "Błędne dane lub nieistniejące powiązania",
+        },
     },
 )
-def create_item(data: Item) -> ItemCreateResponse:
-    return ItemCreateResponse.model_validate({"id": 2, **data.model_dump()})
+def create_item(
+    data: ItemCreate,
+    db: Session = Depends(get_db),
+) -> ItemCreateResponse:
+    # Verify that category exists
+    category = db.execute(
+        select(Category).where(Category.id == data.category_id)
+    ).scalar_one_or_none()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Kategoria o ID {data.category_id} nie istnieje",
+        )
+
+    # Verify that location exists
+    location = db.execute(
+        select(Location).where(Location.id == data.location_id)
+    ).scalar_one_or_none()
+    if not location:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Lokacja o ID {data.location_id} nie istnieje",
+        )
+
+    # Verify that owner (user) exists
+    owner = db.execute(
+        select(User).where(User.id == data.owner_id)
+    ).scalar_one_or_none()
+    if not owner:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Użytkownik o ID {data.owner_id} nie istnieje",
+        )
+
+    # Generate inventory number (UUIDv7)
+    inventory_number = uuid7()
+
+    # Create new item with default AVAILABLE status
+    new_item = Item(
+        name=data.name,
+        inventory_number=inventory_number,
+        category_id=data.category_id,
+        location_id=data.location_id,
+        owner_id=data.owner_id,
+        status=ItemStatus.AVAILABLE,
+        description=data.description,
+    )
+
+    db.add(new_item)
+    db.flush()  # Get the item ID without committing
+
+    # Create history record in the same transaction
+    item_history = ItemHistory(
+        item_id=new_item.id,
+        updated_at=datetime.now(),
+        updated_by=data.owner_id,
+        change_type=ItemChangeLogType.CREATED,
+        description="Item created",
+    )
+
+    db.add(item_history)
+    db.commit()
+    db.refresh(new_item)
+
+    return ItemCreateResponse(
+        id=new_item.id,
+        name=new_item.name,
+        inventory_number=new_item.inventory_number,
+        status=new_item.status,
+        description=new_item.description,
+    )
 
 
 @router.get(
