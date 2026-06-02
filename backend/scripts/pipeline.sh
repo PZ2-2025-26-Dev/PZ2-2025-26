@@ -1,3 +1,5 @@
+#!/bin/sh
+
 SCRIPTS_DIR=$(dirname $0)
 
 run() {
