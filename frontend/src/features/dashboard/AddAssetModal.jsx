@@ -266,32 +266,32 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
                 <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex justify-between items-center">
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">{t('addAssetModal.addNewCategory') || 'Dodaj nową kategorię'}</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">{t('addAssetModal.addNewCategory')}</h3>
                         <button onClick={() => setIsAddingCategory(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">✕</button>
                     </div>
 
                     <form onSubmit={(e) => { e.preventDefault(); handleAddCategory(); }} className="p-6 space-y-4">
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-xs">Nazwa kategorii *</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-xs">{t('addAssetModal.categoryName')}</label>
                             <input 
                                 type="text" 
                                 required 
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
-                                placeholder="np. Zasilacze"
+                                placeholder={t('addAssetModal.categoryPlaceholder')}
                                 autoFocus
                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 text-xs"
                             />
                         </div>
 
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-xs">Kategoria rodzicielska (opcjonalnie)</label>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-xs">{t('addAssetModal.categoryParentLabel')}</label>
                             <select 
                                 value={newCategoryParentId}
                                 onChange={(e) => setNewCategoryParentId(e.target.value)}
                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 text-xs"
                             >
-                                <option value="">Bez rodzica (kategoria główna)</option>
+                                <option value="">{t('addAssetModal.noParent')}</option>
                                 {categoriesLocal.filter(c => !c.parentId).map(cat => (
                                     <option key={cat.id} value={cat.id}>
                                         {cat.name}
@@ -306,13 +306,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                                 onClick={() => setIsAddingCategory(false)}
                                 className="flex-1 px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition text-xs"
                             >
-                                Anuluj
+                                {t('addAssetModal.cancelCategory')}
                             </button>
                             <button
                                 type="submit"
                                 className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg transition text-xs"
                             >
-                                Dodaj
+                                {t('addAssetModal.saveCategory')}
                             </button>
                         </div>
                     </form>
