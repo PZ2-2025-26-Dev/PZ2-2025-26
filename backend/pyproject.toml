@@ -17,14 +17,22 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black>=26.5.1",
-    "isort>=8.0.1",
     "pytest>=9.0.3",
     "ruff>=0.15.13",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
+indent-width = 4
+target-version = "py314"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    "UP",  # pyupgrade
+    "B",  # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "I",  # isort
+    "FAST",  # FastAPI
+]
