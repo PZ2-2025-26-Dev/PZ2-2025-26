@@ -161,10 +161,8 @@ def create_item(
 
     return ItemCreateResponse(
         id=new_item.id,
-        name=new_item.name,
         inventory_number=new_item.inventory_number,
         status=new_item.status,
-        description=new_item.description,
     )
 
 
