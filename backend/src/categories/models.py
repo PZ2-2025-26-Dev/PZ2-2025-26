@@ -18,7 +18,7 @@ class Category(Base):
     )
 
     # To pomaga w recursive CTE
-    children: Mapped[list["Category"]] = relationship("Category", back_populates="parent")
-    parent: Mapped["Category | None"] = relationship("Category", back_populates="children", remote_side=[id])
+    children: Mapped[list[Category]] = relationship("Category", back_populates="parent")
+    parent: Mapped[Category | None] = relationship("Category", back_populates="children", remote_side=[id])
 
     __table_args__ = (UniqueConstraint("parent_id", "name", name="uq_category_parent_name"),)
