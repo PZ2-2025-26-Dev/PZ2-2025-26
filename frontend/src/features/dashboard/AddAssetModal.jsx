@@ -1,24 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useInventory } from '../inventory/useInventory';
 
 export default function AddAssetModal({ isOpen, onClose, onSave }) {
     const { t } = useTranslation();
+    const { createItem, isLoading, error, clearError } = useInventory();
+     // Mocki danych z backendu - w przyszłości zastąpić rzeczywistymi API callami
 
     const categories = [
-        { id: 'cat-1', name: 'Aparatura pomiarowa', parentId: null },
-        { id: 'cat-2', name: 'Oscyloskopy', parentId: 'cat-1' },
-        { id: 'cat-3', name: 'Generatory funkcyjne', parentId: 'cat-1' },
-        { id: 'cat-4', name: 'Aparatura zasilająca', parentId: null },
-        { id: 'cat-5', name: 'Zasilacze laboratoryjne', parentId: 'cat-4' },
-        { id: 'cat-6', name: 'Sprzęt IT', parentId: null },
-        { id: 'cat-7', name: 'Laptopy', parentId: 'cat-6' },
-        { id: 'cat-8', name: 'Akcesoria i optyka', parentId: null },
+        { id: 1, name: 'Aparatura pomiarowa', parentId: null },
+        { id: 2, name: 'Oscyloskopy', parentId: 1 },
+        { id: 3, name: 'Generatory funkcyjne', parentId: 1 },
+        { id: 4, name: 'Aparatura zasilająca', parentId: null },
+        { id: 5, name: 'Zasilacze laboratoryjne', parentId: 4 },
+        { id: 6, name: 'Sprzęt IT', parentId: null },
+        { id: 7, name: 'Laptopy', parentId: 6 },
+        { id: 8, name: 'Akcesoria i optyka', parentId: null },
     ];
+
+    const users = [
+        { id: 1, name: 'Adam Nowak' },
+        { id: 2, name: 'dr inż. Jan Kowalski' },
+        { id: 3, name: 'prof. dr hab. Andrzej Nowak' },
+        { id: 4, name: 'Jakub Wiśniewski' },
+        { id: 5, name: 'Anna Malik' },
+        { id: 6, name: 'Kubuś Puchatek' },
+    ];
+
+    const locations = [
+        { id: 1, name: 'D10', path: 'Budynek D10' },
+        { id: 2, name: 'D11', path: 'Budynek D11' },
+        { id: 3, name: 'C3', path: 'Budynek C3' },
+    ];
+
+    const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        categoryId: categories.length > 0 ? categories[0].id : '',
+        locationId: locations.length > 0 ? locations[0].id : '',
+        ownerId: users.length > 0 ? users[0].id : '',
+    });
+
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [newCategoryParentId, setNewCategoryParentId] = useState('');
+    const [categoriesLocal, setCategoriesLocal] = useState(categories);
+
 
     const indentCategories = () => {
         const result = [];
         const recurse = (parentId, depth = 0) => {
-            categories
+            categoriesLocal
                 .filter(c => c.parentId === parentId)
                 .forEach(c => {
                     result.push({ ...c, depth });
@@ -31,128 +63,162 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
     const indentedCats = indentCategories();
 
-    const [formData, setFormData] = useState({
-        name: '',
-        producer: '',
-        model: '',
-        serialNumber: '',
-        description: '',
-        purchaseDate: new Date().toISOString().split('T')[0],
-        status: 'dostępny',
-        category: 'Aparatura pomiarowa',
-        building: 'D10',
-        room: '',
-        cabinet: '',
-        owner: 'Adam Nowak'
-    });
-
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setFormData({
                 name: '',
-                producer: '',
-                model: '',
-                serialNumber: '',
                 description: '',
-                purchaseDate: new Date().toISOString().split('T')[0],
-                status: 'dostępny',
-                category: 'Aparatura pomiarowa',
-                building: 'D10',
-                room: '',
-                cabinet: '',
-                owner: 'Kubuś Puchatek'
+                categoryId: categoriesLocal.length > 0 ? categoriesLocal[0].id : '',
+                locationId: locations.length > 0 ? locations[0].id : '',
+                ownerId: users.length > 0 ? users[0].id : '',
             });
+            clearError();
         }
-    }, [isOpen]);
+    }, [isOpen, categoriesLocal, locations, users, clearError]);
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e) => {
+        const handleAddCategory = () => {
+        if (!newCategoryName.trim()) return;
+
+        const newCategory = {
+            id: Math.max(...categoriesLocal.map(c => c.id || 0), 0) + 1,
+            name: newCategoryName.trim(),
+            parentId: newCategoryParentId ? parseInt(newCategoryParentId) : null
+        };
+
+        setCategoriesLocal([...categoriesLocal, newCategory]);
+        setFormData({ ...formData, categoryId: newCategory.id });
+        setNewCategoryName('');
+        setNewCategoryParentId('');
+        setIsAddingCategory(false);
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.name || !formData.producer || !formData.model || !formData.serialNumber || !formData.room) return;
-
-        setIsSubmitting(true);
-
-        setTimeout(() => {
-            const fullLocation = `Budynek ${formData.building} / Pokój ${formData.room}${formData.cabinet ? ` / Szafa ${formData.cabinet}` : ''}`;
-
+                if (!formData.name.trim() || !formData.categoryId || !formData.locationId || !formData.ownerId) {
+            return;
+        }
+                const result = await createItem({
+            name: formData.name,
+            categoryId: parseInt(formData.categoryId),
+            locationId: parseInt(formData.locationId),
+            ownerId: parseInt(formData.ownerId),
+            description: formData.description || null,
+        });
+        const result = await createItem({
+            name: formData.name,
+            categoryId: parseInt(formData.categoryId),
+            locationId: parseInt(formData.locationId),
+            ownerId: parseInt(formData.ownerId),
+            description: formData.description || null,
+        });
+            if (result.success && result.statusCode === 201) {
+            // Backend zwraca: { id, inventory_number, status }
+            // Frontend bierze name i description z formularza
+            const categoryName = categoriesLocal.find(c => c.id === parseInt(formData.categoryId))?.name || 'Unknown';
+            const locationPath = locations.find(l => l.id === parseInt(formData.locationId))?.path || 'Unknown';
+            const ownerName = users.find(u => u.id === parseInt(formData.ownerId))?.name || 'Unknown';
             const newAsset = {
-                id: `AGH-WFIIS-${Math.floor(1000 + Math.random() * 9000)}`,
+                id: result.data.id,
+                inventory_number: result.data.inventory_number,
+                status: result.data.status,
                 name: formData.name,
-                producer: formData.producer,
-                model: formData.model,
-                serialNumber: formData.serialNumber,
-                status: formData.status,
-                category: formData.category,
-                location: fullLocation,
-                owner: formData.owner,
+                category: categoryName,
+                location: locationPath,
+                owner: ownerName,
                 description: formData.description,
-                purchaseDate: formData.purchaseDate
             };
 
             onSave(newAsset);
-            setIsSubmitting(false);
             onClose();
-        }, 400);
+        }
     };
 
     return (
+        <>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
 
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/20">
                     <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">{t('addAssetModal.modalTitle')}</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">✕</button>
+                    <button onClick={onClose} disabled={isLoading} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm disabled:opacity-50">
+                        ✕
+                    </button>
                 </div>
+                {error && (
+                    <div className="px-6 py-3 bg-rose-50 dark:bg-rose-950/30 border-b border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs flex justify-between items-start">
+                        <div>{error}</div>
+                        <button onClick={clearError} className="text-rose-500 hover:text-rose-700">✕</button>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-grow text-xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="sm:col-span-2">
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.name')}</label>
-                            <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.producer')}</label>
-                            <input type="text" required value={formData.producer} onChange={e => setFormData({...formData, producer: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.model')}</label>
-                            <input type="text" required value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.serialNumber')}</label>
-                            <input type="text" required value={formData.serialNumber} onChange={e => setFormData({...formData, serialNumber: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 font-mono" />
-                        </div>
-                        <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.purchaseDate')}</label>
-                            <input type="date" required value={formData.purchaseDate} onChange={e => setFormData({...formData, purchaseDate: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.name')} *</label>
+                            <input 
+                                type="text" 
+                                required 
+                                value={formData.name} 
+                                onChange={e => setFormData({...formData, name: e.target.value})} 
+                                disabled={isLoading}
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed" 
+                            />
                         </div>
                     </div>
 
                     <div>
                         <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.description')}</label>
-                        <textarea rows="2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 resize-none" />
+                          <textarea 
+                            rows="2" 
+                            value={formData.description} 
+                            onChange={e => setFormData({...formData, description: e.target.value})} 
+                            disabled={isLoading}
+                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 resize-none disabled:opacity-50 disabled:cursor-not-allowed" 
+                        />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.status')}</label>
-                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300">
-                                <option value="dostępny">dostępny</option>
-                                <option value="wypożyczony">wypożyczony</option>
-                                <option value="oczekuje akceptacji">oczekuje akceptacji</option>
-                                <option value="uszkodzony">uszkodzony</option>
-                                <option value="zarezerwowany">zarezerwowany</option>
-                            </select>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.category')} *</label>
+                            <div className="flex gap-2">
+                                <select 
+                                    value={formData.categoryId} 
+                                    onChange={e => setFormData({...formData, categoryId: e.target.value})} 
+                                    disabled={isLoading}
+                                    className="flex-grow px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {indentedCats.map(cat => (
+                                        <option key={cat.id} value={cat.id}>
+                                            {'\u00A0'.repeat(cat.depth * 3)}{cat.name}
+                                        </option>
+                                    ))}
+                                    <option value="__add_new__" disabled>+ {t('addAssetModal.addNewCategory') || 'Dodaj nową kategorię'}</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddingCategory(true)}
+                                    disabled={isLoading}
+                                    className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 text-sm font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    +
+                                </button>
+                            </div>
                         </div>
+
                         <div>
-                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.category')}</label>
-                            <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300">
-                                {indentedCats.map(cat => (
-                                    <option key={cat.id} value={cat.name}>
-                                        {'\u00A0'.repeat(cat.depth * 3)}{cat.name}
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.owner')} *</label>
+                            <select 
+                                value={formData.ownerId} 
+                                onChange={e => setFormData({...formData, ownerId: e.target.value})} 
+                                disabled={isLoading}
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {users.map(user => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.name}
                                     </option>
                                 ))}
                             </select>
@@ -161,37 +227,106 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
                     <div className="border-t border-slate-100 dark:border-slate-900 pt-3">
                         <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase text-[10px] tracking-wide">{t('addAssetModal.locationTitle')}</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                             <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.building')}</label>
-                                <select value={formData.building} onChange={e => setFormData({...formData, building: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300">
-                                    <option value="D10">Budynek D10</option>
-                                    <option value="D11">Budynek D11</option>
-                                    <option value="C3">Budynek C3</option>
+                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.building')} *</label>
+                                <select 
+                                    value={formData.locationId} 
+                                    onChange={e => setFormData({...formData, locationId: e.target.value})} 
+                                    disabled={isLoading}
+                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {locations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>
+                                            {loc.path}
+                                        </option>
+                                    ))}
                                 </select>
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.room')}</label>
-                                <input type="text" required placeholder="np. 204" value={formData.room} onChange={e => setFormData({...formData, room: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
-                            </div>
-                            <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.cabinet')}</label>
-                                <input type="text" placeholder="np. A" value={formData.cabinet} onChange={e => setFormData({...formData, cabinet: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
                             </div>
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.owner')}</label>
-                        <input type="text" required value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100" />
-                    </div>
-                    <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 flex justify-end space-x-2 text-xs">
-                        <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition">{t('addAssetModal.cancel')}</button>
-                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg transition disabled:opacity-50">{isSubmitting ? t('addAssetModal.saving') : t('addAssetModal.save')}</button>
-                    </div>
+            
                 </form>
+                <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 flex justify-end space-x-2 text-xs">
+                    <button 
+                        type="button" 
+                        onClick={onClose} 
+                        disabled={isLoading} 
+                        className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {t('addAssetModal.cancel')}
+                    </button>
+                    <button 
+                        type="submit" 
+                        onClick={handleSubmit}
+                        disabled={isLoading} 
+                        className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? t('addAssetModal.saving') : t('addAssetModal.save')}
+                    </button>
+                </div>
 
             </div>
         </div>
+
+        {isAddingCategory && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-900 flex justify-between items-center">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">{t('addAssetModal.addNewCategory')}</h3>
+                        <button onClick={() => setIsAddingCategory(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">✕</button>
+                    </div>
+
+                    <form onSubmit={(e) => { e.preventDefault(); handleAddCategory(); }} className="p-6 space-y-4">
+                        <div>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-xs">{t('addAssetModal.categoryName')}</label>
+                            <input 
+                                type="text" 
+                                required 
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder={t('addAssetModal.categoryPlaceholder')}
+                                autoFocus
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 text-xs"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-xs">{t('addAssetModal.categoryParentLabel')}</label>
+                            <select 
+                                value={newCategoryParentId}
+                                onChange={(e) => setNewCategoryParentId(e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 text-xs"
+                            >
+                                <option value="">{t('addAssetModal.noParent')}</option>
+                                {categoriesLocal.filter(c => !c.parentId).map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                        {cat.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-900">
+                            <button
+                                type="button"
+                                onClick={() => setIsAddingCategory(false)}
+                                className="flex-1 px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition text-xs"
+                            >
+                                {t('addAssetModal.cancelCategory')}
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold rounded-lg transition text-xs"
+                            >
+                                {t('addAssetModal.saveCategory')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
