@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import uuid7
 
+from backend.src.utils import now
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -97,37 +98,8 @@ def read_items(
 )
 def create_item(
     data: ItemCreate,
-    db: Session = Depends(get_db),
+    db: DBDep = Depends(get_db),
 ) -> ItemCreateResponse:
-    # Verify that category exists
-    category = db.execute(
-        select(Category).where(Category.id == data.category_id)
-    ).scalar_one_or_none()
-    if not category:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Kategoria o ID {data.category_id} nie istnieje",
-        )
-
-    # Verify that location exists
-    location = db.execute(
-        select(Location).where(Location.id == data.location_id)
-    ).scalar_one_or_none()
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Lokacja o ID {data.location_id} nie istnieje",
-        )
-
-    # Verify that owner (user) exists
-    owner = db.execute(
-        select(User).where(User.id == data.owner_id)
-    ).scalar_one_or_none()
-    if not owner:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Użytkownik o ID {data.owner_id} nie istnieje",
-        )
 
     # Generate inventory number (UUIDv7)
     inventory_number = uuid7()
@@ -149,7 +121,7 @@ def create_item(
     # Create history record in the same transaction
     item_history = ItemHistory(
         item_id=new_item.id,
-        updated_at=datetime.now(),
+        updated_at=now(),
         updated_by=data.owner_id,
         change_type=ItemChangeLogType.CREATED,
         description="Item created",
@@ -161,6 +133,8 @@ def create_item(
 
     return ItemCreateResponse(
         id=new_item.id,
+        name = new_item.name,
+        description=new_item.description,
         inventory_number=new_item.inventory_number,
         status=new_item.status,
     )
