@@ -28,6 +28,7 @@ from src.items.schemas import (
 )
 from src.locations.models import Location
 from src.users.models import User
+from src.items.service import ItemService
 
 router = APIRouter(prefix="/items")
 
@@ -103,74 +104,16 @@ def create_item(
 ) -> ItemCreateResponse:
 
     # Generate inventory number (UUIDv7)
-    inventory_number = uuid7()
+        service = ItemService(db)
+        try:
+            new_item = service.add_item(data)
+        except ValueError as err:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
-    # Create new item with default AVAILABLE status
-    new_item = Item(
-        name=data.name,
-        inventory_number=inventory_number,
-        category_id=data.category_id,
-        location_id=data.location_id,
-        owner_id=data.owner_id,
-        status=ItemStatus.AVAILABLE,
-        description=data.description,
-    )
-
-    db.add(new_item)
-    db.flush()  # Get the item ID without committing
-
-    # Create history record in the same transaction
-    item_history = ItemHistory(
-        item_id=new_item.id,
-        updated_at=now(),
-        updated_by=data.owner_id,
-        change_type=ItemChangeLogType.CREATED,
-        description="Item created",
-    )
-
-    db.add(item_history)
-    db.commit()
-    db.refresh(new_item)
-
-    return ItemCreateResponse(
-        id=new_item.id,
-        name = new_item.name,
-        description=new_item.description,
-        inventory_number=new_item.inventory_number,
-        status=new_item.status,
-    )
-
-
-@router.get(
-    "/{item_id}",
-    response_model=ItemDetails,
-    status_code=status.HTTP_200_OK,
-    summary="Wypisz szczegóły przedmiotu",
-    responses={
-        status.HTTP_200_OK: {
-            "model": ItemDetails,
-            "description": "Pomyślnie zwrócono szczegóły przedmiotu",
-        }
-    },
-)
-def read_item(item_id: int):
-    return (
-        ItemDetails(
-            id=item_id,
-            name="Nokia 3310",
-            category=ItemCategory(
-                id=1,
-                name="Elektronika / Telefony",
-            ),
-            location=ItemLocation(
-                id=1,
-                path="D10 / 204",
-            ),
-            owner=ItemOwner(
-                id=1,
-                name="Batman",
-            ),
-            description=None,
-            legacy_id=None,
-        ),
-    )
+        return ItemCreateResponse(
+            id=new_item.id,
+            name = new_item.name,
+            description = new_item.description,
+            inventory_number=new_item.inventory_number,
+            status=new_item.status,
+        )
