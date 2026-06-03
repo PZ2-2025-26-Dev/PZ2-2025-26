@@ -100,14 +100,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                 if (!formData.name.trim() || !formData.categoryId || !formData.locationId || !formData.ownerId) {
             return;
         }
-                const result = await createItem({
-            name: formData.name,
-            categoryId: parseInt(formData.categoryId),
-            locationId: parseInt(formData.locationId),
-            ownerId: parseInt(formData.ownerId),
-            description: formData.description || null,
-        });
-        const result = await createItem({
+            const result = await createItem({
             name: formData.name,
             categoryId: parseInt(formData.categoryId),
             locationId: parseInt(formData.locationId),
