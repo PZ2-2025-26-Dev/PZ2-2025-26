@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import uuid7
 
+from backend.src.dependencies import DBDep
 from backend.src.utils import now
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
