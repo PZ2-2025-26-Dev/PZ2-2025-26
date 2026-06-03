@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
+from sqlalchemy import exc as sql_exc
 from src.database import Base
 from src.items.service import ItemService
 from src.items.schemas import ItemCreate
@@ -59,5 +59,5 @@ def test_add_item_missing_relations():
         )
 
         service = ItemService(session)
-        with pytest.raises(ValueError):
+        with pytest.raises(sql_exc.IntegrityError):
             service.add_item(data)

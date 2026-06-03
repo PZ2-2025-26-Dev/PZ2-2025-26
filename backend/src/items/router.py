@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import uuid7
 from backend.src.dependencies import DBDep
-from backend.src.utils import now
+from src.utils import now
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -98,7 +98,7 @@ def read_items(
 )
 def create_item(
     data: ItemCreate,
-    db: DBDep = Depends(get_db),
+    db: DBDep,
 ) -> ItemCreateResponse:
 
     # Generate inventory number (UUIDv7)
