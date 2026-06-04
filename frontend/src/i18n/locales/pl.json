@@ -121,6 +121,9 @@
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie.",
     "description": "Opis techniczny",
     "documentation": "Dokumentacja producenta",
-    "noDescription": "Brak opisu"
+    "noDescription": "Brak opisu",
+    "editDescription": "Edytuj opis",
+    "cancel":"Anuluj",
+    "save":"Zapisz"
   }
 }
