@@ -143,7 +143,7 @@ useEffect(() => {
                                     setIsDescriptionOpen(true);
                                     setIsEditingDescription(true);
                                 }}
-                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium dark:text-emerald-400 dark:hover:text-emerald-300"
                             >
                             {t('itemDetailsModal.editDescription')}
                             </button>
@@ -178,7 +178,7 @@ useEffect(() => {
                                                     );
                                                     setIsEditingDescription(false);
                                                 }}
-                                                className="px-3 py-1 text-xs rounded border border-slate-300 dark:border-slate-700"
+                                                className="px-3 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                                             >
                                                 {t('itemDetailsModal.cancel')}
                                             </button>
@@ -186,7 +186,7 @@ useEffect(() => {
                                             <button
                                                 type="button"
                                                 onClick={handleSaveDescription}
-                                                className="px-3 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                                className="px-3 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-400 dark:text-slate-900"
                                             >
                                                 {t('itemDetailsModal.save')}
                                             </button>
@@ -223,7 +223,7 @@ useEffect(() => {
                                     key={entry.id}
                                     className="border-l-2 border-slate-200 dark:border-slate-700 pl-4 py-2"
                                 >
-                                    <div className="text-xs text-slate-500">
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">
                                         {entry.updated_at}
                                     </div>
 
