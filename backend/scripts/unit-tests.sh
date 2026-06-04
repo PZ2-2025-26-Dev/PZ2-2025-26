@@ -2,4 +2,6 @@
 
 . "$(dirname $0)/lib.sh"
 
-uv run python -m pytest -vv "${PZ_BACKEND_DIR?}/tests" || exit $?
+export PZ_DATABASE_URL="sqlite:///:memory:"
+
+uv run python -m pytest -vv "${PZ_TESTS_DIR?}" -m "not integration" || exit $?
