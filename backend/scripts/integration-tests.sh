@@ -56,4 +56,5 @@ fi
 PZ_DATABASE_URL=$(printf '%s\n' "${PZ_DATABASE_URL?}" | sed -e 's/@db/@localhost/') || exit $?
 export PZ_DATABASE_URL
 
+cd ${PZ_BACKEND_DIR?} || exit $?
 uv run python -m pytest -vv "${PZ_TESTS_DIR?}" -m "integration" || exit $?
