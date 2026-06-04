@@ -15,16 +15,39 @@ Jeżeli korzystacie z Nix'a to jest gotowy flake, wystarczy:
 nix develop
 ```
 
-## Uruchamianie
+## Skrypty
 
-Jest dedykowany obraz dockerowy dla API: `./Dockerfile`
-
-Jest docker compose, który uruchamia bazę danych i API.
-Zanim uruchomisz kontenery, musisz ustawić zmienne środowiskowe opisane w pliku `compose.yaml`.
-Zamiast manualnie ustawiać te zmienne możesz po prostu skopiować przykładowe środowisko: `cp example.env .env`.
-Docker automatycznie je zaczyta.
-
-Uruchomienie API + DB:
+Formatowanie:
 ```sh
+./scripts/fmt.sh
+```
+
+Lint:
+```sh
+./scripts/lint.sh
+```
+
+Testy jednostkowe:
+```sh
+./scripts/unit-tests.sh
+```
+
+Testy integracyjne (API + DB w kontenerach):
+```sh
+./scripts/integration-tests.sh
+```
+
+Wykonaj przed wrzuceniem PR i upewnij się, że nie ma żadnych błędów:
+```sh
+./scripts/pipeline.sh
+```
+
+## Uruchamianie API + DB
+
+Mamy dockerfile dla API: `./Dockerfile`
+
+Mamy `./compose.yaml`, który pozwala uruchomić API + DB:
+```sh
+cp example.env .env
 docker compose up --build
 ```

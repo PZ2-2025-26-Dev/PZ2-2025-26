@@ -36,3 +36,8 @@ select = [
     "I",  # isort
     "FAST",  # FastAPI
 ]
+
+[tool.pytest]
+markers = [
+    "integration: integration tests that require a running database"
+]
