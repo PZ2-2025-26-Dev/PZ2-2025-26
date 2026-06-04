@@ -118,6 +118,9 @@
     "borrowDesc": "Specify your planned return date to submit a rental request to the owner.",
     "dateLabel": "Return Date",
     "btnSubmitReq": "Submit Rental Request",
-    "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset."
+    "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset.",
+    "description": "Technical Description",
+    "documentation": "Manufacturer Documentation",
+    "noDescription": "No description available"
   }
 }

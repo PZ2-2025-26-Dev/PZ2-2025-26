@@ -6,7 +6,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdateStatus }) {
     const { t } = useTranslation();
     const [returnDate, setReturnDate] = useState('');
-
+    const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     useEffect(() => {
         if (isOpen) {
             const tomorrow = new Date();
@@ -63,6 +63,28 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                                 <li className="flex justify-between"><span className="text-slate-500">{t('itemDetailsModal.sn')}</span> <span className="font-mono text-slate-800 dark:text-slate-200">{item.serialNumber}</span></li>
                                 <li className="flex justify-between"><span className="text-slate-500">{t('itemDetailsModal.category')}</span> <span className="text-slate-800 dark:text-slate-200">{item.category}</span></li>
                             </ul>
+
+                        <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                            <button
+                                type="button"
+                                onClick={() => setIsDescriptionOpen(prev => !prev)}
+                                className="w-full flex items-center justify-between text-left"
+                            >
+                                <span className="text-slate-500 text-xs font-semibold">
+                                    {t('itemDetailsModal.description')}
+                                </span>
+
+                                <span className="text-slate-400 text-xs">
+                                    {isDescriptionOpen ? '▲' : '▼'}
+                                </span>
+                            </button>
+
+                            {isDescriptionOpen && (
+                                <div className="mt-3 text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                                    {item.description || '-'}
+                                </div>
+                            )}
+                        </div>
                         </div>
 
                         <div>
