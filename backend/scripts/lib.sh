@@ -18,4 +18,4 @@ if ! PZ_ROOT_DIR=$(git rev-parse --show-toplevel); then
 fi
 
 PZ_BACKEND_DIR="${PZ_ROOT_DIR?}/backend"
-PZ_RUFF_TARGETS="${PZ_BACKEND_DIR?}/src"
+PZ_RUFF_TARGETS="${PZ_BACKEND_DIR?}/src ${PZ_BACKEND_DIR?}/tests"
