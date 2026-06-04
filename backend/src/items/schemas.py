@@ -77,3 +77,10 @@ class ItemPagination(BaseModel):
 class ItemsPaged(BaseModel):
     items: list[ItemDetails]
     pagination: ItemPagination
+
+class ItemUpdate(BaseModel):
+    description: ItemDescription | None = None
+
+class ItemUpdateResponse(BaseModel):
+    id: ItemID
+    description: ItemDescription | None

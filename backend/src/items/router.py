@@ -15,8 +15,11 @@ from src.items.schemas import (
     ItemOwner,
     ItemPagination,
     ItemsPaged,
+    ItemUpdate,
+    ItemUpdateResponse,
     LocationID,
     SearchStr,
+    ItemID
 )
 from src.items.service import ItemService
 
@@ -106,4 +109,39 @@ def create_item(
         inventory_number=new_item.inventory_number,
         status=new_item.status,
         description=new_item.description,
+    )
+
+@router.patch(
+    "/{item_id}",
+    response_model=ItemUpdateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Aktualizuj dane przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemUpdateResponse,
+            "description": "Dane przedmiotu zostały zaktualizowane.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Nie znaleziono przedmiotu.",
+        },
+    },
+)
+def update_item(
+    item_id: ItemID,
+    data: ItemUpdate,
+    db: DBDep,
+) -> ItemUpdateResponse:
+    service = ItemService(db)
+
+    try:
+        item = service.update_item(item_id, data)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        )
+
+    return ItemUpdateResponse(
+        id=item.id,
+        description=item.description,
     )

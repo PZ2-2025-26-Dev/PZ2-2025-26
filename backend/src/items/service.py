@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory
 from src.items.schemas import ItemCreate
+from src.items.schemas import ItemUpdate
 from src.utils import now
 
 
@@ -42,3 +43,22 @@ class ItemService:
         self.db.refresh(new_item)
 
         return new_item
+    
+    def update_item(self, item_id: int, data: ItemUpdate,) -> Item:
+        """Update item fields in a single transaction.
+
+        Raises ValueError when item does not exist.
+        Returns the updated Item instance.
+        """
+        item = self.db.get(Item, item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        if data.description is not None:
+            item.description = data.description
+
+        self.db.commit()
+        self.db.refresh(item)
+
+        return item
