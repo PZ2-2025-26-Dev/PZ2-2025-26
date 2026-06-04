@@ -124,6 +124,8 @@
     "noDescription": "No description available",
     "editDescription": "Edit description",
     "cancel":"Cancel",
-    "save":"Save"
+    "save":"Save",
+    "openLink": "Open link",
+    "history": "History of changes"
   }
 }

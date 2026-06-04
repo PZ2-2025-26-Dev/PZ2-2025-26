@@ -124,6 +124,8 @@
     "noDescription": "Brak opisu",
     "editDescription": "Edytuj opis",
     "cancel":"Anuluj",
-    "save":"Zapisz"
+    "save":"Zapisz",
+    "openLink": "Otwórz link",
+    "history": "Historia zmian"
   }
 }
