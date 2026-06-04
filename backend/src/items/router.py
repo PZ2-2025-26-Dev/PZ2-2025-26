@@ -11,6 +11,7 @@ from src.items.schemas import (
     ItemCreate,
     ItemCreateResponse,
     ItemDetails,
+    ItemHistoryEntry,
     ItemLocation,
     ItemOwner,
     ItemPagination,
@@ -145,3 +146,39 @@ def update_item(
         id=item.id,
         description=item.description,
     )
+
+@router.get(
+    "/{item_id}/history",
+    summary="Get item history",
+    status_code=status.HTTP_200_OK,
+    response_model=list[ItemHistoryEntry],
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Item not found",
+        },
+    },
+)
+def read_item_history(
+    item_id: ItemID,
+    db: DBDep,
+) -> list[ItemHistoryEntry]:
+    service = ItemService(db)
+
+    try:
+        history = service.get_item_history(item_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        )
+
+    return [
+        ItemHistoryEntry(
+            id=entry.id,
+            updated_at=entry.updated_at,
+            updated_by=entry.updated_by,
+            change_type=entry.change_type,
+            description=entry.description,
+        )
+        for entry in history
+    ]

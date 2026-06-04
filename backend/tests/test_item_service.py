@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -10,9 +12,9 @@ from src.locations.models import Location
 from src.locations.constants import LocationType
 from src.users.models import User
 from src.auth.constants import UserRole, UserStatus
-from src.items.constants import ItemStatus
+from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.schemas import ItemUpdate
-from src.items.models import Item
+from src.items.models import Item, ItemHistory
 from uuid import uuid7
 
 def setup_inmemory_db():
@@ -108,6 +110,98 @@ def test_update_item_not_found():
 
         with pytest.raises(ValueError):
             service.update_item(
-                999,
+                9999,
                 ItemUpdate(description="Nowy opis"),
             )
+
+
+def test_get_item_history_success():
+    Session = setup_inmemory_db()
+
+    with Session() as session:
+        cat = Category(name="TestCat", parent_id=None)
+        loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
+        user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+
+        session.add_all([cat, loc, user])
+        session.commit()
+
+        item = Item(
+            name="Laptop",
+            inventory_number=uuid7(),
+            category_id=cat.id,
+            location_id=loc.id,
+            owner_id=user.id,
+            status=ItemStatus.AVAILABLE,
+            description=None,
+        )
+
+        session.add(item)
+        session.commit()
+
+        history1 = ItemHistory(
+            item_id=item.id,
+            updated_at=datetime(2024, 1, 1, 10, 0, 0),
+            updated_by=user.id,
+            change_type=ItemChangeLogType.CREATED,
+            description="Item created",
+        )
+
+        history2 = ItemHistory(
+            item_id=item.id,
+            updated_at=datetime(2024, 1, 2, 10, 0, 0),
+            updated_by=user.id,
+            change_type=ItemChangeLogType.CREATED,
+            description="Another entry",
+        )
+
+        session.add_all([history1, history2])
+        session.commit()
+
+        service = ItemService(session)
+
+        history = service.get_item_history(item.id)
+
+        assert len(history) == 2
+
+        assert history[0].description == "Another entry"
+        assert history[1].description == "Item created"
+
+
+def test_get_item_history_not_found():
+    Session = setup_inmemory_db()
+
+    with Session() as session:
+        service = ItemService(session)
+
+        with pytest.raises(ValueError):
+            service.get_item_history(99999)
+
+def test_get_item_history_empty():
+    Session = setup_inmemory_db()
+
+    with Session() as session:
+        cat = Category(name="TestCat", parent_id=None)
+        loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
+        user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+        session.add_all([cat, loc, user])
+        session.commit()
+
+        item = Item(
+            name="Laptop",
+            inventory_number=uuid7(),
+            category_id=cat.id,
+            location_id=loc.id,
+            owner_id=user.id,
+            status=ItemStatus.AVAILABLE,
+            description=None,
+        )
+
+        session.add(item)
+        session.commit()
+
+        service = ItemService(session)
+
+        history = service.get_item_history(item.id)
+
+        assert history == []

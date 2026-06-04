@@ -62,3 +62,22 @@ class ItemService:
         self.db.refresh(item)
 
         return item
+    
+    def get_item_history(self, item_id: int) -> list[ItemHistory]:
+        """Get item history ordered by newest first.
+
+        Raises ValueError when item does not exist.
+        Returns a list of ItemHistory entries.
+        """
+        item = self.db.get(Item, item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        stmt = (
+            select(ItemHistory)
+            .where(ItemHistory.item_id == item_id)
+            .order_by(ItemHistory.updated_at.desc())
+        )
+
+        return self.db.execute(stmt).scalars().all()
