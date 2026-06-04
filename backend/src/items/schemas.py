@@ -1,5 +1,6 @@
 from typing import Annotated
 from uuid import UUID
+
 from pydantic import BaseModel, Field
 
 from src.auth.schemas import Name as UserName
@@ -39,6 +40,7 @@ class Item(BaseModel):
     description: ItemDescription | None
     status: ItemStatus = ItemStatus.AVAILABLE
     legacy_id: int | None
+
 
 class ItemCategory(BaseModel):
     id: CategoryID

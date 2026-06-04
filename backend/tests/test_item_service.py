@@ -1,17 +1,15 @@
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import exc as sql_exc
-from src.database import Base
-from src.items.service import ItemService
-from src.items.schemas import ItemCreate
-from src.categories.models import Category
-from src.locations.models import Location
-from src.locations.constants import LocationType
-from src.users.models import User
-from src.auth.constants import UserRole, UserStatus
-from src.items.constants import ItemStatus
+from sqlalchemy.orm import Session
 
+from src.auth.constants import UserRole, UserStatus
+from src.categories.models import Category
+from src.items.constants import ItemStatus
+from src.items.schemas import ItemCreate
+from src.items.service import ItemService
+from src.locations.constants import LocationType
+from src.locations.models import Location
+from src.users.models import User
 
 pytestmark = pytest.mark.integration
 
@@ -19,7 +17,9 @@ pytestmark = pytest.mark.integration
 def test_add_item_success(db: Session):
     cat = Category(name="TestCat", parent_id=None)
     loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
-    user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+    user = User(
+        first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE
+    )
 
     db.add_all([cat, loc, user])
     db.commit()

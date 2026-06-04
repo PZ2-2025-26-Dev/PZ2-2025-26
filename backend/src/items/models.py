@@ -1,5 +1,6 @@
 from datetime import datetime
 from uuid import UUID
+
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,7 +27,6 @@ class Item(Base):
     status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus))
 
     description: Mapped[str | None] = mapped_column(String(ITEM_DESC_LENGTH))
-
 
 
 class ItemHistory(Base):
