@@ -8,7 +8,18 @@ check_cmd grep
 check_cmd sed
 check_cmd uv
 
-trap 'docker compose --file ${PZ_BACKEND_DIR?}/compose.yaml down && docker volume rm backend_mysql_data' EXIT
+SHOULD_CLEANUP=1
+
+while getopts ":d" opt; do
+    case $opt in
+        d) SHOULD_CLEANUP=0;;
+        *) error "invalid option; available: '-d' (leave dirty)";;
+    esac
+done
+
+if [ ${SHOULD_CLEANUP?} -eq 1 ]; then
+    trap 'docker compose --file ${PZ_BACKEND_DIR?}/compose.yaml down && docker volume rm backend_mysql_data' EXIT
+fi
 
 if [ ! -f "${PZ_BACKEND_DIR?}/.env" ]; then
     error ".env file is missing! (looking in ${PZ_BACKEND_DIR?})"
