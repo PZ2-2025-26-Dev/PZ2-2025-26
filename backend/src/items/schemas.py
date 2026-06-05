@@ -12,7 +12,6 @@ from src.locations.schemas import LocationID, LocationPath
 type ItemID = int
 type ItemName = Annotated[str, Field(min_length=1, max_length=ITEM_NAME_LENGTH)]
 type ItemDescription = Annotated[str, Field(min_length=1, max_length=ITEM_DESC_LENGTH)]
-
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
 
 
@@ -22,6 +21,7 @@ class ItemCreate(BaseModel):
     location_id: LocationID
     owner_id: UserID
     description: ItemDescription | None = None
+    legacy_id: int | None = None  
 
 
 class ItemCreateResponse(BaseModel):
@@ -77,3 +77,7 @@ class ItemPagination(BaseModel):
 class ItemsPaged(BaseModel):
     items: list[ItemDetails]
     pagination: ItemPagination
+
+
+class ExportResponse(BaseModel):
+    message: str
