@@ -58,8 +58,64 @@ export const useInventory = () => {
         setError(null);
     }, []);
 
+    const deleteItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            await axiosClient.delete(`${ENDPOINTS.ITEMS.BASE}/${itemId}`);
+
+            return {
+                success: true,
+                statusCode: 204,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const updateItem = useCallback(async (itemId, updateData) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.patch(
+                `${ENDPOINTS.ITEMS.BASE}/${itemId}`,
+                updateData
+            );
+
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     return {
         createItem,
+        deleteItem,
+        updateItem,
         isLoading,
         error,
         clearError,

@@ -6,10 +6,11 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
-// import { useInventory } from './useInventory';
+import { useInventory } from '../inventory/useInventory';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
     const { t, i18n } = useTranslation();
+    const { deleteItem } = useInventory();
 
     const [items, setItems] = useState([
         { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski' },
@@ -72,6 +73,33 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             return item;
         }));
         setIsDetailsModalOpen(false);
+    };
+
+    const handleDeleteItem = async (itemId) => {
+        const result = await deleteItem(itemId);
+
+        if (result.success) {
+            setItems(prev => prev.filter(item => item.id !== itemId));
+            setIsDetailsModalOpen(false);
+            setSelectedItem(null);
+        } else {
+            console.error("Błąd usuwania:", result.error);
+        }
+    };
+
+    const handleUpdateDescription = async (itemId, newDescription) => {
+        const result = await updateItem(itemId, { description: newDescription });
+
+        if (result.success) {
+            setItems(prev =>
+                prev.map(item =>
+                    item.id === itemId ? { ...item, description: newDescription } : item
+                )
+            );
+            return { success: true };
+        }
+
+        return { success: false };
     };
 
     const toggleLanguage = () => {
@@ -310,6 +338,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 item={selectedItem}
                 user={user}
                 onUpdateStatus={handleUpdateItemStatus}
+                onDelete={handleDeleteItem}
+                onUpdateDescription={handleUpdateDescription}
             />
         </div>
     );

@@ -17,6 +17,7 @@ from src.items.schemas import (
     ItemsPaged,
     LocationID,
     SearchStr,
+    ItemUpdate,
 )
 from src.items.service import ItemService
 
@@ -106,4 +107,68 @@ def create_item(
         inventory_number=new_item.inventory_number,
         status=new_item.status,
         description=new_item.description,
+    )
+
+@router.delete(
+    "/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Usuń przedmiot z inwentaryzacji",
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Pomyślnie usunięto przedmiot"
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "Nie można usunąć wypożyczonego przedmiotu"
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Przedmiot nie istnieje"
+        },
+    },
+)
+def delete_item(
+    item_id: int,
+    db: DBDep,
+) -> None:
+
+    service = ItemService(db)
+    service.delete_item(item_id)
+    return None
+
+
+@router.patch(
+    "/{item_id}",
+    response_model=ItemDetails,
+    status_code=status.HTTP_200_OK,
+    summary="Zaktualizuj dane przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Pomyślnie zaktualizowano przedmiot"
+            },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Przedmiot nie istnieje"
+            },
+    },
+)
+def update_item(
+    item_id: int,
+    data: ItemUpdate,
+    db: DBDep,
+) -> ItemDetails:
+
+    service = ItemService(db)
+
+    item = service.get_item(item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    updated = service.update_item(item, data.model_dump(exclude_unset=True))
+
+    return ItemDetails(
+        id=updated.id,
+        name=updated.name,
+        category=updated.category,
+        location=updated.location,
+        owner=updated.owner,
+        description=updated.description,
+        legacy_id=updated.legacy_id,
     )

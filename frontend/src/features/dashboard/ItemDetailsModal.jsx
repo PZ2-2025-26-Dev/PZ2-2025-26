@@ -3,9 +3,20 @@ import { useTranslation } from 'react-i18next';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 
-export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdateStatus }) {
+export default function ItemDetailsModal({
+    isOpen,
+    onClose,
+    item,
+    user,
+    onUpdateStatus,
+    onDelete,
+    onUpdateDescription,
+}) {
+    if (!item) return null;
     const { t } = useTranslation();
     const [returnDate, setReturnDate] = useState('');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editedDescription, setEditedDescription] = useState(item?.description || "");
 
     useEffect(() => {
         if (isOpen) {
@@ -17,7 +28,9 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
 
     if (!isOpen || !item) return null;
 
-    const isOwner = user?.name === item.owner || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+    const isAdmin = user?.role === 'admin';
+    const isOwner = user?.name === item.owner;
+    const canManage = isAdmin || isOwner;
     const canBorrow = user?.role === 'regular' || user?.role === 'admin';
 
     const statusStyles = {
@@ -31,6 +44,21 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
     const handleRequestRental = () => {
         if (!returnDate) return;
         onUpdateStatus(item.id, 'oczekuje akceptacji', false, user.name, returnDate);
+    };
+
+    const handleDelete = () => {
+        if (!window.confirm(t('itemDetailsModal.deleteConfirm'))) return;
+        onDelete(item.id);
+    };
+
+    const handleSaveDescription = async () => {
+        const result = await onUpdateDescription(item.id, editedDescription);
+
+        if (result.success) {
+            setIsEditModalOpen(false);
+        } else {
+            alert("Nie udało się zapisać opisu");
+        }
     };
 
     return (
@@ -79,7 +107,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                         </div>
                     </div>
 
-                    {isOwner ? (
+                    {canManage ? (
                         <div className="flex-1 bg-slate-50 dark:bg-slate-900/80 border border-emerald-100 dark:border-emerald-900/30 rounded-xl p-5 flex flex-col">
                             <div className="flex items-center space-x-2 mb-1">
                                 <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
@@ -122,6 +150,20 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                                             ⚠ {t('itemDetailsModal.markDamaged')}
                                         </button>
                                     </div>
+                                )}
+                                {isAdmin && (
+                                <div className="pt-2">
+                                    <button onClick={handleDelete}
+                                        className="w-full py-2 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 text-xs font-bold rounded transition">
+                                        {t('itemDetailsModal.deleteItem')}
+                                    </button>
+                                </div>
+                                )}
+                                {canManage && (
+                                    <button onClick={() => setIsEditModalOpen(true)}
+                                        className="w-full py-2 border border-blue-200 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-xs font-bold rounded transition">
+                                        {t('itemDetailsModal.editDescription')}
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -168,6 +210,37 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                     </button>
                 </div>
             </div>
+            {isEditModalOpen && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-xl w-full max-w-md space-y-4">
+                        <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {t('itemDetailsModal.editDescription')}
+                        </h2>
+
+                        <textarea
+                            value={editedDescription}
+                            onChange={(e) => setEditedDescription(e.target.value)}
+                            className="w-full h-32 p-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded"
+                        />
+
+                        <div className="flex justify-end space-x-2">
+                            <button
+                                onClick={() => setIsEditModalOpen(false)}
+                                className="px-3 py-1.5 text-xs rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                            >
+                                {t('itemDetailsModal.cancel')}
+                            </button>
+
+                            <button
+                                onClick={handleSaveDescription}
+                                className="px-3 py-1.5 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                            >
+                                {t('itemDetailsModal.save')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
