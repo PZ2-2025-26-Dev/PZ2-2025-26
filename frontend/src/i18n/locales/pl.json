@@ -83,7 +83,15 @@
     "owner": "Opiekun / Właściciel",
     "cancel": "Anuluj",
     "save": "Dodaj przedmiot",
-    "saving": "Zapisywanie..."
+    "saving": "Zapisywanie...",
+    "noParent": "Brak kategorii nadrzędnej",
+    "addNewCategory": "Dodaj nową kategorię",
+    "categoryName": "Nazwa kategorii",
+    "categoryParentLabel": "Kategoria nadrzędna (opcjonalnie)",
+    "categoryRootOption": "-- Kategoria Główna (Brak nadrzędnej) --",
+    "cancelCategory": "Anuluj",
+    "saveCategory": "Dodaj",
+    "categoryPlaceholder": "np. Zasilacze"
   },
   "itemDetailsModal": {
     "detailsTitle": "Karta Przedmiotu",

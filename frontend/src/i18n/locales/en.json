@@ -83,7 +83,15 @@
     "owner": "Supervisor / Owner",
     "cancel": "Cancel",
     "save": "Add Asset",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "noParent": "No Parent Category",
+    "addNewCategory": "Add New Category",
+    "categoryName": "Category Name",
+    "categoryParentLabel": "Parent Category (Optional)",
+    "categoryRootOption": "-- Root Category (None) --",
+    "cancelCategory": "Cancel",
+    "saveCategory": "Add Category",
+    "categoryPlaceholder": "e.g., Power Supplies"
   },
   "itemDetailsModal": {
     "detailsTitle": "Asset Details",

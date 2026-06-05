@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
@@ -18,7 +19,7 @@ class Item(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(ITEM_NAME_LENGTH))
-
+    inventory_number: Mapped[UUID] = mapped_column(Uuid, unique=True, index=True)
     location_id: Mapped[int] = mapped_column(ForeignKey("location.id"), index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), index=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
@@ -26,9 +27,6 @@ class Item(Base):
     status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus))
 
     description: Mapped[str | None] = mapped_column(String(ITEM_DESC_LENGTH))
-
-    # TODO:
-    # public_id: Mapped[UUID]
 
 
 class ItemHistory(Base):
