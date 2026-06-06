@@ -190,6 +190,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                     <span>⬇</span><span>{t('dashboard.exportXlsx')}</span>
                                                 </button>
                                             </RoleGuard>
+                                            <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
+                                                <button
+                                                    onClick={() => setIsAddModalOpen(true)}
+                                                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1"
+                                                >
+                                                    <span>+</span><span>{t('dashboard.addAsset')}</span>
+                                                </button>
+                                            </RoleGuard>
                                         </div>
                                     </div>
 
