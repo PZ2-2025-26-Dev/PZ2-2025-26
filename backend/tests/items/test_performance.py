@@ -17,12 +17,13 @@ from sqlalchemy.orm import Session
 from src.auth.constants import UserRole, UserStatus
 from src.categories.models import Category
 from src.items.constants import ItemStatus
-from src.items.models import LegacyIdentifier
+from src.items.models import Item, LegacyIdentifier
 from src.items.schemas import ItemCreate
 from src.items.service import ItemService
 from src.locations.constants import LocationType
 from src.locations.models import Location
 from src.users.models import User
+from sqlalchemy import text
 
 pytestmark = pytest.mark.integration
 
@@ -36,6 +37,28 @@ MAX_INITIAL_LOAD_MS = 2500
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def cleanup_database(db: Session):
+    """Automatycznie czyści tabele PRZED i PO każdym teście"""
+    def truncate_tables():
+        try:
+            db.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
+     
+            models = [LegacyIdentifier, Item, User, Location, Category]
+            for model in models:
+                table_name = model.__table__.name
+                db.execute(text(f"TRUNCATE TABLE `{table_name}`;"))
+                
+            db.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
+            db.commit()
+        except Exception:
+            db.rollback() 
+            raise
+
+    truncate_tables()
+    yield
+    truncate_tables()
 
 @pytest.fixture()
 def base_entities(db: Session) -> dict:
@@ -96,6 +119,7 @@ def seeded_items(db: Session, base_entities: dict) -> dict:
     for i, item in enumerate(nokia_items[:5], start=1):
         db.add(LegacyIdentifier(item_id=item.id, legacy_id=1000 + i))
     db.commit()
+    db.expire_all()
 
     return {"cat": cat, "loc": loc, "user": user, "nokia_items": nokia_items}
 
@@ -188,9 +212,9 @@ class TestGetItemsPagedCorrectness:
             assert item.category is not None
             assert item.category.name is not None
             assert item.location is not None
-            assert item.location.path is not None
+            assert item.location.name is not None
             assert item.owner is not None
-            assert item.owner.name is not None
+            assert item.owner.first_name is not None
 
     def test_legacy_id_is_present_when_exists(self, db: Session, seeded_items: dict):
         service = ItemService(db)
@@ -235,9 +259,9 @@ class TestGetItemByIdCorrectness:
         assert item.category is not None
         assert item.category.name is not None
         assert item.location is not None
-        assert item.location.path is not None
+        assert item.location.name is not None
         assert item.owner is not None
-        assert item.owner.name is not None
+        assert item.owner.first_name is not None
 
     def test_legacy_id_present_when_exists(self, db: Session, seeded_items: dict):
         """Pierwsze 5 Nokia ma legacy_id — weryfikujemy właściwość wirtualną."""
