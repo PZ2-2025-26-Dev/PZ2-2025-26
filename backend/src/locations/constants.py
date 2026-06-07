@@ -6,3 +6,6 @@ class LocationType(Enum):
     ROOM = "room"
     CABINET = "cabinet"
     SHELF = "shelf"
+
+
+DEFAULT_ROOT_LOCATION_NAMES = ("D10", "D11")
