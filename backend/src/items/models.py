@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Uuid
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
@@ -24,9 +24,11 @@ class Item(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), index=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
 
-    status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus))
+    status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus), index=True)
 
     description: Mapped[str | None] = mapped_column(String(ITEM_DESC_LENGTH))
+
+    __table_args__ = (Index("ix_item_location_status", "location_id", "status"),)
 
 
 class ItemHistory(Base):
@@ -41,6 +43,14 @@ class ItemHistory(Base):
     change_type: Mapped[ItemChangeLogType] = mapped_column(Enum(ItemChangeLogType))
 
     description: Mapped[str | None] = mapped_column(String(512))
+
+
+class LegacyIdentifier(Base):
+    __tablename__ = "legacy_identifier"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id"), index=True)
+    legacy_id: Mapped[str] = mapped_column(String(64), index=True)
 
 
 class ItemACL(Base):

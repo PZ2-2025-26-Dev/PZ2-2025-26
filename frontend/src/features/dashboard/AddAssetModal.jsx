@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInventory } from '../inventory/useInventory';
+import { fetchLocationTree, flattenLocationTree } from '../locations/useLocationTree';
 
 export default function AddAssetModal({ isOpen, onClose, onSave }) {
     const { t } = useTranslation();
@@ -27,11 +28,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
         { id: 6, name: 'Kubuś Puchatek' },
     ];
 
-    const locations = [
-        { id: 1, name: 'D10', path: 'Budynek D10' },
-        { id: 2, name: 'D11', path: 'Budynek D11' },
-        { id: 3, name: 'C3', path: 'Budynek C3' },
-    ];
+    const [locations, setLocations] = useState([]);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -63,6 +60,21 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
     const indentedCats = indentCategories();
 
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let cancelled = false;
+        fetchLocationTree()
+            .then((tree) => {
+                if (!cancelled) setLocations(flattenLocationTree(tree));
+            })
+            .catch(() => {
+                if (!cancelled) setLocations([]);
+            });
+
+        return () => { cancelled = true; };
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {

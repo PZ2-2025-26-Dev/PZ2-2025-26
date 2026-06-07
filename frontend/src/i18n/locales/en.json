@@ -25,6 +25,7 @@
     "role": "Role",
     "logout": "Sign Out",
     "tabInventory": "Inventory",
+    "tabLocations": "Locations",
     "tabUsers": "Access Requests",
     "tabCategories": "Categories",
     "totalAssets": "Total Assets",
@@ -119,5 +120,30 @@
     "dateLabel": "Return Date",
     "btnSubmitReq": "Submit Rental Request",
     "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset."
+  },
+  "locationTree": {
+    "title": "Location Structure",
+    "desc": "Browse the hierarchy of buildings, rooms, cabinets, and shelves. Click a node to view assigned equipment.",
+    "searchPlaceholder": "Search locations or equipment...",
+    "filterStatus": "Filter status",
+    "statusAvailable": "Available",
+    "statusLoaned": "Loaned",
+    "typeBuilding": "Building",
+    "typeRoom": "Room",
+    "typeCabinet": "Cabinet",
+    "typeShelf": "Shelf",
+    "noItems": "No equipment at this location",
+    "emptyTree": "No locations defined yet.",
+    "loading": "Loading...",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "dismissError": "Dismiss",
+    "status": {
+      "available": "available",
+      "loaned": "loaned",
+      "pending_approval": "pending approval",
+      "reserved": "reserved",
+      "broken": "broken"
+    }
   }
 }

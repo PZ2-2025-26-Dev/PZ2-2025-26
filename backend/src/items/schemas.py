@@ -39,7 +39,7 @@ class Item(BaseModel):
     owner_id: UserID
     description: ItemDescription | None
     status: ItemStatus = ItemStatus.AVAILABLE
-    legacy_id: int | None
+    legacy_id: str | None
 
 
 class ItemCategory(BaseModel):
@@ -65,7 +65,7 @@ class ItemDetails(BaseModel):
     owner: ItemOwner
     description: ItemDescription | None
     status: ItemStatus = ItemStatus.AVAILABLE
-    legacy_id: int | None
+    legacy_id: str | None
 
 
 class ItemPagination(BaseModel):

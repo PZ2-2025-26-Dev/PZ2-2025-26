@@ -6,6 +6,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
+import LocationTreeView from '../locations/LocationTreeView';
 // import { useInventory } from './useInventory';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
@@ -109,6 +110,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100 dark:border-slate-800/50">
                         <div className="flex space-x-6">
                             <button onClick={() => setActiveTab('inventory')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabInventory')}</button>
+                            <button onClick={() => setActiveTab('locations')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'locations' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabLocations')}</button>
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <button onClick={() => setActiveTab('users')} className={`py-3 text-xs font-semibold border-b-2 transition-colors flex items-center space-x-1.5 ${activeTab === 'users' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                                     <span>{t('dashboard.tabUsers')}</span>
@@ -245,6 +247,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     </div>
                                 </div>
                             </>
+                        )}
+
+                        {activeTab === 'locations' && (
+                            <LocationTreeView />
                         )}
 
                         {activeTab === 'users' && (
