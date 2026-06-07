@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import SystemClock from '../../components/SystemClock';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
-import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
+import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import UserManager from '../users/UserManager';
 // import { useInventory } from './useInventory';
@@ -53,19 +53,30 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setItems([newAsset, ...items]);
     };
 
-    const handleUpdateItemStatus = (itemId, newStatus, clearBorrower = false, newBorrower = null, newDueDate = null) => {
+    const handleUpdateItemStatus = (itemId, newStatus, clearBorrower = false, newBorrower = null, newDueDate = null, closeModal = true) => {
+        let updatedItem = null;
+
         setItems(prevItems => prevItems.map(item => {
             if (item.id === itemId) {
-                return {
+                updatedItem = {
                     ...item,
                     status: newStatus,
                     borrower: newBorrower ? newBorrower : (clearBorrower ? null : item.borrower),
                     dueDate: newDueDate ? newDueDate : (clearBorrower ? null : item.dueDate)
                 };
+
+                return updatedItem;
             }
             return item;
         }));
-        setIsDetailsModalOpen(false);
+
+        if (updatedItem && selectedItem?.id === itemId) {
+            setSelectedItem(updatedItem);
+        }
+
+        if (closeModal) {
+            setIsDetailsModalOpen(false);
+        }
     };
 
     const toggleLanguage = () => {

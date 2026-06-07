@@ -14,6 +14,12 @@ export const ENDPOINTS = {
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,
     },
+    LOANS: {
+        BASE: '/loans',
+    },
+    GUESTS: {
+        BASE: '/guests',
+    },
     CATEGORIES: {
         BASE: '/categories',
         TREE: '/categories/tree',

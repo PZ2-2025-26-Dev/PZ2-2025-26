@@ -1,8 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useInventory } from '../inventory/useInventory';
+import { useRentals } from '../rentals/useRentals';
+
+const getLocalDateString = (offsetDays = 0) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offsetDays);
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
 
 export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdateStatus }) {
     const { t } = useTranslation();
@@ -12,24 +23,34 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
     const [editedDescription, setEditedDescription] = useState('');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState([]);
-    
-    const { getItemHistory } = useInventory(); 
+    const { getItemHistory } = useInventory();
+    const [isExternalRentalFormOpen, setIsExternalRentalFormOpen] = useState(false);
+    const [selectedGuestId, setSelectedGuestId] = useState('');
+    const [formError, setFormError] = useState('');
+    const { guests, loadGuests, rentToExternal, isLoadingGuests, isSubmittingExternalRental, error, clearError } = useRentals();
 
-useEffect(() => {
-    if (isOpen) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setReturnDate(tomorrow.toISOString().split('T')[0]);
-
-        setEditedDescription(item?.description || '');
-        setIsEditingDescription(false);
-    }
-}, [isOpen, item]);
+    useEffect(() => {
+        if (isOpen) {
+            setReturnDate(getLocalDateString(1));
+            setEditedDescription(item?.description || '');
+            setIsEditingDescription(false);
+            setIsExternalRentalFormOpen(false);
+            setSelectedGuestId('');
+            setFormError('');
+            clearError();
+            void loadGuests();
+        }
+    }, [isOpen, item, loadGuests, clearError]);
 
     if (!isOpen || !item) return null;
 
     const isOwner = user?.name === item.owner || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
     const canBorrow = user?.role === 'regular' || user?.role === 'admin';
+    const today = getLocalDateString();
+    const tomorrow = getLocalDateString(1);
+    const isValidReturnDate = returnDate > today;
+    const selectedGuest = guests.find((guest) => `${guest.id}` === `${selectedGuestId}`);
+    const canSubmitExternalRental = Boolean(selectedGuestId) && isValidReturnDate && !isLoadingGuests && !isSubmittingExternalRental;
 
     const statusStyles = {
         'dostępny': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50',
@@ -84,9 +105,39 @@ useEffect(() => {
             );
         }
 
-        return <React.Fragment key={index}>{part}</React.Fragment>;
+        return <Fragment key={index}>{part}</Fragment>;
     });
 };
+
+    const handleExternalRentalSubmit = async () => {
+        setFormError('');
+        clearError();
+
+        if (!selectedGuestId) {
+            setFormError(t('itemDetailsModal.externalGuestRequired'));
+            return;
+        }
+
+        if (!isValidReturnDate) {
+            setFormError(t('itemDetailsModal.externalDateFutureError'));
+            return;
+        }
+
+        const result = await rentToExternal({
+            itemId: item.id,
+            guestId: Number(selectedGuestId),
+            declaredReturnDate: returnDate,
+        });
+
+        if (!result.success) {
+            setFormError(result.error || t('itemDetailsModal.externalRentalError'));
+            return;
+        }
+
+        onUpdateStatus(item.id, 'wypożyczony', false, selectedGuest?.label || t('itemDetailsModal.externalGuestFallback'), returnDate, false);
+        setIsExternalRentalFormOpen(false);
+        setSelectedGuestId('');
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
@@ -290,6 +341,86 @@ useEffect(() => {
                                         <h4 className="font-bold text-sm text-blue-700 dark:text-blue-500 mb-1">{t('itemDetailsModal.returnPending')}</h4>
                                         <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">{t('itemDetailsModal.returnDesc', { borrower: item.borrower, dueDate: item.dueDate || 'Brak' })}</p>
                                         <button onClick={() => onUpdateStatus(item.id, 'dostępny', true)} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow-sm transition">{t('itemDetailsModal.btnReturn')}</button>
+                                    </div>
+                                )}
+                                {item.status === 'dostępny' && (
+                                    <div className="bg-white dark:bg-slate-950 border border-cyan-200 dark:border-cyan-900/50 rounded-lg p-4 shadow-sm space-y-4">
+                                        <div>
+                                            <h4 className="font-bold text-sm text-cyan-700 dark:text-cyan-400 mb-1">{t('itemDetailsModal.externalRentalTitle')}</h4>
+                                            <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.externalRentalDesc')}</p>
+                                        </div>
+
+                                        {!isExternalRentalFormOpen ? (
+                                            <button
+                                                onClick={() => setIsExternalRentalFormOpen(true)}
+                                                className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded shadow-sm transition"
+                                            >
+                                                {t('itemDetailsModal.externalRentalButton')}
+                                            </button>
+                                        ) : (
+                                            <div className="space-y-4 border-t border-cyan-100 dark:border-cyan-900/50 pt-4">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">{t('itemDetailsModal.externalGuestLabel')}</label>
+                                                    <select
+                                                        value={selectedGuestId}
+                                                        onChange={(e) => {
+                                                            setSelectedGuestId(e.target.value);
+                                                            setFormError('');
+                                                        }}
+                                                        disabled={isLoadingGuests || isSubmittingExternalRental}
+                                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-cyan-500 text-slate-800 dark:text-slate-100 text-sm transition disabled:opacity-60"
+                                                    >
+                                                        <option value="">{isLoadingGuests ? t('itemDetailsModal.externalGuestLoading') : t('itemDetailsModal.externalGuestPlaceholder')}</option>
+                                                        {guests.map((guest) => (
+                                                            <option key={guest.id} value={guest.id}>
+                                                                {guest.label}{guest.email ? ` · ${guest.email}` : ''}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1.5">{t('itemDetailsModal.externalDateLabel')}</label>
+                                                    <input
+                                                        type="date"
+                                                        value={returnDate}
+                                                        min={tomorrow}
+                                                        onChange={(e) => {
+                                                            setReturnDate(e.target.value);
+                                                            setFormError('');
+                                                        }}
+                                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-cyan-500 text-slate-800 dark:text-slate-100 text-sm transition"
+                                                    />
+                                                </div>
+
+                                                {(formError || error) && (
+                                                    <div className="text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-lg px-3 py-2">
+                                                        {formError || error}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex flex-col sm:flex-row gap-2">
+                                                    <button
+                                                        onClick={handleExternalRentalSubmit}
+                                                        disabled={!canSubmitExternalRental}
+                                                        className="w-full sm:flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {isSubmittingExternalRental ? t('itemDetailsModal.externalRentalSaving') : t('itemDetailsModal.externalRentalSave')}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setIsExternalRentalFormOpen(false);
+                                                            setSelectedGuestId('');
+                                                            setFormError('');
+                                                            clearError();
+                                                        }}
+                                                        className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition"
+                                                    >
+                                                        {t('itemDetailsModal.externalRentalCancel')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 {item.status !== 'uszkodzony' && (

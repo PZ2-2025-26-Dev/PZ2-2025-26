@@ -1,19 +1,24 @@
-from fastapi import APIRouter, status
+from datetime import datetime, timedelta
 
+import jwt
+from fastapi import APIRouter, status
 from src.auth.constants import UserRole, UserStatus
+from src.config import config
 from src.schemas import ErrorResponse
 
-from .schemas import (
-    TokenRefreshIn,
-    TokenResponse,
-    User,
-    UserCreate,
-    UserCreateResponse,
-    UserLogin,
-    UserLoginResponse,
-)
+from .schemas import (TokenRefreshIn, TokenResponse, User, UserCreate,
+                      UserCreateResponse, UserLogin, UserLoginResponse)
 
 router = APIRouter(prefix="/auth")
+
+
+def _create_token(user_id: int, role: UserRole, expires_in_minutes: int = 60) -> str:
+    payload = {
+        "sub": str(user_id),
+        "role": role.value,
+        "exp": datetime.utcnow() + timedelta(minutes=expires_in_minutes),
+    }
+    return jwt.encode(payload, config.jwt_secret, algorithm=config.jwt_algorithm)
 
 
 @router.post(
@@ -53,9 +58,9 @@ def register(data: UserCreate) -> UserCreateResponse:
 )
 def login(data: UserLogin) -> UserLoginResponse:
     return UserLoginResponse(
-        access_token="JWT",
-        refresh_token="REFRESH_TOKEN",
-        user=User(id=1, role=UserRole.USER),
+        access_token=_create_token(user_id=1, role=UserRole.ADMIN),
+        refresh_token=_create_token(user_id=1, role=UserRole.ADMIN, expires_in_minutes=60 * 24),
+        user=User(id=1, role=UserRole.ADMIN),
     )
 
 
@@ -72,6 +77,6 @@ def login(data: UserLogin) -> UserLoginResponse:
 )
 def refresh(data: TokenRefreshIn) -> TokenResponse:
     return TokenResponse(
-        access_token="JWT",
-        refresh_token="REFRESH_TOKEN_2",
+        access_token=_create_token(user_id=1, role=UserRole.ADMIN),
+        refresh_token=_create_token(user_id=1, role=UserRole.ADMIN, expires_in_minutes=60 * 24),
     )

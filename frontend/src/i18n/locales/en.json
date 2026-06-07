@@ -126,7 +126,21 @@
     "cancel": "Cancel",
     "save": "Save",
     "openLink": "Open link",
-    "history": "History of changes"
+    "history": "History of changes",
+    "externalRentalTitle": "Rent to an external entity (Guest)",
+    "externalRentalDesc": "Send the rental directly to a Guest profile and set the return date.",
+    "externalRentalButton": "Open Guest form",
+    "externalGuestLabel": "Guest profile",
+    "externalGuestPlaceholder": "Select a Guest profile",
+    "externalGuestLoading": "Loading Guest profiles...",
+    "externalDateLabel": "Declared return date",
+    "externalRentalSave": "Save rental",
+    "externalRentalSaving": "Saving...",
+    "externalRentalCancel": "Cancel",
+    "externalGuestRequired": "Choose a specific Guest profile.",
+    "externalDateFutureError": "The return date must be in the future.",
+    "externalRentalError": "Could not save the external rental.",
+    "externalGuestFallback": "Guest"
   },
   "userManager": {
     "totalUsers": "Total users",
