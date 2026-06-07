@@ -111,6 +111,7 @@
     "save": "Dodaj przedmiot",
     "saving": "Zapisywanie...",
     "noParent": "Brak kategorii nadrzędnej",
+    "noRooms": "Brak aktywnych sal",
     "addNewCategory": "Dodaj nową kategorię",
     "categoryName": "Nazwa kategorii",
     "categoryParentLabel": "Kategoria nadrzędna (opcjonalnie)",

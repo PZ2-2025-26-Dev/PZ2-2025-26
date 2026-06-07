@@ -111,6 +111,7 @@
     "save": "Add Asset",
     "saving": "Saving...",
     "noParent": "No Parent Category",
+    "noRooms": "No active rooms",
     "addNewCategory": "Add New Category",
     "categoryName": "Category Name",
     "categoryParentLabel": "Parent Category (Optional)",

@@ -1,73 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-const LOCATION_TYPES = ['building', 'room', 'cabinet', 'shelf'];
-
-const PARENT_TYPE_BY_TYPE = {
-    building: null,
-    room: 'building',
-    cabinet: 'room',
-    shelf: 'cabinet',
-};
-
-const initialLocations = [
-    { id: 'loc-1', name: 'D10', type: 'building', parentId: null, description: 'Główny budynek WFiIS', isActive: true },
-    { id: 'loc-2', name: 'D11', type: 'building', parentId: null, description: 'Budynek laboratoryjny', isActive: true },
-    { id: 'loc-3', name: '204', type: 'room', parentId: 'loc-1', description: 'Laboratorium elektroniki', isActive: true },
-    { id: 'loc-4', name: '105', type: 'room', parentId: 'loc-2', description: 'Sala pomiarowa', isActive: true },
-    { id: 'loc-5', name: 'Szafa A', type: 'cabinet', parentId: 'loc-3', description: 'Aparatura podręczna', isActive: true },
-    { id: 'loc-6', name: 'Półka 1', type: 'shelf', parentId: 'loc-5', description: '', isActive: true },
-];
-
-const buildLocationTree = (locations) => {
-    const lookup = {};
-    const roots = [];
-
-    locations.forEach(location => {
-        lookup[location.id] = { ...location, children: [] };
-    });
-
-    locations.forEach(location => {
-        if (location.parentId && lookup[location.parentId]) {
-            lookup[location.parentId].children.push(lookup[location.id]);
-        } else {
-            roots.push(lookup[location.id]);
-        }
-    });
-
-    return roots;
-};
-
-const collectDescendantIds = (node) => {
-    const ids = [];
-
-    node.children.forEach(child => {
-        ids.push(child.id, ...collectDescendantIds(child));
-    });
-
-    return ids;
-};
-
-const isLocationEffectivelyActive = (location, locations) => {
-    if (location.isActive === false) return false;
-
-    let parentId = location.parentId;
-
-    while (parentId) {
-        const parent = locations.find(candidate => candidate.id === parentId);
-
-        if (!parent) return true;
-        if (parent.isActive === false) return false;
-
-        parentId = parent.parentId;
-    }
-
-    return true;
-};
+import {
+    LOCATION_TYPES,
+    PARENT_TYPE_BY_TYPE,
+    buildLocationTree,
+    collectDescendantIds,
+    collectTreeNodes,
+    isLocationEffectivelyActive,
+    useLocations,
+} from './useLocations';
 
 export default function LocationManager() {
     const { t } = useTranslation();
-    const [locations, setLocations] = useState(initialLocations);
+    const { createLocation, locations, toggleLocationActive, updateLocation } = useLocations();
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
@@ -138,45 +83,31 @@ export default function LocationManager() {
         if (!formData.name.trim()) return;
 
         const expectedParentType = PARENT_TYPE_BY_TYPE[formData.type];
-        const parentId = expectedParentType ? formData.parentId : null;
+        const parentId = expectedParentType ? Number(formData.parentId) : null;
 
         if (expectedParentType && !parentId) return;
 
         if (editingId) {
-            setLocations(prev => prev.map(location => (
-                location.id === editingId
-                    ? {
-                        ...location,
-                        name: formData.name.trim(),
-                        type: formData.type,
-                        parentId,
-                        description: formData.description.trim(),
-                    }
-                    : location
-            )));
+            updateLocation(editingId, {
+                name: formData.name.trim(),
+                type: formData.type,
+                parentId,
+                description: formData.description.trim(),
+            });
         } else {
-            setLocations(prev => [
-                ...prev,
-                {
-                    id: `loc-${Date.now()}`,
-                    name: formData.name.trim(),
-                    type: formData.type,
-                    parentId,
-                    description: formData.description.trim(),
-                    isActive: true,
-                },
-            ]);
+            createLocation({
+                name: formData.name.trim(),
+                type: formData.type,
+                parentId,
+                description: formData.description.trim(),
+            });
         }
 
         resetForm();
     };
 
     const handleToggleActive = (locationId) => {
-        setLocations(prev => prev.map(location => (
-            location.id === locationId
-                ? { ...location, isActive: location.isActive === false }
-                : location
-        )));
+        toggleLocationActive(locationId);
     };
 
     const LocationNode = ({ node, level = 0 }) => (
@@ -363,8 +294,3 @@ export default function LocationManager() {
         </div>
     );
 }
-
-const collectTreeNodes = (node) => [
-    ...node.children,
-    ...node.children.flatMap(child => collectTreeNodes(child)),
-];

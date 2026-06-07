@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInventory } from '../inventory/useInventory';
+import { useLocations } from '../locations/useLocations';
 
 export default function AddAssetModal({ isOpen, onClose, onSave }) {
     const { t } = useTranslation();
     const { createItem, isLoading, error, clearError } = useInventory();
+    const { activeBuildings, getActiveRoomsForBuilding, getLocationPath } = useLocations();
      // Mocki danych z backendu - w przyszłości zastąpić rzeczywistymi API callami
 
     const categories = useMemo(() => [
@@ -27,21 +29,19 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
         { id: 6, name: 'Kubuś Puchatek' },
     ], []);
 
-    const locations = useMemo(() => [
-        { id: 1, name: 'D10', path: 'Budynek D10', isActive: true },
-        { id: 2, name: 'D11', path: 'Budynek D11', isActive: true },
-        { id: 3, name: 'C3', path: 'Budynek C3', isActive: false },
-    ], []);
-
-    const activeLocations = useMemo(() => locations.filter(location => location.isActive !== false), [locations]);
-
     const [formData, setFormData] = useState({
         name: '',
         description: '',
         categoryId: categories.length > 0 ? categories[0].id : '',
-        locationId: activeLocations.length > 0 ? activeLocations[0].id : '',
+        buildingId: activeBuildings.length > 0 ? activeBuildings[0].id : '',
+        locationId: '',
         ownerId: users.length > 0 ? users[0].id : '',
     });
+
+    const roomsForSelectedBuilding = useMemo(
+        () => getActiveRoomsForBuilding(formData.buildingId),
+        [formData.buildingId, getActiveRoomsForBuilding]
+    );
 
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
@@ -68,16 +68,20 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
     useEffect(() => {
         if (isOpen) {
+            const defaultBuildingId = activeBuildings.length > 0 ? activeBuildings[0].id : '';
+            const defaultRooms = defaultBuildingId ? getActiveRoomsForBuilding(defaultBuildingId) : [];
+
             setFormData({
                 name: '',
                 description: '',
                 categoryId: categoriesLocal.length > 0 ? categoriesLocal[0].id : '',
-                locationId: activeLocations.length > 0 ? activeLocations[0].id : '',
+                buildingId: defaultBuildingId,
+                locationId: defaultRooms.length > 0 ? defaultRooms[0].id : '',
                 ownerId: users.length > 0 ? users[0].id : '',
             });
             clearError();
         }
-    }, [isOpen, activeLocations, categoriesLocal, users, clearError]);
+    }, [isOpen, activeBuildings, categoriesLocal, getActiveRoomsForBuilding, users, clearError]);
 
     if (!isOpen) return null;
 
@@ -99,7 +103,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-                if (!formData.name.trim() || !formData.categoryId || !formData.locationId || !formData.ownerId) {
+                if (!formData.name.trim() || !formData.categoryId || !formData.buildingId || !formData.locationId || !formData.ownerId) {
             return;
         }
             const result = await createItem({
@@ -113,7 +117,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
             // Backend zwraca: { id, inventory_number, status }
             // Frontend bierze name i description z formularza
             const categoryName = categoriesLocal.find(c => c.id === parseInt(formData.categoryId))?.name || 'Unknown';
-            const locationPath = activeLocations.find(l => l.id === parseInt(formData.locationId))?.path || 'Unknown';
+            const locationPath = getLocationPath(formData.locationId) || 'Unknown';
             const ownerName = users.find(u => u.id === parseInt(formData.ownerId))?.name || 'Unknown';
             const newAsset = {
                 id: result.data.id,
@@ -129,6 +133,16 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
             onSave(newAsset);
             onClose();
         }
+    };
+
+    const handleBuildingChange = (buildingId) => {
+        const rooms = getActiveRoomsForBuilding(buildingId);
+
+        setFormData({
+            ...formData,
+            buildingId,
+            locationId: rooms.length > 0 ? rooms[0].id : '',
+        });
     };
 
     return (
@@ -222,20 +236,37 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
                     <div className="border-t border-slate-100 dark:border-slate-900 pt-3">
                         <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase text-[10px] tracking-wide">{t('addAssetModal.locationTitle')}</h4>
-                        <div className="grid grid-cols-1 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.building')} *</label>
                                 <select 
-                                    value={formData.locationId} 
-                                    onChange={e => setFormData({...formData, locationId: e.target.value})} 
+                                    value={formData.buildingId} 
+                                    onChange={e => handleBuildingChange(e.target.value)} 
                                     disabled={isLoading}
                                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {activeLocations.map(loc => (
-                                        <option key={loc.id} value={loc.id}>
-                                            {loc.path}
+                                    {activeBuildings.map(building => (
+                                        <option key={building.id} value={building.id}>
+                                            {building.name}
                                         </option>
                                     ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.room')} *</label>
+                                <select 
+                                    value={formData.locationId} 
+                                    onChange={e => setFormData({...formData, locationId: e.target.value})} 
+                                    disabled={isLoading || roomsForSelectedBuilding.length === 0}
+                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {roomsForSelectedBuilding.length > 0 ? roomsForSelectedBuilding.map(room => (
+                                        <option key={room.id} value={room.id}>
+                                            {room.name}
+                                        </option>
+                                    )) : (
+                                        <option value="">{t('addAssetModal.noRooms')}</option>
+                                    )}
                                 </select>
                             </div>
                         </div>
