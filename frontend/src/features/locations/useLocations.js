@@ -1,4 +1,7 @@
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import axiosClient from '../../api/axiosClient';
+import { ENDPOINTS } from '../../api/endpoints';
+import { parseApiError } from '../../api/apiUtils';
 
 export const LOCATION_TYPES = ['building', 'room', 'cabinet', 'shelf'];
 
@@ -9,16 +12,12 @@ export const PARENT_TYPE_BY_TYPE = {
     shelf: 'cabinet',
 };
 
-const initialLocations = [
-    { id: 1, name: 'D10', type: 'building', parentId: null, description: 'Główny budynek WFiIS', isActive: true },
-    { id: 2, name: 'D11', type: 'building', parentId: null, description: 'Budynek laboratoryjny', isActive: true },
-    { id: 3, name: '204', type: 'room', parentId: 1, description: 'Laboratorium elektroniki', isActive: true },
-    { id: 4, name: '105', type: 'room', parentId: 2, description: 'Sala pomiarowa', isActive: true },
-    { id: 5, name: 'Szafa A', type: 'cabinet', parentId: 3, description: 'Aparatura podręczna', isActive: true },
-    { id: 6, name: 'Półka 1', type: 'shelf', parentId: 5, description: '', isActive: true },
-];
-
-let locationsState = initialLocations;
+let locationsState = {
+    locations: [],
+    isLoading: false,
+    error: null,
+    hasLoaded: false,
+};
 const listeners = new Set();
 
 const subscribe = (listener) => {
@@ -32,6 +31,18 @@ const setLocationsState = (updater) => {
     locationsState = typeof updater === 'function' ? updater(locationsState) : updater;
     listeners.forEach(listener => listener());
 };
+
+const flattenLocationTree = (nodes, parentId = null) => nodes.flatMap(node => [
+    {
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        parentId,
+        description: node.description || '',
+        isActive: node.isActive ?? node.is_active ?? true,
+    },
+    ...flattenLocationTree(node.children || [], node.id),
+]);
 
 export const buildLocationTree = (locations) => {
     const lookup = {};
@@ -102,10 +113,44 @@ const buildLocationPath = (location, locations) => {
     return path.join(' / ');
 };
 
-const getNextLocationId = (locations) => Math.max(...locations.map(location => Number(location.id)), 0) + 1;
-
 export const useLocations = () => {
-    const locations = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const store = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const { error, hasLoaded, isLoading, locations } = store;
+
+    const loadLocations = useCallback(async (force = false) => {
+        if (locationsState.isLoading && !force) return;
+
+        setLocationsState(prev => ({
+            ...prev,
+            isLoading: true,
+            error: null,
+        }));
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.LOCATIONS.TREE);
+
+            setLocationsState(prev => ({
+                ...prev,
+                locations: flattenLocationTree(response.data.items || []),
+                isLoading: false,
+                error: null,
+                hasLoaded: true,
+            }));
+        } catch (err) {
+            setLocationsState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: parseApiError(err),
+                hasLoaded: true,
+            }));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!hasLoaded && !isLoading) {
+            loadLocations();
+        }
+    }, [hasLoaded, isLoading, loadLocations]);
 
     const activeLocations = useMemo(
         () => locations.filter(location => isLocationEffectivelyActive(location, locations)),
@@ -117,31 +162,65 @@ export const useLocations = () => {
         [activeLocations]
     );
 
-    const createLocation = useCallback((data) => {
-        setLocationsState(prev => [
+    const createLocation = useCallback(async (data) => {
+        setLocationsState(prev => ({
             ...prev,
-            {
-                ...data,
-                id: getNextLocationId(prev),
-                isActive: true,
-            },
-        ]);
-    }, []);
+            isLoading: true,
+            error: null,
+        }));
+
+        try {
+            const response = await axiosClient.post(ENDPOINTS.LOCATIONS.BASE, {
+                name: data.name,
+                type: data.type,
+                parentId: data.parentId,
+                description: data.description || null,
+            });
+
+            await loadLocations(true);
+
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+
+            setLocationsState(prev => ({
+                ...prev,
+                isLoading: false,
+                error: errorMessage,
+            }));
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        }
+    }, [loadLocations]);
 
     const updateLocation = useCallback((locationId, data) => {
-        setLocationsState(prev => prev.map(location => (
-            String(location.id) === String(locationId)
-                ? { ...location, ...data }
-                : location
-        )));
+        setLocationsState(prev => ({
+            ...prev,
+            locations: prev.locations.map(location => (
+                String(location.id) === String(locationId)
+                    ? { ...location, ...data }
+                    : location
+            )),
+        }));
     }, []);
 
     const toggleLocationActive = useCallback((locationId) => {
-        setLocationsState(prev => prev.map(location => (
-            String(location.id) === String(locationId)
-                ? { ...location, isActive: location.isActive === false }
-                : location
-        )));
+        setLocationsState(prev => ({
+            ...prev,
+            locations: prev.locations.map(location => (
+                String(location.id) === String(locationId)
+                    ? { ...location, isActive: location.isActive === false }
+                    : location
+            )),
+        }));
     }, []);
 
     const getActiveRoomsForBuilding = useCallback((buildingId) => activeLocations.filter(location => (
@@ -153,13 +232,24 @@ export const useLocations = () => {
         return buildLocationPath(location, locations);
     }, [locations]);
 
+    const clearError = useCallback(() => {
+        setLocationsState(prev => ({
+            ...prev,
+            error: null,
+        }));
+    }, []);
+
     return {
         locations,
         activeLocations,
         activeBuildings,
+        clearError,
         createLocation,
+        error,
         getActiveRoomsForBuilding,
         getLocationPath,
+        isLoading,
+        loadLocations,
         toggleLocationActive,
         updateLocation,
     };

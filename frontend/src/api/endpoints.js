@@ -15,8 +15,7 @@ export const ENDPOINTS = {
         TREE: '/categories/tree',
     },
     LOCATIONS: {
-        BUILDINGS: '/buildings',
-        ROOMS: '/rooms',
+        BASE: '/locations',
         TREE: '/locations/tree',
     }
 };

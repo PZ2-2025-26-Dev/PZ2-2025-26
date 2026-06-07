@@ -77,6 +77,8 @@
     "noParentAvailable": "Najpierw dodaj aktywną lokalizację nadrzędną właściwego typu.",
     "addBtn": "Zapisz lokalizację",
     "saveChanges": "Zapisz zmiany",
+    "saving": "Zapisywanie...",
+    "loading": "Ładowanie lokalizacji...",
     "clear": "Wyczyść",
     "edit": "Edytuj",
     "hide": "Ukryj",

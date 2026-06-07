@@ -50,6 +50,7 @@ class LocationService:
                 id=location.id,
                 name=location.name,
                 type=location.type,
+                description=location.description,
                 is_active=location.is_active,
             )
             for location in locations

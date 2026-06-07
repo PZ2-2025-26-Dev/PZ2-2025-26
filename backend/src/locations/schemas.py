@@ -35,6 +35,7 @@ class LocationTreeNode(BaseModel):
     id: LocationID
     name: LocationName
     type: LocationType
+    description: str | None
     is_active: bool
     children: list[LocationTreeNode] = Field(default_factory=list)
 

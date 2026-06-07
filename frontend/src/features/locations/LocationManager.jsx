@@ -12,7 +12,7 @@ import {
 
 export default function LocationManager() {
     const { t } = useTranslation();
-    const { createLocation, locations, toggleLocationActive, updateLocation } = useLocations();
+    const { createLocation, error, isLoading, locations, toggleLocationActive, updateLocation } = useLocations();
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
@@ -47,7 +47,7 @@ export default function LocationManager() {
     }, [excludedParentIds, formData.type, locations]);
 
     const isParentRequired = Boolean(PARENT_TYPE_BY_TYPE[formData.type]);
-    const canSubmit = formData.name.trim() && (!isParentRequired || formData.parentId);
+    const canSubmit = formData.name.trim() && (!isParentRequired || formData.parentId) && !isLoading;
 
     const resetForm = () => {
         setEditingId(null);
@@ -77,7 +77,7 @@ export default function LocationManager() {
         });
     };
 
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault();
 
         if (!formData.name.trim()) return;
@@ -94,16 +94,19 @@ export default function LocationManager() {
                 parentId,
                 description: formData.description.trim(),
             });
+            resetForm();
         } else {
-            createLocation({
+            const result = await createLocation({
                 name: formData.name.trim(),
                 type: formData.type,
                 parentId,
                 description: formData.description.trim(),
             });
-        }
 
-        resetForm();
+            if (result.success) {
+                resetForm();
+            }
+        }
     };
 
     const handleToggleActive = (locationId) => {
@@ -185,6 +188,7 @@ export default function LocationManager() {
                             <button
                                 type="button"
                                 onClick={resetForm}
+                                disabled={isLoading}
                                 className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
                             >
                                 {t('locationManager.clear')}
@@ -193,6 +197,12 @@ export default function LocationManager() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && (
+                            <div className="px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+                                {error}
+                            </div>
+                        )}
+
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                                 {t('locationManager.nameLabel')}
@@ -202,6 +212,7 @@ export default function LocationManager() {
                                 required
                                 value={formData.name}
                                 onChange={(event) => setFormData(prev => ({ ...prev, name: event.target.value }))}
+                                disabled={isLoading}
                                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 transition"
                             />
                         </div>
@@ -213,6 +224,7 @@ export default function LocationManager() {
                             <select
                                 value={formData.type}
                                 onChange={(event) => handleTypeChange(event.target.value)}
+                                disabled={isLoading}
                                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition appearance-none"
                             >
                                 {LOCATION_TYPES.map(type => (
@@ -230,7 +242,7 @@ export default function LocationManager() {
                                     required
                                     value={formData.parentId}
                                     onChange={(event) => setFormData(prev => ({ ...prev, parentId: event.target.value }))}
-                                    disabled={availableParents.length === 0}
+                                    disabled={isLoading || availableParents.length === 0}
                                     className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition appearance-none"
                                 >
                                     <option value="">{t('locationManager.selectParent')}</option>
@@ -254,6 +266,7 @@ export default function LocationManager() {
                                 rows="3"
                                 value={formData.description}
                                 onChange={(event) => setFormData(prev => ({ ...prev, description: event.target.value }))}
+                                disabled={isLoading}
                                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 transition resize-none"
                             />
                         </div>
@@ -263,7 +276,7 @@ export default function LocationManager() {
                             disabled={!canSubmit}
                             className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {editingId ? t('locationManager.saveChanges') : t('locationManager.addBtn')}
+                            {isLoading ? t('locationManager.saving') : editingId ? t('locationManager.saveChanges') : t('locationManager.addBtn')}
                         </button>
                     </form>
                 </div>
@@ -279,7 +292,9 @@ export default function LocationManager() {
                     </div>
 
                     <div className="bg-slate-50/50 dark:bg-slate-900/20 rounded-lg border border-slate-100 dark:border-slate-800/60 p-4">
-                        {locationTree.length > 0 ? (
+                        {isLoading && locationTree.length === 0 ? (
+                            <div className="text-center py-8 text-sm text-slate-400">{t('locationManager.loading')}</div>
+                        ) : locationTree.length > 0 ? (
                             <div className="space-y-1">
                                 {locationTree.map(rootNode => (
                                     <LocationNode key={rootNode.id} node={rootNode} />

@@ -6,7 +6,14 @@ import { useLocations } from '../locations/useLocations';
 export default function AddAssetModal({ isOpen, onClose, onSave }) {
     const { t } = useTranslation();
     const { createItem, isLoading, error, clearError } = useInventory();
-    const { activeBuildings, getActiveRoomsForBuilding, getLocationPath } = useLocations();
+    const {
+        activeBuildings,
+        clearError: clearLocationsError,
+        error: locationsError,
+        getActiveRoomsForBuilding,
+        getLocationPath,
+        isLoading: isLocationsLoading,
+    } = useLocations();
      // Mocki danych z backendu - w przyszłości zastąpić rzeczywistymi API callami
 
     const categories = useMemo(() => [
@@ -80,8 +87,9 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                 ownerId: users.length > 0 ? users[0].id : '',
             });
             clearError();
+            clearLocationsError();
         }
-    }, [isOpen, activeBuildings, categoriesLocal, getActiveRoomsForBuilding, users, clearError]);
+    }, [isOpen, activeBuildings, categoriesLocal, getActiveRoomsForBuilding, users, clearError, clearLocationsError]);
 
     if (!isOpen) return null;
 
@@ -156,10 +164,18 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                         ✕
                     </button>
                 </div>
-                {error && (
+                {(error || locationsError) && (
                     <div className="px-6 py-3 bg-rose-50 dark:bg-rose-950/30 border-b border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-xs flex justify-between items-start">
-                        <div>{error}</div>
-                        <button onClick={clearError} className="text-rose-500 hover:text-rose-700">✕</button>
+                        <div>{error || locationsError}</div>
+                        <button
+                            onClick={() => {
+                                clearError();
+                                clearLocationsError();
+                            }}
+                            className="text-rose-500 hover:text-rose-700"
+                        >
+                            ✕
+                        </button>
                     </div>
                 )}
 
@@ -242,14 +258,16 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                                 <select 
                                     value={formData.buildingId} 
                                     onChange={e => handleBuildingChange(e.target.value)} 
-                                    disabled={isLoading}
+                                    disabled={isLoading || isLocationsLoading || activeBuildings.length === 0}
                                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {activeBuildings.map(building => (
+                                    {activeBuildings.length > 0 ? activeBuildings.map(building => (
                                         <option key={building.id} value={building.id}>
                                             {building.name}
                                         </option>
-                                    ))}
+                                    )) : (
+                                        <option value="">{isLocationsLoading ? t('locationManager.loading') : t('locationManager.emptyTree')}</option>
+                                    )}
                                 </select>
                             </div>
                             <div>
@@ -257,7 +275,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                                 <select 
                                     value={formData.locationId} 
                                     onChange={e => setFormData({...formData, locationId: e.target.value})} 
-                                    disabled={isLoading || roomsForSelectedBuilding.length === 0}
+                                    disabled={isLoading || isLocationsLoading || roomsForSelectedBuilding.length === 0}
                                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {roomsForSelectedBuilding.length > 0 ? roomsForSelectedBuilding.map(room => (
