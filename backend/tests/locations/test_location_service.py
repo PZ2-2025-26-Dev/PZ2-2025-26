@@ -9,6 +9,8 @@ from src.locations.schemas import LocationCreate
 from src.locations.service import InvalidLocationParentError, LocationService
 
 
+pytestmark = pytest.mark.integration
+
 @pytest.fixture()
 def db() -> Session:
     engine = create_engine("sqlite:///:memory:")

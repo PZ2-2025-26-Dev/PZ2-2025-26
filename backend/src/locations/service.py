@@ -1,9 +1,12 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.items.constants import ItemChangeLogType
+from src.items.models import Item, ItemHistory
 from src.locations.constants import LocationType
 from src.locations.models import Location
 from src.locations.schemas import LocationCreate, LocationTreeNode
+from src.utils import now
 
 
 class LocationNotFoundError(Exception):
@@ -81,6 +84,32 @@ class LocationService:
             parent_id = parent.parent_id
 
         return " / ".join(reversed(path))
+
+    def delete_location(self, location_id: int, replacement_location_id: int, updated_by: int) -> int:
+        location = self.db.get(Location, location_id)
+        replacement_location = self.db.get(Location, replacement_location_id)
+        items = list(self.db.scalars(select(Item).where(Item.location_id == location_id)).all())
+        child_locations = list(self.db.scalars(select(Location).where(Location.parent_id == location_id)).all())
+
+        for item in items:
+            item.location_id = replacement_location_id
+            self.db.add(
+                ItemHistory(
+                    item_id=item.id,
+                    updated_at=now(),
+                    updated_by=updated_by,
+                    change_type=ItemChangeLogType.LOCATION_CHANGED,
+                    description=f"Location changed from {location.name} to {replacement_location.name}",
+                )
+            )
+
+        for child_location in child_locations:
+            child_location.parent_id = replacement_location_id
+
+        self.db.delete(location)
+        self.db.commit()
+
+        return len(items)
 
     def _get_valid_parent(self, location_type: LocationType, parent_id: int | None) -> Location | None:
         expected_parent_type = PARENT_TYPE_BY_LOCATION_TYPE[location_type]

@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.dependencies import DBDep
 from src.schemas import ErrorResponse
@@ -70,3 +72,26 @@ def read_locations_tree(db: DBDep) -> LocationsTree:
     service = LocationService(db)
 
     return LocationsTree(items=service.get_tree())
+
+
+@router.delete(
+    "/{location_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Usuń lokalizację i przenieś sprzęt",
+)
+def delete_location(
+    location_id: int,
+    replacement_location_id: Annotated[int, Query(alias="replacementLocationId")],
+    db: DBDep,
+) -> dict:
+    migrated_items_count = LocationService(db).delete_location(
+        location_id=location_id,
+        replacement_location_id=replacement_location_id,
+        updated_by=1,
+    )
+
+    return {
+        "id": location_id,
+        "replacement_location_id": replacement_location_id,
+        "migrated_items_count": migrated_items_count,
+    }
