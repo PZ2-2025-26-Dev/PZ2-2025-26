@@ -27,6 +27,7 @@
     "tabInventory": "Inwentarz",
     "tabUsers": "Wnioski o dostęp",
     "tabCategories": "Kategorie",
+    "tabLocations": "Lokalizacje",
     "totalAssets": "Zasoby ogółem",
     "borrowedAssets": "Wypożyczone",
     "pendingApprovals": "Oczekujące wnioski",
@@ -63,6 +64,30 @@
     "treeTitle": "Drzewo Kategorii",
     "emptyTree": "Brak zdefiniowanych kategorii.",
     "delete": "Usuń"
+  },
+  "locationManager": {
+    "addTitle": "Dodaj lokalizację",
+    "editTitle": "Edytuj lokalizację",
+    "formDesc": "Buduj strukturę od budynku do półki.",
+    "nameLabel": "Nazwa lokalizacji",
+    "typeLabel": "Typ lokalizacji",
+    "parentLabel": "Lokalizacja nadrzędna",
+    "descriptionLabel": "Opis lokalizacji",
+    "selectParent": "-- Wybierz lokalizację nadrzędną --",
+    "noParentAvailable": "Najpierw dodaj aktywną lokalizację nadrzędną właściwego typu.",
+    "addBtn": "Zapisz lokalizację",
+    "saveChanges": "Zapisz zmiany",
+    "clear": "Wyczyść",
+    "edit": "Edytuj",
+    "treeTitle": "Struktura przestrzenna",
+    "desc": "Przeglądaj i edytuj budynki, sale, szafy oraz półki.",
+    "emptyTree": "Brak zdefiniowanych lokalizacji.",
+    "types": {
+      "building": "Budynek",
+      "room": "Sala",
+      "cabinet": "Szafa",
+      "shelf": "Półka"
+    }
   },
   "addAssetModal": {
     "modalTitle": "Dodaj Nowy Przedmiot do Systemu",

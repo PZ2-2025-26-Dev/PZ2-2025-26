@@ -27,6 +27,7 @@
     "tabInventory": "Inventory",
     "tabUsers": "Access Requests",
     "tabCategories": "Categories",
+    "tabLocations": "Locations",
     "totalAssets": "Total Assets",
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
@@ -63,6 +64,30 @@
     "treeTitle": "Category Tree",
     "emptyTree": "No categories defined yet.",
     "delete": "Delete"
+  },
+  "locationManager": {
+    "addTitle": "Add location",
+    "editTitle": "Edit location",
+    "formDesc": "Build the structure from building down to shelf.",
+    "nameLabel": "Location name",
+    "typeLabel": "Location type",
+    "parentLabel": "Parent location",
+    "descriptionLabel": "Location description",
+    "selectParent": "-- Select parent location --",
+    "noParentAvailable": "Add an active parent location of the required type first.",
+    "addBtn": "Save location",
+    "saveChanges": "Save changes",
+    "clear": "Clear",
+    "edit": "Edit",
+    "treeTitle": "Spatial structure",
+    "desc": "Browse and edit buildings, rooms, cabinets, and shelves.",
+    "emptyTree": "No locations defined yet.",
+    "types": {
+      "building": "Building",
+      "room": "Room",
+      "cabinet": "Cabinet",
+      "shelf": "Shelf"
+    }
   },
   "addAssetModal": {
     "modalTitle": "Add New Asset to System",

@@ -1,0 +1,327 @@
+import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+const LOCATION_TYPES = ['building', 'room', 'cabinet', 'shelf'];
+
+const PARENT_TYPE_BY_TYPE = {
+    building: null,
+    room: 'building',
+    cabinet: 'room',
+    shelf: 'cabinet',
+};
+
+const initialLocations = [
+    { id: 'loc-1', name: 'D10', type: 'building', parentId: null, description: 'Główny budynek WFiIS' },
+    { id: 'loc-2', name: 'D11', type: 'building', parentId: null, description: 'Budynek laboratoryjny' },
+    { id: 'loc-3', name: '204', type: 'room', parentId: 'loc-1', description: 'Laboratorium elektroniki' },
+    { id: 'loc-4', name: '105', type: 'room', parentId: 'loc-2', description: 'Sala pomiarowa' },
+    { id: 'loc-5', name: 'Szafa A', type: 'cabinet', parentId: 'loc-3', description: 'Aparatura podręczna' },
+    { id: 'loc-6', name: 'Półka 1', type: 'shelf', parentId: 'loc-5', description: '' },
+];
+
+const buildLocationTree = (locations) => {
+    const lookup = {};
+    const roots = [];
+
+    locations.forEach(location => {
+        lookup[location.id] = { ...location, children: [] };
+    });
+
+    locations.forEach(location => {
+        if (location.parentId && lookup[location.parentId]) {
+            lookup[location.parentId].children.push(lookup[location.id]);
+        } else {
+            roots.push(lookup[location.id]);
+        }
+    });
+
+    return roots;
+};
+
+const collectDescendantIds = (node) => {
+    const ids = [];
+
+    node.children.forEach(child => {
+        ids.push(child.id, ...collectDescendantIds(child));
+    });
+
+    return ids;
+};
+
+export default function LocationManager() {
+    const { t } = useTranslation();
+    const [locations, setLocations] = useState(initialLocations);
+    const [editingId, setEditingId] = useState(null);
+    const [formData, setFormData] = useState({
+        name: '',
+        type: 'building',
+        parentId: '',
+        description: '',
+    });
+
+    const locationTree = useMemo(() => buildLocationTree(locations), [locations]);
+    const editingNode = useMemo(() => locations.find(location => location.id === editingId), [editingId, locations]);
+
+    const excludedParentIds = useMemo(() => {
+        if (!editingNode) return [];
+
+        const treeNode = buildLocationTree(locations)
+            .flatMap(root => [root, ...collectTreeNodes(root)])
+            .find(node => node.id === editingId);
+
+        return treeNode ? [editingId, ...collectDescendantIds(treeNode)] : [editingId];
+    }, [editingId, editingNode, locations]);
+
+    const availableParents = useMemo(() => {
+        const expectedParentType = PARENT_TYPE_BY_TYPE[formData.type];
+
+        if (!expectedParentType) return [];
+
+        return locations.filter(location => (
+            location.type === expectedParentType && !excludedParentIds.includes(location.id)
+        ));
+    }, [excludedParentIds, formData.type, locations]);
+
+    const isParentRequired = Boolean(PARENT_TYPE_BY_TYPE[formData.type]);
+    const canSubmit = formData.name.trim() && (!isParentRequired || formData.parentId);
+
+    const resetForm = () => {
+        setEditingId(null);
+        setFormData({
+            name: '',
+            type: 'building',
+            parentId: '',
+            description: '',
+        });
+    };
+
+    const handleTypeChange = (type) => {
+        setFormData(prev => ({
+            ...prev,
+            type,
+            parentId: '',
+        }));
+    };
+
+    const handleEdit = (location) => {
+        setEditingId(location.id);
+        setFormData({
+            name: location.name,
+            type: location.type,
+            parentId: location.parentId || '',
+            description: location.description || '',
+        });
+    };
+
+    const handleSubmit = (event) => {
+        event.preventDefault();
+
+        if (!formData.name.trim()) return;
+
+        const expectedParentType = PARENT_TYPE_BY_TYPE[formData.type];
+        const parentId = expectedParentType ? formData.parentId : null;
+
+        if (expectedParentType && !parentId) return;
+
+        if (editingId) {
+            setLocations(prev => prev.map(location => (
+                location.id === editingId
+                    ? {
+                        ...location,
+                        name: formData.name.trim(),
+                        type: formData.type,
+                        parentId,
+                        description: formData.description.trim(),
+                    }
+                    : location
+            )));
+        } else {
+            setLocations(prev => [
+                ...prev,
+                {
+                    id: `loc-${Date.now()}`,
+                    name: formData.name.trim(),
+                    type: formData.type,
+                    parentId,
+                    description: formData.description.trim(),
+                },
+            ]);
+        }
+
+        resetForm();
+    };
+
+    const LocationNode = ({ node, level = 0 }) => (
+        <div className="flex flex-col">
+            <div className={`flex items-center justify-between gap-3 py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-900/30 rounded-lg group transition border border-transparent hover:border-slate-100 dark:hover:border-slate-800 ${level > 0 ? 'ml-6 border-l-slate-200 dark:border-l-slate-800' : ''}`}>
+                <div className="min-w-0 flex items-center space-x-2">
+                    <div className="text-slate-300 dark:text-slate-600 shrink-0">
+                        {node.children.length > 0 ? (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <div className={`truncate text-sm ${level === 0 ? 'font-semibold text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>
+                            {node.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                            {t(`locationManager.types.${node.type}`)}
+                        </div>
+                        {node.description && (
+                            <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+                                {node.description}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <button
+                    onClick={() => handleEdit(node)}
+                    className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition px-2 py-1 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded"
+                >
+                    {t('locationManager.edit')}
+                </button>
+            </div>
+
+            {node.children.length > 0 && (
+                <div className="border-l border-slate-100 dark:border-slate-800/60 ml-[21px] mt-1 space-y-1">
+                    {node.children.map(child => (
+                        <LocationNode key={child.id} node={child} level={level + 1} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+            <div className="lg:col-span-1">
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5">
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                                {editingId ? t('locationManager.editTitle') : t('locationManager.addTitle')}
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {t('locationManager.formDesc')}
+                            </p>
+                        </div>
+                        {editingId && (
+                            <button
+                                type="button"
+                                onClick={resetForm}
+                                className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                            >
+                                {t('locationManager.clear')}
+                            </button>
+                        )}
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                {t('locationManager.nameLabel')}
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.name}
+                                onChange={(event) => setFormData(prev => ({ ...prev, name: event.target.value }))}
+                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 transition"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                {t('locationManager.typeLabel')}
+                            </label>
+                            <select
+                                value={formData.type}
+                                onChange={(event) => handleTypeChange(event.target.value)}
+                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition appearance-none"
+                            >
+                                {LOCATION_TYPES.map(type => (
+                                    <option key={type} value={type}>{t(`locationManager.types.${type}`)}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {PARENT_TYPE_BY_TYPE[formData.type] && (
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                    {t('locationManager.parentLabel')}
+                                </label>
+                                <select
+                                    required
+                                    value={formData.parentId}
+                                    onChange={(event) => setFormData(prev => ({ ...prev, parentId: event.target.value }))}
+                                    disabled={availableParents.length === 0}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition appearance-none"
+                                >
+                                    <option value="">{t('locationManager.selectParent')}</option>
+                                    {availableParents.map(parent => (
+                                        <option key={parent.id} value={parent.id}>{parent.name}</option>
+                                    ))}
+                                </select>
+                                {availableParents.length === 0 && (
+                                    <p className="mt-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+                                        {t('locationManager.noParentAvailable')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                {t('locationManager.descriptionLabel')}
+                            </label>
+                            <textarea
+                                rows="3"
+                                value={formData.description}
+                                onChange={(event) => setFormData(prev => ({ ...prev, description: event.target.value }))}
+                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 transition resize-none"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={!canSubmit}
+                            className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {editingId ? t('locationManager.saveChanges') : t('locationManager.addBtn')}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div className="lg:col-span-2">
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5 h-full">
+                    <div className="flex justify-between items-end mb-4">
+                        <div>
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t('locationManager.treeTitle')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('locationManager.desc')}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50/50 dark:bg-slate-900/20 rounded-lg border border-slate-100 dark:border-slate-800/60 p-4">
+                        {locationTree.length > 0 ? (
+                            <div className="space-y-1">
+                                {locationTree.map(rootNode => (
+                                    <LocationNode key={rootNode.id} node={rootNode} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-sm text-slate-400">{t('locationManager.emptyTree')}</div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const collectTreeNodes = (node) => [
+    ...node.children,
+    ...node.children.flatMap(child => collectTreeNodes(child)),
+];
