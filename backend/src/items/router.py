@@ -7,13 +7,8 @@ from src.dependencies import DBDep
 from src.items.constants import ItemStatus
 from src.items.schemas import (
     CategoryID,
-    ItemCategory,
     ItemCreate,
     ItemCreateResponse,
-    ItemDetails,
-    ItemLocation,
-    ItemOwner,
-    ItemPagination,
     ItemsPaged,
     LocationID,
     SearchStr,
@@ -36,6 +31,7 @@ router = APIRouter(prefix="/items")
     },
 )
 def read_items(
+    db: DBDep,
     search: SearchStr | None = None,
     category_id: CategoryID | None = None,
     location_id: LocationID | None = None,
@@ -44,32 +40,16 @@ def read_items(
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> ItemsPaged:
-    return ItemsPaged(
-        items=[
-            ItemDetails(
-                id=1,
-                name="Nokia 3310",
-                category=ItemCategory(
-                    id=1,
-                    name="Elektronika / Telefony",
-                ),
-                location=ItemLocation(
-                    id=1,
-                    path="D10 / 204",
-                ),
-                owner=ItemOwner(
-                    id=1,
-                    name="Batman",
-                ),
-                description=None,
-                legacy_id=None,
-            ),
-        ],
-        pagination=ItemPagination(
-            page=page,
-            limit=limit,
-            total=1,
-        ),
+    service = ItemService(db)
+
+    return service.list_items(
+        search=search,
+        category_id=category_id,
+        location_id=location_id,
+        owner_id=owner_id,
+        status=status,
+        page=page,
+        limit=limit,
     )
 
 

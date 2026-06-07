@@ -1,7 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.database import SessionLocal
 from src.locations.constants import DEFAULT_ROOT_LOCATION_NAMES, LocationType
 from src.locations.models import Location
 

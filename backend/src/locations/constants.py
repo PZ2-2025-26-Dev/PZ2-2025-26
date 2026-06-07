@@ -1,5 +1,7 @@
 from enum import Enum
 
+LOCATION_NAME_MAX_LENGTH = 100
+
 
 class LocationType(Enum):
     BUILDING = "building"

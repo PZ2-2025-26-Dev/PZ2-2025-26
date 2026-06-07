@@ -17,6 +17,7 @@ from src.items.router import router as items_router
 from src.loans import models as loans_models  # noqa: F401
 from src.locations import models as locations_models  # noqa: F401
 from src.locations.bootstrap import ensure_default_root_locations
+from src.locations.router import router as locations_router
 from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
 
@@ -35,6 +36,7 @@ app = FastAPI(version="0.1.0", lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(items_router)
+app.include_router(locations_router)
 
 
 @app.get("/ready")
