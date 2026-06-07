@@ -23,6 +23,7 @@ from src.users.service import (
     UserService,
 )
 
+pytestmark = pytest.mark.integration
 
 @pytest.fixture(autouse=True)
 def user_tables() -> Iterator[None]:
