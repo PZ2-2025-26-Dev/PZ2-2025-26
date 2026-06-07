@@ -11,12 +11,12 @@ const PARENT_TYPE_BY_TYPE = {
 };
 
 const initialLocations = [
-    { id: 'loc-1', name: 'D10', type: 'building', parentId: null, description: 'Główny budynek WFiIS' },
-    { id: 'loc-2', name: 'D11', type: 'building', parentId: null, description: 'Budynek laboratoryjny' },
-    { id: 'loc-3', name: '204', type: 'room', parentId: 'loc-1', description: 'Laboratorium elektroniki' },
-    { id: 'loc-4', name: '105', type: 'room', parentId: 'loc-2', description: 'Sala pomiarowa' },
-    { id: 'loc-5', name: 'Szafa A', type: 'cabinet', parentId: 'loc-3', description: 'Aparatura podręczna' },
-    { id: 'loc-6', name: 'Półka 1', type: 'shelf', parentId: 'loc-5', description: '' },
+    { id: 'loc-1', name: 'D10', type: 'building', parentId: null, description: 'Główny budynek WFiIS', isActive: true },
+    { id: 'loc-2', name: 'D11', type: 'building', parentId: null, description: 'Budynek laboratoryjny', isActive: true },
+    { id: 'loc-3', name: '204', type: 'room', parentId: 'loc-1', description: 'Laboratorium elektroniki', isActive: true },
+    { id: 'loc-4', name: '105', type: 'room', parentId: 'loc-2', description: 'Sala pomiarowa', isActive: true },
+    { id: 'loc-5', name: 'Szafa A', type: 'cabinet', parentId: 'loc-3', description: 'Aparatura podręczna', isActive: true },
+    { id: 'loc-6', name: 'Półka 1', type: 'shelf', parentId: 'loc-5', description: '', isActive: true },
 ];
 
 const buildLocationTree = (locations) => {
@@ -46,6 +46,23 @@ const collectDescendantIds = (node) => {
     });
 
     return ids;
+};
+
+const isLocationEffectivelyActive = (location, locations) => {
+    if (location.isActive === false) return false;
+
+    let parentId = location.parentId;
+
+    while (parentId) {
+        const parent = locations.find(candidate => candidate.id === parentId);
+
+        if (!parent) return true;
+        if (parent.isActive === false) return false;
+
+        parentId = parent.parentId;
+    }
+
+    return true;
 };
 
 export default function LocationManager() {
@@ -78,7 +95,9 @@ export default function LocationManager() {
         if (!expectedParentType) return [];
 
         return locations.filter(location => (
-            location.type === expectedParentType && !excludedParentIds.includes(location.id)
+            location.type === expectedParentType
+            && !excludedParentIds.includes(location.id)
+            && isLocationEffectivelyActive(location, locations)
         ));
     }, [excludedParentIds, formData.type, locations]);
 
@@ -144,6 +163,7 @@ export default function LocationManager() {
                     type: formData.type,
                     parentId,
                     description: formData.description.trim(),
+                    isActive: true,
                 },
             ]);
         }
@@ -151,9 +171,17 @@ export default function LocationManager() {
         resetForm();
     };
 
+    const handleToggleActive = (locationId) => {
+        setLocations(prev => prev.map(location => (
+            location.id === locationId
+                ? { ...location, isActive: location.isActive === false }
+                : location
+        )));
+    };
+
     const LocationNode = ({ node, level = 0 }) => (
         <div className="flex flex-col">
-            <div className={`flex items-center justify-between gap-3 py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-900/30 rounded-lg group transition border border-transparent hover:border-slate-100 dark:hover:border-slate-800 ${level > 0 ? 'ml-6 border-l-slate-200 dark:border-l-slate-800' : ''}`}>
+            <div className={`flex items-center justify-between gap-3 py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-900/30 rounded-lg group transition border border-transparent hover:border-slate-100 dark:hover:border-slate-800 ${level > 0 ? 'ml-6 border-l-slate-200 dark:border-l-slate-800' : ''} ${node.isActive === false ? 'bg-slate-100/60 dark:bg-slate-900/60 opacity-70' : ''}`}>
                 <div className="min-w-0 flex items-center space-x-2">
                     <div className="text-slate-300 dark:text-slate-600 shrink-0">
                         {node.children.length > 0 ? (
@@ -163,8 +191,15 @@ export default function LocationManager() {
                         )}
                     </div>
                     <div className="min-w-0">
-                        <div className={`truncate text-sm ${level === 0 ? 'font-semibold text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>
-                            {node.name}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={`truncate text-sm ${level === 0 ? 'font-semibold text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>
+                                {node.name}
+                            </span>
+                            {node.isActive === false && (
+                                <span className="px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wide">
+                                    {t('locationManager.hiddenBadge')}
+                                </span>
+                            )}
                         </div>
                         <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
                             {t(`locationManager.types.${node.type}`)}
@@ -176,12 +211,20 @@ export default function LocationManager() {
                         )}
                     </div>
                 </div>
-                <button
-                    onClick={() => handleEdit(node)}
-                    className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition px-2 py-1 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded"
-                >
-                    {t('locationManager.edit')}
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                        onClick={() => handleEdit(node)}
+                        className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 px-2 py-1 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded"
+                    >
+                        {t('locationManager.edit')}
+                    </button>
+                    <button
+                        onClick={() => handleToggleActive(node.id)}
+                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded transition ${node.isActive === false ? 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30' : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'}`}
+                    >
+                        {node.isActive === false ? t('locationManager.restore') : t('locationManager.hide')}
+                    </button>
+                </div>
             </div>
 
             {node.children.length > 0 && (

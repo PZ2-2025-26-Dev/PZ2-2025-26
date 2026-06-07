@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInventory } from '../inventory/useInventory';
 
@@ -7,7 +7,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
     const { createItem, isLoading, error, clearError } = useInventory();
      // Mocki danych z backendu - w przyszłości zastąpić rzeczywistymi API callami
 
-    const categories = [
+    const categories = useMemo(() => [
         { id: 1, name: 'Aparatura pomiarowa', parentId: null },
         { id: 2, name: 'Oscyloskopy', parentId: 1 },
         { id: 3, name: 'Generatory funkcyjne', parentId: 1 },
@@ -16,28 +16,30 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
         { id: 6, name: 'Sprzęt IT', parentId: null },
         { id: 7, name: 'Laptopy', parentId: 6 },
         { id: 8, name: 'Akcesoria i optyka', parentId: null },
-    ];
+    ], []);
 
-    const users = [
+    const users = useMemo(() => [
         { id: 1, name: 'Adam Nowak' },
         { id: 2, name: 'dr inż. Jan Kowalski' },
         { id: 3, name: 'prof. dr hab. Andrzej Nowak' },
         { id: 4, name: 'Jakub Wiśniewski' },
         { id: 5, name: 'Anna Malik' },
         { id: 6, name: 'Kubuś Puchatek' },
-    ];
+    ], []);
 
-    const locations = [
-        { id: 1, name: 'D10', path: 'Budynek D10' },
-        { id: 2, name: 'D11', path: 'Budynek D11' },
-        { id: 3, name: 'C3', path: 'Budynek C3' },
-    ];
+    const locations = useMemo(() => [
+        { id: 1, name: 'D10', path: 'Budynek D10', isActive: true },
+        { id: 2, name: 'D11', path: 'Budynek D11', isActive: true },
+        { id: 3, name: 'C3', path: 'Budynek C3', isActive: false },
+    ], []);
+
+    const activeLocations = useMemo(() => locations.filter(location => location.isActive !== false), [locations]);
 
     const [formData, setFormData] = useState({
         name: '',
         description: '',
         categoryId: categories.length > 0 ? categories[0].id : '',
-        locationId: locations.length > 0 ? locations[0].id : '',
+        locationId: activeLocations.length > 0 ? activeLocations[0].id : '',
         ownerId: users.length > 0 ? users[0].id : '',
     });
 
@@ -70,12 +72,12 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                 name: '',
                 description: '',
                 categoryId: categoriesLocal.length > 0 ? categoriesLocal[0].id : '',
-                locationId: locations.length > 0 ? locations[0].id : '',
+                locationId: activeLocations.length > 0 ? activeLocations[0].id : '',
                 ownerId: users.length > 0 ? users[0].id : '',
             });
             clearError();
         }
-    }, [isOpen, categoriesLocal, locations, users, clearError]);
+    }, [isOpen, activeLocations, categoriesLocal, users, clearError]);
 
     if (!isOpen) return null;
 
@@ -111,7 +113,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
             // Backend zwraca: { id, inventory_number, status }
             // Frontend bierze name i description z formularza
             const categoryName = categoriesLocal.find(c => c.id === parseInt(formData.categoryId))?.name || 'Unknown';
-            const locationPath = locations.find(l => l.id === parseInt(formData.locationId))?.path || 'Unknown';
+            const locationPath = activeLocations.find(l => l.id === parseInt(formData.locationId))?.path || 'Unknown';
             const ownerName = users.find(u => u.id === parseInt(formData.ownerId))?.name || 'Unknown';
             const newAsset = {
                 id: result.data.id,
@@ -229,7 +231,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                                     disabled={isLoading}
                                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {locations.map(loc => (
+                                    {activeLocations.map(loc => (
                                         <option key={loc.id} value={loc.id}>
                                             {loc.path}
                                         </option>
