@@ -12,7 +12,11 @@ from src.auth import models as auth_models  # noqa: F401
 from src.auth.router import router as auth_router
 from src.categories import models as categories_models  # noqa: F401
 from src.config import config
+<<<<<<< HEAD
 from src.database import Base, SessionLocal, engine
+=======
+from src.database import Base, engine
+>>>>>>> main
 from src.guests import models as guests_models  # noqa: F401
 from src.items import models as items_models  # noqa: F401
 from src.items.router import router as items_router
@@ -36,7 +40,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(version="0.1.0", lifespan=lifespan)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
 # Konfiguracja CORS dla FastAPI.
 # Originy i nagłówki są trzymane w settings/env
 app.add_middleware(
@@ -47,9 +54,12 @@ app.add_middleware(
     allow_headers=config.cors_headers,
 )
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
 app.include_router(auth_router)
-app.include_router(users_router)
+app.include_router(users_router, prefix="/api/v1")
 app.include_router(items_router)
 app.include_router(locations_router, prefix="/api/v1")
 

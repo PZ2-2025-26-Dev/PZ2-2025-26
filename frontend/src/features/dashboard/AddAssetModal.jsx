@@ -197,12 +197,19 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                     <div>
                         <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.description')}</label>
                           <textarea 
-                            rows="2" 
+                            rows="2"
+                            maxLength={256} 
                             value={formData.description} 
                             onChange={e => setFormData({...formData, description: e.target.value})} 
                             disabled={isLoading}
                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 resize-none disabled:opacity-50 disabled:cursor-not-allowed" 
                         />
+                    </div>
+                    
+                    <div className="flex justify-end mt-1">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {formData.description.length}/256
+                        </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

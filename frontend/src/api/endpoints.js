@@ -3,6 +3,10 @@ export const ENDPOINTS = {
         LOGIN: '/auth/login',
         REFRESH: '/auth/refresh',
     },
+    USERS: {
+        BASE: '/users',
+        DETAILS: (id) => `/users/${id}`,
+    },
     ITEMS: {
         BASE: '/items',
         DETAILS: (id) => `/items/${id}`,
