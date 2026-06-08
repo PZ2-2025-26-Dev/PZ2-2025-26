@@ -54,6 +54,60 @@ export const useInventory = () => {
         }
     }, []);
 
+    
+    /**
+     * Pobiera historię zmian przedmiotu
+     * @param {number} itemId - ID przedmiotu
+     * @returns {Promise<{success: boolean, data?: Array, error?: string, statusCode?: number}>}
+     */
+    const getItemHistory = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            // TODO: replace with GET /items/{itemId}/history
+
+            return {
+                success: true,
+                data: [
+                    {
+                        id: 1,
+                        updated_at: '2026-06-14T10:15:00',
+                        updated_by: 'Jan Kowalski',
+                        change_type: 'CREATED',
+                        description: 'Utworzenie przedmiotu',
+                    },
+                    {
+                        id: 2,
+                        updated_at: '2026-06-15T12:30:00',
+                        updated_by: 'Anna Nowak',
+                        change_type: 'LOCATION_CHANGED',
+                        description: 'Zmiana lokalizacji',
+                    },
+                    {
+                        id: 3,
+                        updated_at: '2026-06-20T09:05:00',
+                        updated_by: 'Piotr Wiśniewski',
+                        change_type: 'OWNER_CHANGED',
+                        description: 'Zmiana właściciela',
+                    },
+                ],
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+    
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -63,5 +117,6 @@ export const useInventory = () => {
         isLoading,
         error,
         clearError,
+        getItemHistory,
     };
 };
