@@ -12,8 +12,10 @@ import {
 
 export default function LocationManager() {
     const { t } = useTranslation();
-    const { createLocation, error, isLoading, locations, toggleLocationActive, updateLocation } = useLocations();
+    const { activeLocations, createLocation, deleteLocation, error, isLoading, locations, toggleLocationActive, updateLocation } = useLocations();
     const [editingId, setEditingId] = useState(null);
+    const [deleteCandidate, setDeleteCandidate] = useState(null);
+    const [replacementLocationId, setReplacementLocationId] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         type: 'building',
@@ -48,6 +50,9 @@ export default function LocationManager() {
 
     const isParentRequired = Boolean(PARENT_TYPE_BY_TYPE[formData.type]);
     const canSubmit = formData.name.trim() && (!isParentRequired || formData.parentId) && !isLoading;
+    const replacementRooms = activeLocations.filter(location => (
+        location.type === 'room' && String(location.id) !== String(deleteCandidate?.id)
+    ));
 
     const resetForm = () => {
         setEditingId(null);
@@ -113,6 +118,26 @@ export default function LocationManager() {
         toggleLocationActive(locationId);
     };
 
+    const openDeleteModal = (location) => {
+        const firstRoom = activeLocations.find(candidate => (
+            candidate.type === 'room' && String(candidate.id) !== String(location.id)
+        ));
+
+        setDeleteCandidate(location);
+        setReplacementLocationId(firstRoom?.id || '');
+    };
+
+    const handleDelete = async (event) => {
+        event.preventDefault();
+
+        const result = await deleteLocation(deleteCandidate.id, replacementLocationId);
+
+        if (result.success) {
+            setDeleteCandidate(null);
+            setReplacementLocationId('');
+        }
+    };
+
     const LocationNode = ({ node, level = 0 }) => (
         <div className="flex flex-col">
             <div className={`flex items-center justify-between gap-3 py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-900/30 rounded-lg group transition border border-transparent hover:border-slate-100 dark:hover:border-slate-800 ${level > 0 ? 'ml-6 border-l-slate-200 dark:border-l-slate-800' : ''} ${node.isActive === false ? 'bg-slate-100/60 dark:bg-slate-900/60 opacity-70' : ''}`}>
@@ -158,6 +183,14 @@ export default function LocationManager() {
                     >
                         {node.isActive === false ? t('locationManager.restore') : t('locationManager.hide')}
                     </button>
+                    {node.type === 'room' && (
+                        <button
+                            onClick={() => openDeleteModal(node)}
+                            className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 px-2 py-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded"
+                        >
+                            {t('locationManager.delete')}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -172,8 +205,9 @@ export default function LocationManager() {
     );
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
-            <div className="lg:col-span-1">
+        <>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+                <div className="lg:col-span-1">
                 <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5">
                     <div className="flex items-start justify-between gap-3 mb-4">
                         <div>
@@ -282,7 +316,7 @@ export default function LocationManager() {
                 </div>
             </div>
 
-            <div className="lg:col-span-2">
+                <div className="lg:col-span-2">
                 <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5 h-full">
                     <div className="flex justify-between items-end mb-4">
                         <div>
@@ -305,7 +339,50 @@ export default function LocationManager() {
                         )}
                     </div>
                 </div>
+                </div>
             </div>
-        </div>
+
+            {deleteCandidate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <form onSubmit={handleDelete} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-xl shadow-xl p-5 space-y-4">
+                        <div>
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t('locationManager.deleteRoomTitle')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {t('locationManager.deleteRoomDesc', { name: deleteCandidate.name })}
+                            </p>
+                        </div>
+
+                        <select
+                            required
+                            value={replacementLocationId}
+                            onChange={(event) => setReplacementLocationId(event.target.value)}
+                            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300"
+                        >
+                            <option value="">{t('locationManager.selectReplacementRoom')}</option>
+                            {replacementRooms.map(room => (
+                                <option key={room.id} value={room.id}>{room.name}</option>
+                            ))}
+                        </select>
+
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteCandidate(null)}
+                                className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs font-medium rounded-lg"
+                            >
+                                {t('locationManager.cancelDelete')}
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!replacementLocationId || isLoading}
+                                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-lg disabled:opacity-50"
+                            >
+                                {t('locationManager.confirmDelete')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+        </>
     );
 }

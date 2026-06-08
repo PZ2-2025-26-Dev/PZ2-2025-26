@@ -201,6 +201,25 @@ export const useLocations = () => {
         }
     }, [loadLocations]);
 
+    const deleteLocation = useCallback(async (locationId, replacementLocationId) => {
+        setLocationsState(prev => ({ ...prev, isLoading: true, error: null }));
+
+        try {
+            const response = await axiosClient.delete(ENDPOINTS.LOCATIONS.DETAILS(locationId), {
+                params: { replacementLocationId },
+            });
+
+            await loadLocations(true);
+
+            return { success: true, data: response.data, statusCode: response.status };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setLocationsState(prev => ({ ...prev, isLoading: false, error: errorMessage }));
+
+            return { success: false, error: errorMessage, statusCode: err.response?.status };
+        }
+    }, [loadLocations]);
+
     const updateLocation = useCallback((locationId, data) => {
         setLocationsState(prev => ({
             ...prev,
@@ -245,6 +264,7 @@ export const useLocations = () => {
         activeBuildings,
         clearError,
         createLocation,
+        deleteLocation,
         error,
         getActiveRoomsForBuilding,
         getLocationPath,
