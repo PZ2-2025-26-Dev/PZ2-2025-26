@@ -118,6 +118,14 @@
     "borrowDesc": "Wskaż planowaną datę zwrotu, aby wysłać wniosek o wypożyczenie do właściciela urządzenia.",
     "dateLabel": "Data zwrotu",
     "btnSubmitReq": "Złóż wniosek o wypożyczenie",
-    "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie."
+    "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie.",
+    "description": "Opis techniczny",
+    "documentation": "Dokumentacja producenta",
+    "noDescription": "Brak opisu",
+    "editDescription": "Edytuj opis",
+    "cancel":"Anuluj",
+    "save":"Zapisz",
+    "openLink": "Otwórz link",
+    "history": "Historia zmian"
   }
 }
