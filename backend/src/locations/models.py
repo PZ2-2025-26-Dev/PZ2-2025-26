@@ -2,14 +2,14 @@ from sqlalchemy import Boolean, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
-from src.locations.constants import LocationType
+from src.locations.constants import LOCATION_NAME_MAX_LENGTH, LocationType
 
 
 class Location(Base):
     __tablename__ = "location"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(LOCATION_NAME_MAX_LENGTH))
     type: Mapped[LocationType] = mapped_column(Enum(LocationType), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
 

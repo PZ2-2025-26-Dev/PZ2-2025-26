@@ -6,6 +6,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
+import LocationManager from '../locations/LocationManager';
 import UserManager from '../users/UserManager';
 // import { useInventory } from './useInventory';
 
@@ -109,6 +110,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     {pendingUserCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingUserCount}</span>}
                                 </button>
                                 <button onClick={() => setActiveTab('categories')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'categories' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabCategories')}</button>
+                                <button onClick={() => setActiveTab('locations')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'locations' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabLocations')}</button>
                             </RoleGuard>
                         </div>
                     </div>
@@ -250,6 +252,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         {activeTab === 'categories' && (
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <CategoryManager />
+                            </RoleGuard>
+                        )}
+
+                        {activeTab === 'locations' && (
+                            <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
+                                <LocationManager />
                             </RoleGuard>
                         )}
 
