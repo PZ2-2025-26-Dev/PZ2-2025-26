@@ -10,9 +10,9 @@ Uruchomienie:
 """
 
 import time
-
 import pytest
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from src.auth.constants import UserRole, UserStatus
 from src.categories.models import Category
@@ -23,7 +23,6 @@ from src.items.service import ItemService
 from src.locations.constants import LocationType
 from src.locations.models import Location
 from src.users.models import User
-from sqlalchemy import text
 
 pytestmark = pytest.mark.integration
 
@@ -60,17 +59,48 @@ def cleanup_database(db: Session):
     yield
     truncate_tables()
 
+
 @pytest.fixture()
 def base_entities(db: Session) -> dict:
-    """Tworzy wspólne encje (kategoria, lokalizacja, użytkownik) reużywane w testach."""
+    """
+    Tworzy wspólne encje reużywane w testach.
+    Buduje wielopoziomową strukturę lokalizacji, aby przetestować rekurencyjne CTE.
+    """
     cat = Category(name="Elektronika", parent_id=None)
-    loc = Location(
+    db.add(cat)
+    db.flush()
+
+    # Budujemy drzewo lokalizacji: Budynek -> Pokój -> Szafka
+    building = Location(
         name="D10",
         type=LocationType.BUILDING,
         description=None,
         parent_id=None,
         is_active=True,
     )
+    db.add(building)
+    db.flush()
+
+    room = Location(
+        name="204",
+        type=LocationType.ROOM,
+        description=None,
+        parent_id=building.id,
+        is_active=True,
+    )
+    db.add(room)
+    db.flush()
+
+    cabinet = Location(
+        name="szafka1",
+        type=LocationType.CABINET,
+        description=None,
+        parent_id=room.id,
+        is_active=True,
+    )
+    db.add(cabinet)
+    db.flush()
+
     user = User(
         first_name="Jan",
         last_name="Kowalski",
@@ -78,18 +108,17 @@ def base_entities(db: Session) -> dict:
         role=UserRole.USER,
         status=UserStatus.ACTIVE,
     )
-    db.add_all([cat, loc, user])
+    db.add(user)
     db.commit()
-    return {"cat": cat, "loc": loc, "user": user}
+    
+    # Jako główną lokalizację 'loc' zwracamy szafkę, aby przedmioty były głęboko zagnieżdżone
+    return {"cat": cat, "loc": cabinet, "user": user, "building": building, "room": room}
 
 
 @pytest.fixture()
 def seeded_items(db: Session, base_entities: dict) -> dict:
     """
-    Zasila bazę 100 przedmiotami, z czego:
-      - 10 ma nazwę zaczynającą się od 'Nokia' (do testów wyszukiwania)
-      - 5 ma przypisany legacy_id
-    Zwraca referencje do encji pomocniczych.
+    Zasila bazę 100 przedmiotami przypisanymi do zagnieżdżonej lokalizacji.
     """
     cat = base_entities["cat"]
     loc = base_entities["loc"]
@@ -118,6 +147,7 @@ def seeded_items(db: Session, base_entities: dict) -> dict:
 
     for i, item in enumerate(nokia_items[:5], start=1):
         db.add(LegacyIdentifier(item_id=item.id, legacy_id=1000 + i))
+    
     db.commit()
     db.expire_all()
 
@@ -203,8 +233,8 @@ class TestGetItemsPagedCorrectness:
         assert total == 100
         assert all(item.status == ItemStatus.AVAILABLE for item in items)
 
-    def test_relations_are_loaded(self, db: Session, seeded_items: dict):
-        """Weryfikuje, że relacje są załadowane (brak lazy-load po zamknięciu sesji)."""
+    def test_relations_and_cte_path_are_loaded(self, db: Session, seeded_items: dict):
+        """Weryfikuje, że relacje oraz wygenerowana ścieżka location.path ładują się poprawnie."""
         service = ItemService(db)
         items, _ = service.get_items_paged(page=1, limit=10)
 
@@ -213,6 +243,7 @@ class TestGetItemsPagedCorrectness:
             assert item.category.name is not None
             assert item.location is not None
             assert item.location.name is not None
+            assert item.location.path == "D10 / 204 / szafka1"
             assert item.owner is not None
             assert item.owner.first_name is not None
 
@@ -250,7 +281,7 @@ class TestGetItemByIdCorrectness:
 
         assert item is None
 
-    def test_relations_are_loaded(self, db: Session, seeded_items: dict):
+    def test_relations_and_cte_path_are_loaded(self, db: Session, seeded_items: dict):
         nokia = seeded_items["nokia_items"][0]
         service = ItemService(db)
 
@@ -260,11 +291,11 @@ class TestGetItemByIdCorrectness:
         assert item.category.name is not None
         assert item.location is not None
         assert item.location.name is not None
+        assert item.location.path == "D10 / 204 / szafka1"
         assert item.owner is not None
         assert item.owner.first_name is not None
 
     def test_legacy_id_present_when_exists(self, db: Session, seeded_items: dict):
-        """Pierwsze 5 Nokia ma legacy_id — weryfikujemy właściwość wirtualną."""
         nokia_with_legacy = seeded_items["nokia_items"][0]
         service = ItemService(db)
 
@@ -333,7 +364,7 @@ class TestSearchResponseTime:
 
 
 class TestInitialLoadResponseTime:
-    """Weryfikuje kryterium: pierwsze ładowanie strony <= 2500 ms."""
+    """Weryfikuje kryterium: pierwsze ładowanie strony <= 2500 ms z pełnym drzewem lokalizacji."""
 
     def test_first_page_load_within_time_limit(self, db: Session, seeded_items: dict):
         service = ItemService(db)

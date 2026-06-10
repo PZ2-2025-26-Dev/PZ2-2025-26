@@ -81,7 +81,7 @@ def read_items(
             ),
             owner=ItemOwner(
                 id=item.owner.id,
-                name=item.owner.name,
+                name=f"{item.owner.first_name} {item.owner.last_name}",
             ),
         )
         for item in items
