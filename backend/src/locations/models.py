@@ -22,3 +22,6 @@ class Location(Base):
     # To pomaga w recursive CTE
     children: Mapped[list[Location]] = relationship("Location", back_populates="parent")
     parent: Mapped[Location | None] = relationship("Location", back_populates="children", remote_side=[id])
+
+    # Atrybut tranzytowy (dynamiczny), uzupełniany przez warstwę Service przy użyciu CTE
+    path: str = ""
