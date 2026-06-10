@@ -1,12 +1,12 @@
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from src.auth.schemas import UserID
+from src.guests.schemas import GuestID
+from src.items.schemas import ItemID
 from src.loans.constants import LoanStatus
 
 type LoanID = int
-type ItemID = int
-type GuestID = int
-type UserID = int
 
 
 class ExternalLoanCreate(BaseModel):

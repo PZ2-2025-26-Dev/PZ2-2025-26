@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import jwt
 from fastapi import APIRouter, status
 from src.auth.constants import UserRole, UserStatus
 from src.config import config
 from src.schemas import ErrorResponse
+from src.utils import now
 
 from .schemas import (TokenRefreshIn, TokenResponse, User, UserCreate,
                       UserCreateResponse, UserLogin, UserLoginResponse)
@@ -16,7 +17,7 @@ def _create_token(user_id: int, role: UserRole, expires_in_minutes: int = 60) ->
     payload = {
         "sub": str(user_id),
         "role": role.value,
-        "exp": datetime.utcnow() + timedelta(minutes=expires_in_minutes),
+        "exp": now() + timedelta(minutes=expires_in_minutes),
     }
     return jwt.encode(payload, config.jwt_secret, algorithm=config.jwt_algorithm)
 

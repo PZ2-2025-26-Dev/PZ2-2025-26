@@ -11,6 +11,7 @@ from src.items.models import Item, ItemACL, ItemHistory
 from src.loans.constants import EXTERNAL_LOAN_PURPOSE, LoanStatus
 from src.loans.models import Loan
 from src.loans.schemas import ExternalLoanCreate
+from src.utils import now
 
 
 class LoanNotFoundError(Exception):
@@ -30,7 +31,6 @@ class LoanService:
         self.session = session
 
     def create_external_loan(self, data: ExternalLoanCreate, current_user: User) -> Loan:
-        now = datetime.now()
         declared_return_datetime = datetime.combine(data.declared_return_date, time.max)
 
         with self.session.begin():
@@ -66,14 +66,14 @@ class LoanService:
                 item_id=item.id,
                 user_id=None,
                 guest_id=guest.id,
-                created_at=now,
+                created_at=now(),
                 declared_return_date=declared_return_datetime,
                 loan_purpose=EXTERNAL_LOAN_PURPOSE,
-                borrowed_at=now,
+                borrowed_at=now(),
                 returned_at=None,
                 status=LoanStatus.LOANED,
                 decision_by=current_user.id,
-                decision_at=now,
+                decision_at=now(),
                 decision_comment=None,
             )
             self.session.add(loan)
@@ -83,7 +83,7 @@ class LoanService:
 
             history = ItemHistory(
                 item_id=item.id,
-                updated_at=now,
+                updated_at=now(),
                 updated_by=current_user.id,
                 change_type=ItemChangeLogType.LOANED,
                 description=f"External loan created for guest_id={guest.id}, loan_id={loan.id}",

@@ -13,6 +13,29 @@ const DEV_MOCK_GUESTS = [
     { id: 102, label: 'Anna Nowak', email: 'anna.nowak@example.com' },
     { id: 103, label: 'Firma Tech-Pomiar Sp. z o.o.', email: 'kontakt@techpomiar.pl' },
 ];
+const IS_DEV = import.meta.env.DEV;
+
+const normalizeIdToInt = (value) => {
+    if (typeof value === 'number' && Number.isInteger(value)) {
+        return value;
+    }
+
+    const rawValue = String(value ?? '').trim();
+    if (!rawValue) {
+        return null;
+    }
+
+    if (/^\d+$/.test(rawValue)) {
+        return Number.parseInt(rawValue, 10);
+    }
+
+    const trailingDigits = rawValue.match(/(\d+)$/);
+    if (!trailingDigits) {
+        return null;
+    }
+
+    return Number.parseInt(trailingDigits[1], 10);
+};
 
 const DEV_AUTH_FALLBACK = {
     email: 'dev-admin@agh.edu.pl',
@@ -42,29 +65,6 @@ const normalizeGuestList = (payload) => {
             email: guest.email ?? null,
         };
     });
-};
-
-const toIntegerId = (value) => {
-    if (Number.isInteger(value)) {
-        return value;
-    }
-
-    if (typeof value !== 'string') {
-        return null;
-    }
-
-    const normalized = value.trim();
-    if (!normalized) {
-        return null;
-    }
-
-    if (/^\d+$/.test(normalized)) {
-        return Number(normalized);
-    }
-
-    // Supports legacy UI ids like "AGH-WFIIS-0042".
-    const match = normalized.match(/(\d+)(?!.*\d)/);
-    return match ? Number(match[1]) : null;
 };
 
 const buildMockExternalLoanResponse = ({ itemId, guestId, declaredReturnDate }) => ({
@@ -155,26 +155,44 @@ export const useRentals = () => {
                 };
             }
 
-            const normalizedItemId = toIntegerId(itemId);
-            const normalizedGuestId = toIntegerId(guestId);
+            const normalizedItemId = normalizeIdToInt(itemId);
+            const normalizedGuestId = normalizeIdToInt(guestId);
 
-            if (!Number.isInteger(normalizedItemId) || !Number.isInteger(normalizedGuestId)) {
-                const validationError = 'Nieprawidłowy identyfikator przedmiotu lub gościa.';
-                setError(validationError);
-
+            if (!Number.isInteger(normalizedItemId)) {
+                const invalidItemIdMessage = 'Nieprawidłowy identyfikator sprzętu (itemId).';
+                setError(invalidItemIdMessage);
                 return {
                     success: false,
-                    error: validationError,
+                    error: invalidItemIdMessage,
+                };
+            }
+
+            if (!Number.isInteger(normalizedGuestId)) {
+                const invalidGuestIdMessage = 'Nieprawidłowy identyfikator gościa (guestId).';
+                setError(invalidGuestIdMessage);
+                return {
+                    success: false,
+                    error: invalidGuestIdMessage,
                 };
             }
 
             await ensureAccessToken();
 
-            const response = await axiosClient.post(ENDPOINTS.LOANS.BASE, {
-                itemId: normalizedItemId,
-                guestId: normalizedGuestId,
-                declaredReturnDate,
-            });
+            const response = await axiosClient.post(
+                ENDPOINTS.LOANS.BASE,
+                {
+                    itemId: normalizedItemId,
+                    guestId: normalizedGuestId,
+                    declaredReturnDate,
+                },
+                IS_DEV
+                    ? {
+                        headers: {
+                            'X-Demo-Mock': '1',
+                        },
+                    }
+                    : undefined
+            );
 
             return {
                 success: true,
