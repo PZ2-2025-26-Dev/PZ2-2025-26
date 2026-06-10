@@ -6,11 +6,8 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
-<<<<<<< HEAD
 import LocationManager from '../locations/LocationManager';
-=======
 import UserManager from '../users/UserManager';
->>>>>>> main
 // import { useInventory } from './useInventory';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
