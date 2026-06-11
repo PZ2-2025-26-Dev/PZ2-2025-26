@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import WelcomePage from './features/auth/WelcomePage';
 import DashboardPage from './features/dashboard/DashboardPage';
+import LoginForm from './features/auth/LoginForm';
+import RegisterForm from './features/auth/RegisterForm';
+import GoogleCallbackPage from './features/auth/GoogleCallback';
+    import { googleLogin } from './features/auth/authService';
 
 export default function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
-
-    const [lang, setLang] = useState('PL');
     const [isDarkMode, setIsDarkMode] = useState(false);
 
-    const handleLoginViaSSO = (selectedRole) => {
-        setUser({
-            id: 'usr-4412',
-            name: 'Jan Kowalski',
-            role: selectedRole,
-            identityProvider: 'AGH_SSO'
-        });
+    const [authView, setAuthView] = useState('welcome'); // welcome | login | register
+
+    const handleLoginSuccess = (user) => {
+        setUser(user);
         setIsAuthenticated(true);
     };
 
@@ -24,26 +23,47 @@ export default function App() {
         setUser(null);
     };
 
+    const currentPath = window.location.pathname;
+
+    if (currentPath === '/auth/google/callback') {
+        return (
+            <GoogleCallbackPage
+                onLoginSuccess={handleLoginSuccess}
+            />
+        );
+    }
+
+    if (isAuthenticated) {
+        return (
+            <DashboardPage
+                user={user}
+                onLogout={handleLogout}
+                isDarkMode={isDarkMode}
+                setIsDarkMode={setIsDarkMode}
+            />
+        );
+    }
+
     return (
-        <>
-            {isAuthenticated ? (
-                <DashboardPage
-                    user={user}
-                    onLogout={handleLogout}
-                    lang={lang}
-                    setLang={setLang}
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+            {authView === 'welcome' ? (
+                <WelcomePage
                     isDarkMode={isDarkMode}
                     setIsDarkMode={setIsDarkMode}
+                    onLocalLogin={() => setAuthView('login')}
+                    onRegister={() => setAuthView('register')}
+                    onGoogleLogin={googleLogin}
+                />
+            ) : authView === 'login' ? (
+                <LoginForm
+                    onSwitchToRegister={() => setAuthView('register')}
+                    onLoginSuccess={handleLoginSuccess}
                 />
             ) : (
-                <WelcomePage
-                    onSSOLogin={handleLoginViaSSO}
-                    lang={lang}
-                    setLang={setLang}
-                    isDarkMode={isDarkMode}
-                    setIsDarkMode={setIsDarkMode}
+                <RegisterForm
+                    onSwitchToLogin={() => setAuthView('login')}
                 />
             )}
-        </>
+        </div>
     );
 }

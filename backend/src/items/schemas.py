@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Annotated
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -17,22 +16,6 @@ type ItemDescription = Annotated[str, Field(min_length=1, max_length=ITEM_DESC_L
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
 
 
-class ItemCreate(BaseModel):
-    name: ItemName
-    category_id: CategoryID
-    location_id: LocationID
-    owner_id: UserID
-    description: ItemDescription | None = None
-
-
-class ItemCreateResponse(BaseModel):
-    id: ItemID
-    name: ItemName
-    inventory_number: UUID
-    status: ItemStatus
-    description: ItemDescription | None
-
-
 class Item(BaseModel):
     name: ItemName
     category_id: CategoryID
@@ -41,6 +24,10 @@ class Item(BaseModel):
     description: ItemDescription | None
     status: ItemStatus = ItemStatus.AVAILABLE
     legacy_id: int | None
+
+
+class ItemCreateResponse(Item):
+    id: ItemID
 
 
 class ItemCategory(BaseModel):

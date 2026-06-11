@@ -3,7 +3,7 @@ FROM ghcr.io/astral-sh/uv:0.11.16-python3.14-alpine
 WORKDIR /app
 
 # bez zależności z grupy "dev"
-ENV UV_NO_DEV=1
+# ENV UV_NO_DEV=1
 
 # ---
 # 'Changing the UV_LINK_MODE silences warnings about
@@ -16,11 +16,13 @@ ENV UV_LINK_MODE=copy
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project
+    uv sync --locked --no-install-project --group dev
 
 COPY README.md pyproject.toml uv.lock /app
+
+COPY ./tests/ /app/tests
 
 COPY ./src/ /app/src
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked
+    uv sync --locked --group dev

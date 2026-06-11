@@ -20,6 +20,10 @@ class UserDetails(BaseUserDetails):
     id: UserID
 
 
+class UserStatusUpdate(BaseModel):
+    status: UserStatus
+
+
 class UsersPaged(BaseModel):
-    users: list[UserDetails]
+    items: list[UserDetails]
     total_count: int
