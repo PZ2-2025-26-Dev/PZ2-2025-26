@@ -28,7 +28,7 @@ def test_register_user_success(db):
 
     assert user.email == "john@example.com"
     assert user.role == UserRole.USER
-    assert user.status == UserStatus.ACTIVE 
+    assert user.status == UserStatus.PENDING_APPROVAL
 
     account = (
         db.query(UserAccount)

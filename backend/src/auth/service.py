@@ -1,11 +1,9 @@
-import logging
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
 
 from src.auth.constants import (
     AuthProvider,
@@ -99,7 +97,6 @@ def register_user(
 
     db.commit()
     db.refresh(user)
-    logger.info(f"User registered successfully: {user.email} (id={user.id})")
     return user
 
 def login_user(
