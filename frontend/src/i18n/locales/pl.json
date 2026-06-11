@@ -126,7 +126,21 @@
     "cancel": "Anuluj",
     "save": "Zapisz",
     "openLink": "Otwórz link",
-    "history": "Historia zmian"
+    "history": "Historia zmian",
+    "externalRentalTitle": "Wypożycz podmiotowi zewnętrznemu (Gość)",
+    "externalRentalDesc": "Wyślij wypożyczenie bezpośrednio do profilu Gościa i ustaw termin zwrotu.",
+    "externalRentalButton": "Otwórz formularz Gościa",
+    "externalGuestLabel": "Profil Gościa",
+    "externalGuestPlaceholder": "Wybierz profil Gościa",
+    "externalGuestLoading": "Ładowanie profili Gości...",
+    "externalDateLabel": "Deklarowana data zwrotu",
+    "externalRentalSave": "Zapisz wypożyczenie",
+    "externalRentalSaving": "Zapisywanie...",
+    "externalRentalCancel": "Anuluj",
+    "externalGuestRequired": "Wybierz konkretny profil Gościa.",
+    "externalDateFutureError": "Data zwrotu musi wskazywać przyszły termin.",
+    "externalRentalError": "Nie udało się zapisać wypożyczenia zewnętrznego.",
+    "externalGuestFallback": "Gość"
   },
   "userManager": {
     "totalUsers": "Użytkownicy ogółem",

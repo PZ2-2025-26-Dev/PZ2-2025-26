@@ -7,3 +7,6 @@ class LoanStatus(Enum):
     DENIED = "denied"
     LOANED = "loaned"
     RETURNED = "returned"
+
+
+EXTERNAL_LOAN_PURPOSE = "external_guest_loan"

@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 # WORKAROUND:
 # W trakcie projektu przerzucimy się na alembic
 # póki co musimy importować modele SQLALchemy explicite.
@@ -14,9 +13,11 @@ from src.categories import models as categories_models  # noqa: F401
 from src.config import config
 from src.database import Base, engine
 from src.guests import models as guests_models  # noqa: F401
+from src.guests.router import router as guests_router
 from src.items import models as items_models  # noqa: F401
 from src.items.router import router as items_router
 from src.loans import models as loans_models  # noqa: F401
+from src.loans.router import router as loans_router
 from src.locations import models as locations_models  # noqa: F401
 from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
@@ -41,9 +42,11 @@ app.add_middleware(
     allow_headers=config.cors_headers,
 )
 
-app.include_router(auth_router)
-app.include_router(users_router, prefix="/api/v1")
-app.include_router(items_router)
+app.include_router(auth_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
+app.include_router(items_router, prefix="/api")
+app.include_router(guests_router, prefix="/api")
+app.include_router(loans_router, prefix="/api")
 
 
 @app.get("/ready")
