@@ -20,5 +20,5 @@ class Location(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # To pomaga w recursive CTE
-    children: Mapped[list[Location]] = relationship("Location", back_populates="parent")
-    parent: Mapped[Location | None] = relationship("Location", back_populates="children", remote_side=[id])
+    children: Mapped[list["Location"]] = relationship("Location", back_populates="parent")
+    parent: Mapped["Location | None"] = relationship("Location", back_populates="children", remote_side=[id])

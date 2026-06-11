@@ -30,6 +30,12 @@ class UserLogin(BaseModel):
     password: Password
 
 
+class GoogleCallback(BaseModel):
+    code: str
+    state: str | None = None
+    redirect_uri: str | None = None
+
+
 class User(BaseModel):
     id: UserID
     role: UserRole

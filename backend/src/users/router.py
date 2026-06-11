@@ -1,5 +1,6 @@
 from typing import Annotated
 
+<<<<<<< HEAD
 from fastapi import APIRouter, HTTPException, Query, status
 
 from src.auth.constants import UserRole, UserStatus
@@ -13,6 +14,22 @@ from .service import (
     UserNotFoundError,
     UserOwnsItemsError,
     UserService,
+=======
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
+
+from src.auth.constants import UserRole, UserStatus
+from src.database import get_db
+from src.users.models import User
+
+from .schemas import (
+    BaseUserDetails,
+    SearchStr,
+    UserDetails,
+    UsersPaged,
+    UserStatusUpdate,
+>>>>>>> 56f953c (task 30-us-r05 backend + frontend)
 )
 
 router = APIRouter(prefix="/users")
@@ -42,7 +59,9 @@ def read_users(
     role: UserRole | None = None,
     status: UserStatus | None = None,
     search: SearchStr | None = None,
+    db: Session = Depends(get_db),
 ) -> UsersPaged:
+<<<<<<< HEAD
     service = UserService(db)
     users, total_count = service.list_users(
         page=page,
@@ -55,6 +74,83 @@ def read_users(
     return UsersPaged(
         users=[to_user_details(user) for user in users],
         total_count=total_count,
+=======
+    query = select(User)
+
+    if role is not None:
+        query = query.where(User.role == role)
+
+    if status is not None:
+        query = query.where(User.status == status)
+
+    if search is not None:
+        search_value = f"%{search}%"
+        query = query.where(
+            or_(
+                User.email.ilike(search_value),
+                User.first_name.ilike(search_value),
+                User.last_name.ilike(search_value),
+            )
+        )
+
+    count_query = select(func.count()).select_from(User).where(query.whereclause) if query.whereclause is not None else select(func.count()).select_from(User)
+    total_count = db.execute(count_query).scalar_one()
+    query = query.offset((page - 1) * limit).limit(limit)
+    users = db.execute(query).scalars().all()
+
+    return UsersPaged(
+        items=[
+            UserDetails(
+                id=user.id,
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name or "",
+                role=user.role,
+                status=user.status,
+            )
+            for user in users
+        ],
+        total_count=total_count,
+    )
+
+
+@router.patch(
+    path="/{user_id}/approval",
+    response_model=UserDetails,
+    status_code=status.HTTP_200_OK,
+    summary="Aktualizuj status użytkownika",
+)
+def update_user_approval(
+    user_id: int,
+    data: UserStatusUpdate,
+    db: Session = Depends(get_db),
+) -> UserDetails:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Użytkownik nie znaleziony.")
+
+    if data.status not in {
+        UserStatus.ACTIVE,
+        UserStatus.BLOCKED,
+        UserStatus.REJECTED,
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nieprawidłowy status do aktualizacji.",
+        )
+
+    user.status = data.status
+    db.commit()
+    db.refresh(user)
+
+    return UserDetails(
+        id=user.id,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name or "",
+        role=user.role,
+        status=user.status,
+>>>>>>> 56f953c (task 30-us-r05 backend + frontend)
     )
 
 

@@ -6,11 +6,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    environment:
-      - PZ_DATABASE_URL=${PZ_DATABASE_URL:?Variable not set}
-      - PZ_DEBUG=${PZ_DEBUG:?Variable not set}
-      - PZ_CORS_ORIGINS=${PZ_CORS_ORIGINS:?Variable not set}
-      - PZ_CORS_HEADERS=${PZ_CORS_HEADERS:?Variable not set}
+    
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -33,6 +31,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run pytest -v
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://root:${DB_ROOT_PWD}@db:3306/${DB_NAME}
 
 volumes:
   mysql_data:

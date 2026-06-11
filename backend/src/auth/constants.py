@@ -16,3 +16,6 @@ class UserRole(Enum):
 class AuthProvider(Enum):
     LOCAL = "local"
     GOOGLE = "google"
+
+
+PROVIDER_USER_ID_MAX_LENGTH = 512
