@@ -14,8 +14,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
         first_name: '',
         last_name: '',
         email: '',
-        password: '',
-        role: 'REGULAR'
+        password: ''
     });
 
     const handleChange = (e) => {
@@ -26,6 +25,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
         try {
             await register(form);
             alert(t('auth.registerSuccess'));
+            console.log('Registered user:', form);
             onSwitchToLogin();
         } catch {
             alert(t('auth.registerError'));
@@ -40,25 +40,7 @@ export default function RegisterForm({ onSwitchToLogin }) {
             <input name="first_name" placeholder={t('auth.firstName')} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             <input name="last_name" placeholder={t('auth.lastName')} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
             <input name="email" type="email" placeholder={t('auth.email')} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            <input name="password" type="password" placeholder={t('auth.password')} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-10０ focus:outline-none focus:ring-2 focus:ring-emerald-5００" />
-
-            {/* DROPDOWN RÓL */}
-            <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-                className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-            >
-                {ROLES.map(r => (
-                    <option
-                        key={r.value}
-                        value={r.value}
-                        className="bg-white dark:bg-slate-900"
-                    >
-                        {r.label}
-                    </option>
-                ))}
-            </select>
+            <input name="password" type="password" placeholder={t('auth.password')} onChange={handleChange} className="w-full p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
 
             <button
                 onClick={handleRegister}

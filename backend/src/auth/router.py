@@ -63,7 +63,6 @@ def register(
         first_name=data.first_name,
         last_name=data.last_name,
     )
-
     return UserCreateResponse(
         id=user.id,
         status=user.status,
