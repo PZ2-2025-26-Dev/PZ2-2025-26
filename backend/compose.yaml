@@ -9,6 +9,8 @@ services:
     environment:
       - PZ_DATABASE_URL=${PZ_DATABASE_URL:?Variable not set}
       - PZ_DEBUG=${PZ_DEBUG:?Variable not set}
+      - PZ_CORS_ORIGINS=${PZ_CORS_ORIGINS:?Variable not set}
+      - PZ_CORS_HEADERS=${PZ_CORS_HEADERS:?Variable not set}
     depends_on:
       db:
         condition: service_healthy
