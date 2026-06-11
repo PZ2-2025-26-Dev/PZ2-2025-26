@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import SystemClock from '../../components/SystemClock';
 import RoleGuard from '../auth/RoleGuard';
@@ -6,6 +6,8 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
+import { useDebounce } from '../../hooks/useDebounce';
+import Loader from '../../components/ui/Loader';
 import UserManager from '../users/UserManager';
 // import { useInventory } from './useInventory';
 
@@ -26,6 +28,18 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [statusFilter, setStatusFilter] = useState('all');
     const [categoryFilter, setCategoryFilter] = useState('all');
 
+    const debouncedSearch = useDebounce(searchQuery, 300);
+
+    // --- Toast system ---
+    const [toasts, setToasts] = useState([]);
+    const addToast = useCallback((message, type = 'info', id = Date.now()) => {
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    }, []);
+    const dismissToast = useCallback((id) => setToasts(prev => prev.filter(t => t.id !== id)), []);
+
+    const [isTableLoading, setIsTableLoading] = useState(false);
+
     const [activeTab, setActiveTab] = useState('inventory');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -43,7 +57,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
 
     const filteredItems = canViewList ? items.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.producer.toLowerCase().includes(searchQuery.toLowerCase()) || item.id.toLowerCase().includes(searchQuery.toLowerCase()) || item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch =
+            item.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            item.producer.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            item.id.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+            item.serialNumber.toLowerCase().includes(debouncedSearch.toLowerCase());
         const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
         const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
         return matchesSearch && matchesStatus && matchesCategory;
@@ -70,6 +88,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const toggleLanguage = () => {
         i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL');
+    };
+
+    const handleExport = async () => {
+        const toastId = Date.now();
+        addToast(t('dashboard.exportProcessing'), 'info', toastId);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setToasts(prev => prev.filter(t => t.id !== toastId));
+        addToast(t('dashboard.exportSuccess'), 'success');
     };
 
     return (
@@ -151,10 +177,20 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                                                <button className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>⬇</span><span>{t('dashboard.exportXlsx')}</span></button>
+                                                <button
+                                                    onClick={handleExport}
+                                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition flex items-center space-x-1"
+                                                >
+                                                    <span>⬇</span><span>{t('dashboard.exportXlsx')}</span>
+                                                </button>
                                             </RoleGuard>
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
-                                                <button onClick={() => setIsAddModalOpen(true)} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>+</span><span>{t('dashboard.addAsset')}</span></button>
+                                                <button
+                                                    onClick={() => setIsAddModalOpen(true)}
+                                                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1"
+                                                >
+                                                    <span>+</span><span>{t('dashboard.addAsset')}</span>
+                                                </button>
                                             </RoleGuard>
                                         </div>
                                     </div>
@@ -202,7 +238,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
-                                            {filteredItems.length > 0 ? filteredItems.map(item => {
+                                                {isTableLoading ? (
+                                                    <tr>
+                                                        <td colSpan="6">
+                                                            <Loader variant="skeleton-table" rows={5} />
+                                                        </td>
+                                                    </tr>
+                                                ) : filteredItems.length > 0 ? filteredItems.map(item => {
                                                 const badgeColor = {
                                                     'dostępny': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
                                                     'wypożyczony': 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
@@ -270,6 +312,28 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 user={user}
                 onUpdateStatus={handleUpdateItemStatus}
             />
+
+            {/* Toast container */}
+            <div className="fixed bottom-4 right-4 z-50 flex flex-col space-y-2 max-w-xs w-full">
+                {toasts.map(toast => (
+                    <div
+                        key={toast.id}
+                        className={`flex items-start justify-between gap-3 px-4 py-3 rounded-xl shadow-lg border text-xs font-medium transition-all animate-fadeIn
+                            ${toast.type === 'success'
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300'
+                                : toast.type === 'error'
+                                ? 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/60 dark:border-rose-800 dark:text-rose-300'
+                                : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'
+                            }`}
+                    >
+                        <span>{toast.message}</span>
+                        <button
+                            onClick={() => dismissToast(toast.id)}
+                            className="ml-auto text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0"
+                        >✕</button>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }

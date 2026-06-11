@@ -1,12 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
 from src.auth.schemas import UserID
 from src.dependencies import DBDep
 from src.items.constants import ItemStatus
 from src.items.schemas import (
     CategoryID,
+    ExportResponse,
     ItemCategory,
     ItemCreate,
     ItemCreateResponse,
@@ -27,6 +29,12 @@ from src.items.service import ItemService
 router = APIRouter(prefix="/items")
 
 
+def heavy_export_task(search: str | None, category_id: int | None) -> None:
+    """Zasobochłonna funkcja wykonywana w tle (w osobnym wątku przez FastAPI)."""
+    import time
+    time.sleep(5)
+
+
 @router.get(
     "",
     response_model=ItemsPaged,
@@ -36,10 +44,11 @@ router = APIRouter(prefix="/items")
         status.HTTP_200_OK: {
             "model": ItemsPaged,
             "description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
-        }
+        },
     },
 )
 def read_items(
+    db: DBDep,
     search: SearchStr | None = None,
     category_id: CategoryID | None = None,
     location_id: LocationID | None = None,
@@ -48,31 +57,46 @@ def read_items(
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> ItemsPaged:
-    return ItemsPaged(
-        items=[
-            ItemDetails(
-                id=1,
-                name="Nokia 3310",
-                category=ItemCategory(
-                    id=1,
-                    name="Elektronika / Telefony",
-                ),
-                location=ItemLocation(
-                    id=1,
-                    path="D10 / 204",
-                ),
-                owner=ItemOwner(
-                    id=1,
-                    name="Batman",
-                ),
-                description=None,
-                legacy_id=None,
+    service = ItemService(db)
+    items, total = service.get_items_paged(
+        search=search,
+        category_id=category_id,
+        location_id=location_id,
+        owner_id=owner_id,
+        status=status,
+        page=page,
+        limit=limit,
+    )
+
+    item_details = [
+        ItemDetails(
+            id=item.id,
+            name=item.name,
+            status=item.status,
+            description=item.description,
+            legacy_id=item.legacy_id,
+            category=ItemCategory(
+                id=item.category.id,
+                name=item.category.name,
             ),
-        ],
+            location=ItemLocation(
+                id=item.location.id,
+                path=item.location.path,
+            ),
+            owner=ItemOwner(
+                id=item.owner.id,
+                name=f"{item.owner.first_name} {item.owner.last_name}",
+            ),
+        )
+        for item in items
+    ]
+
+    return ItemsPaged(
+        items=item_details,
         pagination=ItemPagination(
             page=page,
             limit=limit,
-            total=1,
+            total=total,
         ),
     )
 
@@ -96,7 +120,6 @@ def create_item(
     data: ItemCreate,
     db: DBDep,
 ) -> ItemCreateResponse:
-
     service = ItemService(db)
 
     try:
@@ -112,6 +135,28 @@ def create_item(
         description=new_item.description,
     )
 
+
+@router.get(
+    "/exports/items.xlsx",
+    response_model=ExportResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Eksportuj przedmioty do pliku Excel w tle",
+    responses={
+        status.HTTP_202_ACCEPTED: {
+            "model": ExportResponse,
+            "description": "Zadanie generowania pliku zostało pomyślnie dodane do kolejki w tle",
+        },
+    },
+)
+def export_items_excel(
+    background_tasks: BackgroundTasks,
+    search: SearchStr | None = None,
+    category_id: CategoryID | None = None,
+) -> ExportResponse:
+    background_tasks.add_task(heavy_export_task, search, category_id)
+    return ExportResponse(
+        message="Generowanie pliku Excel zostało rozpoczęte w tle. Wynik będzie dostępny wkrótce."
+    )
 @router.patch(
     "/{item_id}",
     response_model=ItemUpdateResponse,

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import WelcomePage from './features/auth/WelcomePage';
-import DashboardPage from './features/dashboard/DashboardPage';
+import React, { useState, Suspense, lazy } from 'react';
+import Loader from './components/ui/Loader';
+
+const WelcomePage = lazy(() => import('./features/auth/WelcomePage'));
+const DashboardPage = lazy(() => import('./features/dashboard/DashboardPage'));
 
 export default function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
-
     const [lang, setLang] = useState('PL');
     const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -25,7 +26,11 @@ export default function App() {
     };
 
     return (
-        <>
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+                <Loader variant="spinner" />
+            </div>
+        }>
             {isAuthenticated ? (
                 <DashboardPage
                     user={user}
@@ -44,6 +49,6 @@ export default function App() {
                     setIsDarkMode={setIsDarkMode}
                 />
             )}
-        </>
+        </Suspense>
     );
 }
