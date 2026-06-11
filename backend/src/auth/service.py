@@ -33,7 +33,7 @@ def get_or_create_google_user(
             first_name=first_name,
             last_name=last_name,
             role=UserRole.USER,
-            status=UserStatus.ACTIVE,
+            status=UserStatus.PENDING_APPROVAL, 
         )
         db.add(user)
         db.flush()
@@ -81,7 +81,7 @@ def register_user(
         first_name=first_name,
         last_name=last_name,
         role=UserRole.USER,
-        status=UserStatus.ACTIVE, #PENDING_APPROVAL, #TODO: zmienić na PENDING_APPROVAL po dodaniu panelu admina do akceptacji użytkowników
+        status=UserStatus.PENDING_APPROVAL, 
     )
 
     db.add(user)

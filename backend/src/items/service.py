@@ -1,6 +1,7 @@
 from uuid import uuid7
 
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory

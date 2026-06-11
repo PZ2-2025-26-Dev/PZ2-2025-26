@@ -160,7 +160,7 @@ def test_google_user_created(db):
     )
 
     assert user.email == "google@example.com"
-    assert user.status == UserStatus.ACTIVE
+    assert user.status == UserStatus.PENDING_APPROVAL
 
     account = (
         db.query(UserAccount)

@@ -38,6 +38,11 @@ services:
     command: uv run pytest -v
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://root:${DB_ROOT_PWD}@db:3306/${DB_NAME}
 
 volumes:
   mysql_data:
