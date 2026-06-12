@@ -22,6 +22,7 @@
             packages = [
               pkgs.python314
               pkgs.uv
+              pkgs.gnumake
             ];
 
             env = lib.optionalAttrs pkgs.stdenv.isLinux {
