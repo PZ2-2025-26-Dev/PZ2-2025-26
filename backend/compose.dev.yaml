@@ -3,26 +3,22 @@ include:
 
 services:
 
-  api:
-    image: pz/api-prod
+  api-dev-env:
+    image: pz/api-dev
     build:
       context: .
-      target: prod
+      target: dev
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app  # wydaje mi się, że podpięcie wszystkich plików w tym wypdaku jest nieszkodliwe, bo to dedykowany dev env
     environment:
       - PZ_DATABASE_URL=${PZ_DATABASE_URL:?Variable not set}
       - PZ_DEBUG=${PZ_DEBUG:?Variable not set}
       - PZ_CORS_ORIGINS=${PZ_CORS_ORIGINS:?Variable not set}
       - PZ_CORS_HEADERS=${PZ_CORS_HEADERS:?Variable not set}
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:8000/ready"]
-      interval: 10s
-      timeout: 2s
-      retries: 3
-      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
-    command: uv run fastapi run src/main.py
+    command: uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000
