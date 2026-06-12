@@ -9,9 +9,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/app/src
-      - ./tests:/app/tests
-      - ./Makefile:/app/Makefile
+      - .:/app  # wydaje mi się, że podpięcie wszystkich plików w tym wypdaku jest nieszkodliwe, bo to dedykowany dev env
     environment:
       - PZ_DATABASE_URL=${PZ_DATABASE_URL:?Variable not set}
       - PZ_DEBUG=${PZ_DEBUG:?Variable not set}
