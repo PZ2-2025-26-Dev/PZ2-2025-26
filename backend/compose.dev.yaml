@@ -11,6 +11,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests
+      - ./Makefile:/app/Makefile
     environment:
       - PZ_DATABASE_URL=${PZ_DATABASE_URL:?Variable not set}
       - PZ_DEBUG=${PZ_DEBUG:?Variable not set}
