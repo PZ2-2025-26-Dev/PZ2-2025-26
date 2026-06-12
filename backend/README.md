@@ -17,7 +17,7 @@ Mamy też dedykowane środowisko deweloperskie w kontenerze, gdzie lokalne zmian
 cp example.env .env
 
 # odpalenie kontenerów (baza danych i API)
-docker compose -f compose.dev.yaml up
+docker compose -f compose.dev.yaml up --build --wait
 
 # wejście do shell'a w kontenerze z API
 docker compose -f compose.dev.yaml exec api-dev-env sh
@@ -66,5 +66,9 @@ make integration-tests
 Mamy `./compose.yaml`, który pozwala uruchomić API + DB:
 ```sh
 cp example.env .env
-docker compose up --build
+docker compose up --build --wait
 ```
+
+Compose używa pod spodem healthchecków, więc jeżeli komenda nie zwróciła błędów, to znaczy że wszystko jest okej.
+
+API działa na porcie 8000. OpenAPI dostępne pod /docs, czyli np. http://localhost:8000/docs
