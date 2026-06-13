@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-// Pobranie bazowego adresu API ze zmiennych środowiskowych Vite
-// Jeśli zmienna nie istnieje, domyślnie uderzamy na lokalny serwer FastAPI
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 const axiosClient = axios.create({
     baseURL,
@@ -10,7 +8,7 @@ const axiosClient = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     },
-    // Opcjonalnie: timeout dla zapytań (np. 10 sekund)
+    // Timeout dla zapytań (np. 10 sekund)
     timeout: 10000,
 });
 
@@ -18,7 +16,6 @@ const axiosClient = axios.create({
 // Uruchamia się przed wysłaniem każdego zapytania do backendu
 axiosClient.interceptors.request.use(
     (config) => {
-        // Pobranie tokena JWT (tutaj z localStorage, ale docelowo można spiąć z Zustandem)
         const token = localStorage.getItem('access_token');
 
         if (token) {
