@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.*
+example.env
+.idea
+*.iml
+.vscode
+.git
+.gitignore
+README.md
+AGENTS.md
+Dockerfile
+.dockerignore

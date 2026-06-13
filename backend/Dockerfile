@@ -1,9 +1,6 @@
-FROM ghcr.io/astral-sh/uv:0.11.16-python3.14-alpine
+FROM ghcr.io/astral-sh/uv:0.11.16-python3.14-alpine AS base
 
 WORKDIR /app
-
-# bez zależności z grupy "dev"
-ENV UV_NO_DEV=1
 
 # ---
 # 'Changing the UV_LINK_MODE silences warnings about
@@ -22,5 +19,24 @@ COPY README.md pyproject.toml uv.lock /app
 
 COPY ./src/ /app/src
 
+
+# DEV
+FROM base AS dev
+
+RUN apk add make
+
+COPY Makefile /app
+
+COPY ./tests/ /app/tests
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
+# END_DEV
+
+
+# PROD
+FROM base AS prod
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev --locked
+# END_PROD
