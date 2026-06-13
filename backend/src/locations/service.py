@@ -6,6 +6,21 @@ from src.locations.models import Location
 from src.locations.schemas import LocationTreeNode
 
 
+def collect_subtree_location_ids(db: Session, root_id: int) -> list[int]:
+    rows = db.query(Location.id, Location.parent_id).filter(Location.is_active.is_(True)).all()
+    children_by_parent: dict[int | None, list[int]] = {}
+    for loc_id, parent_id in rows:
+        children_by_parent.setdefault(parent_id, []).append(loc_id)
+
+    result: list[int] = []
+    stack = [root_id]
+    while stack:
+        current = stack.pop()
+        result.append(current)
+        stack.extend(children_by_parent.get(current, []))
+    return result
+
+
 def build_tree(locations: list[Location]) -> list[LocationTreeNode]:
     nodes: dict[int, LocationTreeNode] = {
         loc.id: LocationTreeNode(id=loc.id, name=loc.name, type=loc.type) for loc in locations

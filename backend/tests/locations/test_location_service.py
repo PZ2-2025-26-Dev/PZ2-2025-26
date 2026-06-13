@@ -114,3 +114,14 @@ def test_list_items_filters_by_location_status_and_search(db: Session):
     by_legacy, legacy_total = service.list_items(search="AGH-WFIIS-0042")
     assert legacy_total == 1
     assert by_legacy[0].legacy_id == "AGH-WFIIS-0042"
+
+    building_items, building_total = service.list_items(
+        location_id=locations["building"].id,
+        include_descendants=True,
+    )
+    assert building_total == 3
+    assert {item.name for item in building_items} == {
+        "Oscyloskop Keysight",
+        "Generator Tektronix",
+        "Zasilacz Rigol",
+    }

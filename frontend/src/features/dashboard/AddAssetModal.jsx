@@ -1,48 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInventory } from '../inventory/useInventory';
-import { fetchLocationTree, flattenLocationTree } from '../locations/useLocationTree';
+import { fetchLocationTree } from '../locations/useLocationTree';
+import LocationCascadePicker from '../locations/LocationCascadePicker';
+
+const MOCK_CATEGORIES = [
+    { id: 1, name: 'Aparatura pomiarowa', parentId: null },
+    { id: 2, name: 'Oscyloskopy', parentId: 1 },
+    { id: 3, name: 'Generatory funkcyjne', parentId: 1 },
+    { id: 4, name: 'Aparatura zasilająca', parentId: null },
+    { id: 5, name: 'Zasilacze laboratoryjne', parentId: 4 },
+    { id: 6, name: 'Sprzęt IT', parentId: null },
+    { id: 7, name: 'Laptopy', parentId: 6 },
+    { id: 8, name: 'Akcesoria i optyka', parentId: null },
+];
+
+const MOCK_USERS = [
+    { id: 1, name: 'Adam Nowak' },
+    { id: 2, name: 'dr inż. Jan Kowalski' },
+    { id: 3, name: 'prof. dr hab. Andrzej Nowak' },
+    { id: 4, name: 'Jakub Wiśniewski' },
+    { id: 5, name: 'Anna Malik' },
+    { id: 6, name: 'Kubuś Puchatek' },
+];
 
 export default function AddAssetModal({ isOpen, onClose, onSave }) {
     const { t } = useTranslation();
     const { createItem, isLoading, error, clearError } = useInventory();
-     // Mocki danych z backendu - w przyszłości zastąpić rzeczywistymi API callami
 
-    const categories = [
-        { id: 1, name: 'Aparatura pomiarowa', parentId: null },
-        { id: 2, name: 'Oscyloskopy', parentId: 1 },
-        { id: 3, name: 'Generatory funkcyjne', parentId: 1 },
-        { id: 4, name: 'Aparatura zasilająca', parentId: null },
-        { id: 5, name: 'Zasilacze laboratoryjne', parentId: 4 },
-        { id: 6, name: 'Sprzęt IT', parentId: null },
-        { id: 7, name: 'Laptopy', parentId: 6 },
-        { id: 8, name: 'Akcesoria i optyka', parentId: null },
-    ];
-
-    const users = [
-        { id: 1, name: 'Adam Nowak' },
-        { id: 2, name: 'dr inż. Jan Kowalski' },
-        { id: 3, name: 'prof. dr hab. Andrzej Nowak' },
-        { id: 4, name: 'Jakub Wiśniewski' },
-        { id: 5, name: 'Anna Malik' },
-        { id: 6, name: 'Kubuś Puchatek' },
-    ];
-
-    const [locations, setLocations] = useState([]);
-
+    const [categoriesLocal, setCategoriesLocal] = useState(MOCK_CATEGORIES);
+    const [locationTree, setLocationTree] = useState([]);
+    const [locationPath, setLocationPath] = useState('');
+    const [locationTreeError, setLocationTreeError] = useState(false);
+    const [isLoadingLocations, setIsLoadingLocations] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        categoryId: categories.length > 0 ? categories[0].id : '',
-        locationId: locations.length > 0 ? locations[0].id : '',
-        ownerId: users.length > 0 ? users[0].id : '',
+        categoryId: MOCK_CATEGORIES[0]?.id ?? '',
+        locationId: '',
+        ownerId: MOCK_USERS[0]?.id ?? '',
     });
-
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryParentId, setNewCategoryParentId] = useState('');
-    const [categoriesLocal, setCategoriesLocal] = useState(categories);
-
 
     const indentCategories = () => {
         const result = [];
@@ -65,29 +65,38 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
         if (!isOpen) return;
 
         let cancelled = false;
+        setLocationTreeError(false);
+        setIsLoadingLocations(true);
         fetchLocationTree()
             .then((tree) => {
-                if (!cancelled) setLocations(flattenLocationTree(tree));
+                if (!cancelled) setLocationTree(tree);
             })
             .catch(() => {
-                if (!cancelled) setLocations([]);
+                if (!cancelled) {
+                    setLocationTree([]);
+                    setLocationTreeError(true);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingLocations(false);
             });
 
         return () => { cancelled = true; };
     }, [isOpen]);
 
     useEffect(() => {
-        if (isOpen) {
-            setFormData({
-                name: '',
-                description: '',
-                categoryId: categoriesLocal.length > 0 ? categoriesLocal[0].id : '',
-                locationId: locations.length > 0 ? locations[0].id : '',
-                ownerId: users.length > 0 ? users[0].id : '',
-            });
-            clearError();
-        }
-    }, [isOpen, categoriesLocal, locations, users, clearError]);
+        if (!isOpen) return;
+
+        setFormData({
+            name: '',
+            description: '',
+            categoryId: categoriesLocal[0]?.id ?? '',
+            locationId: '',
+            ownerId: MOCK_USERS[0]?.id ?? '',
+        });
+        setLocationPath('');
+        clearError();
+    }, [isOpen, clearError]);
 
     if (!isOpen) return null;
 
@@ -123,15 +132,15 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
             // Backend zwraca: { id, inventory_number, status }
             // Frontend bierze name i description z formularza
             const categoryName = categoriesLocal.find(c => c.id === parseInt(formData.categoryId))?.name || 'Unknown';
-            const locationPath = locations.find(l => l.id === parseInt(formData.locationId))?.path || 'Unknown';
-            const ownerName = users.find(u => u.id === parseInt(formData.ownerId))?.name || 'Unknown';
+            const savedLocationPath = locationPath || 'Unknown';
+            const ownerName = MOCK_USERS.find(u => u.id === parseInt(formData.ownerId))?.name || 'Unknown';
             const newAsset = {
                 id: result.data.id,
                 inventory_number: result.data.inventory_number,
                 status: result.data.status,
                 name: formData.name,
                 category: categoryName,
-                location: locationPath,
+                location: savedLocationPath,
                 owner: ownerName,
                 description: formData.description,
             };
@@ -177,12 +186,19 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                     <div>
                         <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.description')}</label>
                           <textarea 
-                            rows="2" 
+                            rows="2"
+                            maxLength={256} 
                             value={formData.description} 
                             onChange={e => setFormData({...formData, description: e.target.value})} 
                             disabled={isLoading}
                             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 resize-none disabled:opacity-50 disabled:cursor-not-allowed" 
                         />
+                    </div>
+                    
+                    <div className="flex justify-end mt-1">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {formData.description.length}/256
+                        </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -221,7 +237,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                                 disabled={isLoading}
                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {users.map(user => (
+                                {MOCK_USERS.map(user => (
                                     <option key={user.id} value={user.id}>
                                         {user.name}
                                     </option>
@@ -232,23 +248,25 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
 
                     <div className="border-t border-slate-100 dark:border-slate-900 pt-3">
                         <h4 className="font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase text-[10px] tracking-wide">{t('addAssetModal.locationTitle')}</h4>
-                        <div className="grid grid-cols-1 gap-4">
-                            <div>
-                                <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">{t('addAssetModal.building')} *</label>
-                                <select 
-                                    value={formData.locationId} 
-                                    onChange={e => setFormData({...formData, locationId: e.target.value})} 
-                                    disabled={isLoading}
-                                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {locations.map(loc => (
-                                        <option key={loc.id} value={loc.id}>
-                                            {loc.path}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                        {locationTreeError && (
+                            <p className="text-xs text-rose-600 dark:text-rose-400 mb-2">
+                                {t('addAssetModal.locationsError')}
+                            </p>
+                        )}
+                        <LocationCascadePicker
+                            key={isOpen ? 'open' : 'closed'}
+                            tree={locationTree}
+                            value={formData.locationId}
+                            disabled={isLoading}
+                            isLoading={isLoadingLocations}
+                            onChange={({ locationId, locationPath: nextPath }) => {
+                                setFormData((prev) => ({
+                                    ...prev,
+                                    locationId: locationId ? String(locationId) : '',
+                                }));
+                                setLocationPath(nextPath);
+                            }}
+                        />
                     </div>
 
             

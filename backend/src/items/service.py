@@ -1,13 +1,14 @@
 from uuid import uuid7
 
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from src.categories.models import Category
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory, LegacyIdentifier
-from src.items.schemas import ItemCategory, ItemCreate, ItemDetails, ItemLocation, ItemOwner
+from src.items.schemas import ItemCategory, ItemCreate, ItemDetails, ItemLocation, ItemOwner, ItemUpdate
 from src.locations.models import Location
+from src.locations.service import collect_subtree_location_ids
 from src.users.models import User
 from src.utils import now
 
@@ -68,6 +69,7 @@ class ItemService:
         search: str | None = None,
         category_id: int | None = None,
         location_id: int | None = None,
+        include_descendants: bool = False,
         owner_id: int | None = None,
         statuses: list[ItemStatus] | None = None,
         page: int = 1,
@@ -78,7 +80,11 @@ class ItemService:
         if category_id is not None:
             query = query.filter(Item.category_id == category_id)
         if location_id is not None:
-            query = query.filter(Item.location_id == location_id)
+            if include_descendants:
+                subtree_ids = collect_subtree_location_ids(self.db, location_id)
+                query = query.filter(Item.location_id.in_(subtree_ids))
+            else:
+                query = query.filter(Item.location_id == location_id)
         if owner_id is not None:
             query = query.filter(Item.owner_id == owner_id)
         if statuses:
@@ -142,3 +148,41 @@ class ItemService:
         ]
 
         return details, total
+
+    def update_item(self, item_id: int, data: ItemUpdate) -> Item:
+        """Update item fields in a single transaction.
+
+        Raises ValueError when item does not exist.
+        Returns the updated Item instance.
+        """
+        item = self.db.get(Item, item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        if data.description is not None:
+            item.description = data.description
+
+        self.db.commit()
+        self.db.refresh(item)
+
+        return item
+
+    def get_item_history(self, item_id: int) -> list[ItemHistory]:
+        """Get item history ordered by newest first.
+
+        Raises ValueError when item does not exist.
+        Returns a list of ItemHistory entries.
+        """
+        item = self.db.get(Item, item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        stmt = (
+            select(ItemHistory)
+            .where(ItemHistory.item_id == item_id)
+            .order_by(ItemHistory.updated_at.desc())
+        )
+
+        return self.db.execute(stmt).scalars().all()

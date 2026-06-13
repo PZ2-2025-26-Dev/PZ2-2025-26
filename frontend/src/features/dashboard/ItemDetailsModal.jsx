@@ -2,18 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
+import { useInventory } from '../inventory/useInventory';
 
 export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdateStatus }) {
     const { t } = useTranslation();
     const [returnDate, setReturnDate] = useState('');
+    const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+    const [isEditingDescription, setIsEditingDescription] = useState(false);
+    const [editedDescription, setEditedDescription] = useState('');
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [history, setHistory] = useState([]);
+    
+    const { getItemHistory } = useInventory(); 
 
-    useEffect(() => {
-        if (isOpen) {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            setReturnDate(tomorrow.toISOString().split('T')[0]);
-        }
-    }, [isOpen]);
+useEffect(() => {
+    if (isOpen) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setReturnDate(tomorrow.toISOString().split('T')[0]);
+
+        setEditedDescription(item?.description || '');
+        setIsEditingDescription(false);
+    }
+}, [isOpen, item]);
 
     if (!isOpen || !item) return null;
 
@@ -32,6 +43,50 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         if (!returnDate) return;
         onUpdateStatus(item.id, 'oczekuje akceptacji', false, user.name, returnDate);
     };
+
+    const handleSaveDescription = async () => {
+        // TODO: PATCH /items/{id}
+        console.log('Save description', editedDescription);
+
+        setIsEditingDescription(false);
+    };
+
+    const handleToggleHistory = async () => {
+        const nextState = !isHistoryOpen;
+
+        setIsHistoryOpen(nextState);
+
+        if (nextState && history.length === 0) {
+            const result = await getItemHistory(item.id);
+
+            if (result.success) {
+                setHistory(result.data);
+            }
+        }
+    };
+
+    const renderDescription = (text) => {
+    if (!text) {
+        return '-';
+    }
+
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+    return text.split(urlRegex).map((part, index) => {
+        if (urlRegex.test(part)) {
+            return (
+                <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 underline">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 015.657 5.656l-3 3a4 4 0 01-5.657-5.656m-1.414 1.414a4 4 0 01-5.657-5.656l3-3a4 4 0 015.657 5.656" />
+                    </svg>
+                    <span>{t('itemDetailsModal.openLink')}</span>
+                </a>
+            );
+        }
+
+        return <React.Fragment key={index}>{part}</React.Fragment>;
+    });
+};
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
@@ -63,6 +118,127 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                                 <li className="flex justify-between"><span className="text-slate-500">{t('itemDetailsModal.sn')}</span> <span className="font-mono text-slate-800 dark:text-slate-200">{item.serialNumber}</span></li>
                                 <li className="flex justify-between"><span className="text-slate-500">{t('itemDetailsModal.category')}</span> <span className="text-slate-800 dark:text-slate-200">{item.category}</span></li>
                             </ul>
+
+                <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsDescriptionOpen(prev => !prev)}
+                            className="flex items-center gap-2"
+                        >
+                            <span className="text-slate-500 text-xs font-semibold">
+                                {t('itemDetailsModal.description')}
+                            </span>
+
+                            <span className="text-slate-400 text-xs">
+                                {isDescriptionOpen ? '▲' : '▼'}
+                            </span>
+                        </button>
+
+                        {isOwner && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditedDescription(item.description || '');
+                                    setIsDescriptionOpen(true);
+                                    setIsEditingDescription(true);
+                                }}
+                                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium dark:text-emerald-400 dark:hover:text-emerald-300"
+                            >
+                            {t('itemDetailsModal.editDescription')}
+                            </button>
+                        )}
+                    </div>
+
+                    {isDescriptionOpen && (
+                        <div className="mt-3">
+                            {isEditingDescription ? (
+                                <>
+                                    <textarea
+                                        rows={6}
+                                        maxLength={256}
+                                        value={editedDescription}
+                                        onChange={(e) =>
+                                            setEditedDescription(e.target.value)
+                                        }
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-800 dark:text-slate-100"
+                                    />
+
+                                    <div className="flex items-center justify-between mt-2">
+                                        <span className="text-xs text-slate-500">
+                                            {editedDescription.length}/256
+                                        </span>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditedDescription(
+                                                        item.description || ''
+                                                    );
+                                                    setIsEditingDescription(false);
+                                                }}
+                                                className="px-3 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                                            >
+                                                {t('itemDetailsModal.cancel')}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveDescription}
+                                                className="px-3 py-1 text-xs rounded bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-400 dark:text-slate-900"
+                                            >
+                                                {t('itemDetailsModal.save')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                                    {renderDescription(item.description || '-')}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                    <button
+                        type="button"
+                        onClick={handleToggleHistory}
+                        className="flex items-center gap-2"
+                    >
+                        <span className="text-slate-500 text-xs font-semibold">
+                            {t('itemDetailsModal.history')}
+                        </span>
+
+                        <span className="text-slate-400 text-xs">
+                            {isHistoryOpen ? '▲' : '▼'}
+                        </span>
+                    </button>
+
+                    {isHistoryOpen && (
+                        <div className="mt-3 space-y-3">
+                            {history.map(entry => (
+                                <div
+                                    key={entry.id}
+                                    className="border-l-2 border-slate-200 dark:border-slate-700 pl-4 py-2"
+                                >
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                                        {entry.updated_at}
+                                    </div>
+
+                                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                        {entry.updated_by}
+                                    </div>
+
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">
+                                        {entry.description}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
                         </div>
 
                         <div>

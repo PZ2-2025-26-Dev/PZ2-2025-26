@@ -64,8 +64,10 @@ export const useLocationTree = () => {
         return () => clearTimeout(timer);
     }, [search]);
 
-    const fetchTree = useCallback(async (searchQuery = debouncedSearch) => {
-        setIsLoadingTree(true);
+    const fetchTree = useCallback(async (searchQuery, { silent = false } = {}) => {
+        if (!silent) {
+            setIsLoadingTree((loading) => loading || tree.length === 0);
+        }
         setError(null);
         try {
             const params = searchQuery ? { search: searchQuery } : {};
@@ -73,36 +75,42 @@ export const useLocationTree = () => {
             setTree(data.tree ?? []);
         } catch (err) {
             setError(parseApiError(err));
-            setTree([]);
         } finally {
             setIsLoadingTree(false);
         }
-    }, [debouncedSearch]);
+    }, [tree.length]);
 
-    const fetchItemsForLocation = useCallback(async (locationId, searchQuery = debouncedSearch, statuses = statusFilters) => {
-        setLoadingLocationIds((prev) => new Set(prev).add(locationId));
+    useEffect(() => {
+        fetchTree(debouncedSearch, { silent: tree.length > 0 });
+    }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const fetchItemsForLocation = useCallback(async (locationId, statuses = statusFilters) => {
+        setLoadingLocationIds((prev) => new Set(prev).add(Number(locationId)));
         setError(null);
         try {
-            const params = { location_id: locationId, limit: 100 };
-            if (searchQuery) params.search = searchQuery;
+            const params = {
+                location_id: locationId,
+                include_descendants: true,
+                limit: 100,
+            };
             if (statuses.length > 0) params.status = statuses;
 
             const { data } = await axiosClient.get(ENDPOINTS.ITEMS.BASE, { params });
-            setItemsByLocation((prev) => ({ ...prev, [locationId]: data.items ?? [] }));
+            setItemsByLocation((prev) => ({ ...prev, [Number(locationId)]: data.items ?? [] }));
         } catch (err) {
             setError(parseApiError(err));
-            setItemsByLocation((prev) => ({ ...prev, [locationId]: [] }));
+            setItemsByLocation((prev) => ({ ...prev, [Number(locationId)]: [] }));
         } finally {
             setLoadingLocationIds((prev) => {
                 const next = new Set(prev);
-                next.delete(locationId);
+                next.delete(Number(locationId));
                 return next;
             });
         }
-    }, [debouncedSearch, statusFilters]);
+    }, [statusFilters]);
 
     const selectLocation = useCallback((locationId) => {
-        selectedLocationIdsRef.current.add(locationId);
+        selectedLocationIdsRef.current.add(Number(locationId));
         fetchItemsForLocation(locationId);
     }, [fetchItemsForLocation]);
 
@@ -113,12 +121,9 @@ export const useLocationTree = () => {
     }, [fetchItemsForLocation]);
 
     useEffect(() => {
-        fetchTree();
-    }, [fetchTree]);
-
-    useEffect(() => {
+        if (selectedLocationIdsRef.current.size === 0) return;
         refreshSelectedLocations();
-    }, [debouncedSearch, statusFilters, refreshSelectedLocations]);
+    }, [statusFilters, refreshSelectedLocations]);
 
     const toggleStatusFilter = useCallback((status) => {
         setStatusFilters((prev) =>
@@ -129,7 +134,7 @@ export const useLocationTree = () => {
     const clearError = useCallback(() => setError(null), []);
 
     const isLocationLoading = useCallback(
-        (locationId) => loadingLocationIds.has(locationId),
+        (locationId) => loadingLocationIds.has(Number(locationId)),
         [loadingLocationIds]
     );
 
@@ -145,6 +150,7 @@ export const useLocationTree = () => {
         toggleStatusFilter,
         selectLocation,
         clearError,
-        refetchTree: fetchTree,
+        refetchTree: () => fetchTree(debouncedSearch),
+        debouncedSearch,
     };
 };

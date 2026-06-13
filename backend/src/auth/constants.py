@@ -4,7 +4,7 @@ from enum import Enum
 class UserStatus(Enum):
     ACTIVE = "active"
     PENDING_APPROVAL = "pending_approval"
-    DEACTIVATED = "deactivated"
+    INACTIVE = "inactive"
 
 
 class UserRole(Enum):

@@ -7,8 +7,10 @@
  */
 export const parseApiError = (error, fallbackMsg = 'Wystąpił nieoczekiwany błąd serwera.') => {
     if (!error.response) {
-        // Błąd sieci (np. backend leży, brak internetu)
-        return 'Brak odpowiedzi z serwera. Sprawdź połączenie z siecią.';
+        if (error.code === 'ECONNABORTED') {
+            return 'Przekroczono czas oczekiwania na odpowiedź serwera. Sprawdź, czy backend działa.';
+        }
+        return 'Brak połączenia z backendem. Upewnij się, że API działa (http://localhost:8000) i frontend jest uruchomiony (npm run dev).';
     }
 
     const { status, data } = error.response;
