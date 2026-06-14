@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -6,7 +7,7 @@ from pydantic import BaseModel, Field
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
 from src.categories.schemas import CategoryID, CategoryName
-from src.items.constants import ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemStatus
+from src.items.constants import ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
 from src.locations.schemas import LocationID, LocationPath
 
 type ItemID = int
@@ -79,4 +80,18 @@ class ItemsPaged(BaseModel):
     pagination: ItemPagination
 
 class ItemUpdate(BaseModel):
-    description: str | None = None
+    description: ItemDescription | None = None
+
+class ItemUpdateResponse(BaseModel):
+    id: ItemID
+    description: ItemDescription | None
+
+class ItemHistoryEntry(BaseModel):
+    id: int
+    updated_at: datetime
+    updated_by: int
+    change_type: ItemChangeLogType
+    description: str | None
+
+class ItemHistoryResponse(BaseModel):
+    entries: list[ItemHistoryEntry]

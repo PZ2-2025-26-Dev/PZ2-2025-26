@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # WORKAROUND:
 # W trakcie projektu przerzucimy się na alembic
@@ -10,6 +11,7 @@ from fastapi import FastAPI
 from src.auth import models as auth_models  # noqa: F401
 from src.auth.router import router as auth_router
 from src.categories import models as categories_models  # noqa: F401
+from src.config import config
 from src.database import Base, engine
 from src.guests import models as guests_models  # noqa: F401
 from src.items import models as items_models  # noqa: F401
@@ -28,8 +30,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(version="0.1.0", lifespan=lifespan)
+
+# Konfiguracja CORS dla FastAPI.
+# Originy i nagłówki są trzymane w settings/env
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=config.cors_headers,
+)
+
 app.include_router(auth_router)
-app.include_router(users_router)
+app.include_router(users_router, prefix="/api/v1")
 app.include_router(items_router)
 
 

@@ -6,6 +6,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
+import UserManager from '../users/UserManager';
 import { useInventory } from '../inventory/useInventory';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
@@ -13,9 +14,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const { deleteItem } = useInventory();
 
     const [items, setItems] = useState([
-        { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski' },
-        { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01' },
-        { id: 'AGH-WFIIS-0391', name: 'Zasilacz laboratoryjny programowalny', producer: 'Rigol', model: 'DP832', serialNumber: 'DP8B123456', status: 'oczekuje akceptacji', category: 'Zasilacze laboratoryjne', location: 'Budynek D10 / Pokój 204 / Szafa C', owner: 'dr inż. Jan Kowalski', borrower: 'Anna Malik' }
+        { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski', description: 'Dwukanałowy oscyloskop cyfrowy przeznaczony do pomiarów sygnałów analogowych i cyfrowych. Pasmo 70 MHz, częstotliwość próbkowania do 2 GSa/s. Urządzenie wykorzystywane podczas laboratoriów z elektroniki oraz techniki pomiarowej.' },
+        { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01',     description: 'Generator sygnałów arbitralnych umożliwiający generowanie przebiegów sinusoidalnych, prostokątnych, trójkątnych oraz własnych przebiegów użytkownika. Dokumentacja producenta: https://en.wikipedia.org/wiki/Function_generator'},
+        { id: 'AGH-WFIIS-0391', name: 'Zasilacz laboratoryjny programowalny', producer: 'Rigol', model: 'DP832', serialNumber: 'DP8B123456', status: 'oczekuje akceptacji', category: 'Zasilacze laboratoryjne', location: 'Budynek D10 / Pokój 204 / Szafa C', owner: 'dr inż. Jan Kowalski', borrower: 'Anna Malik',     description: 'Trzykanałowy zasilacz laboratoryjny wykorzystywany w laboratoriach elektroniki, automatyki i systemów wbudowanych. Umożliwia niezależną regulację napięcia i prądu dla każdego kanału. Zakres pracy obejmuje dwa kanały 0–30 V / 3 A oraz trzeci kanał 0–5 V / 3 A. Urządzenie posiada zabezpieczenia przeciwzwarciowe, przeciwprzeciążeniowe oraz możliwość zdalnego sterowania przez interfejs USB i LAN. Ze względu na częste wykorzystanie podczas zajęć dydaktycznych należy każdorazowo sprawdzić stan przewodów pomiarowych przed rozpoczęciem pracy. Sprzęt podlega okresowej kontroli technicznej oraz kalibracji zgodnie z procedurami obowiązującymi w laboratorium.' }
     ]);
     // const { items, isLoading, error, addAsset } = useInventory(); docelowe użycie
     // useEffect(() => {
@@ -32,10 +33,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [selectedItem, setSelectedItem] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-    const [pendingUsers, setPendingUsers] = useState([
-        { id: 'req-001', name: 'Anna Malik', email: 'amalik@student.agh.edu.pl', date: '2026-05-18', reason: 'Praca dyplomowa' },
-        { id: 'req-002', name: 'Firma Tech-Pomiar Sp. z o.o.', email: 'kontakt@techpomiar.pl', date: '2026-05-20', reason: 'Zlecenie zewnętrzne WFiIS' }
-    ]);
+    const [pendingUserCount, setPendingUserCount] = useState(0);
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -51,10 +49,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
         return matchesSearch && matchesStatus && matchesCategory;
     }) : [];
-
-    const handleApproveUser = (id) => {
-        setPendingUsers(pendingUsers.filter(u => u.id !== id));
-    };
 
     const handleSaveAsset = (newAsset) => {
         setItems([newAsset, ...items]);
@@ -140,7 +134,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <button onClick={() => setActiveTab('users')} className={`py-3 text-xs font-semibold border-b-2 transition-colors flex items-center space-x-1.5 ${activeTab === 'users' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                                     <span>{t('dashboard.tabUsers')}</span>
-                                    {pendingUsers.length > 0 && <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingUsers.length}</span>}
+                                    {pendingUserCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingUserCount}</span>}
                                 </button>
                                 <button onClick={() => setActiveTab('categories')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'categories' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabCategories')}</button>
                             </RoleGuard>
@@ -277,42 +271,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
                         {activeTab === 'users' && (
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
-                                <div className="space-y-4 animate-fadeIn">
-                                    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-6">
-                                        <h2 className="text-base font-bold text-slate-900 dark:text-white">{t('dashboard.userReqTitle')}</h2>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('dashboard.userReqDesc')}</p>
-                                        <div className="mt-6 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-                                            <table className="w-full text-left border-collapse text-xs">
-                                                <thead>
-                                                <tr className="bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                                                    <th className="py-3 px-4">Użytkownik / Podmiot</th>
-                                                    <th className="py-3 px-4">Data wniosku</th>
-                                                    <th className="py-3 px-4">Uzasadnienie</th>
-                                                    <th className="py-3 px-4 text-right">Akcje</th>
-                                                </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
-                                                {pendingUsers.length > 0 ? pendingUsers.map(req => (
-                                                    <tr key={req.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/20 transition">
-                                                        <td className="py-3 px-4">
-                                                            <div className="font-medium text-slate-900 dark:text-white">{req.name}</div>
-                                                            <div className="text-[10px] text-slate-400">{req.email}</div>
-                                                        </td>
-                                                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{req.date}</td>
-                                                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 italic">{req.reason}</td>
-                                                        <td className="py-3 px-4 flex justify-end space-x-2">
-                                                            <button onClick={() => handleApproveUser(req.id)} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-400 font-medium rounded transition">{t('dashboard.approveBtn')}</button>
-                                                            <button onClick={() => handleApproveUser(req.id)} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 font-medium rounded transition">{t('dashboard.rejectBtn')}</button>
-                                                        </td>
-                                                    </tr>
-                                                )) : (
-                                                    <tr><td colSpan="4" className="py-6 text-center text-slate-500">Brak oczekujących wniosków.</td></tr>
-                                                )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
+                                <UserManager onPendingCountChange={setPendingUserCount} />
                             </RoleGuard>
                         )}
 
