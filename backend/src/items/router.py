@@ -12,6 +12,7 @@ from src.items.schemas import (
     ItemCreateResponse,
     ItemDetails,
     ItemHistoryEntry,
+    ItemID,
     ItemLocation,
     ItemOwner,
     ItemPagination,
@@ -20,7 +21,6 @@ from src.items.schemas import (
     ItemUpdateResponse,
     LocationID,
     SearchStr,
-    ItemID
 )
 from src.items.service import ItemService
 
@@ -118,15 +118,9 @@ def create_item(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Usuń przedmiot z inwentaryzacji",
     responses={
-        status.HTTP_204_NO_CONTENT: {
-            "description": "Pomyślnie usunięto przedmiot"
-        },
-        status.HTTP_400_BAD_REQUEST: {
-            "description": "Nie można usunąć wypożyczonego przedmiotu"
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "description": "Przedmiot nie istnieje"
-        },
+        status.HTTP_204_NO_CONTENT: {"description": "Pomyślnie usunięto przedmiot"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Nie można usunąć wypożyczonego przedmiotu"},
+        status.HTTP_404_NOT_FOUND: {"description": "Przedmiot nie istnieje"},
     },
 )
 def delete_item(
@@ -138,44 +132,6 @@ def delete_item(
     service.delete_item(item_id)
     return None
 
-
-@router.patch(
-    "/{item_id}",
-    response_model=ItemDetails,
-    status_code=status.HTTP_200_OK,
-    summary="Zaktualizuj dane przedmiotu",
-    responses={
-        status.HTTP_200_OK: {
-            "description": "Pomyślnie zaktualizowano przedmiot"
-            },
-        status.HTTP_404_NOT_FOUND: {
-            "description": "Przedmiot nie istnieje"
-            },
-    },
-)
-def update_item(
-    item_id: int,
-    data: ItemUpdate,
-    db: DBDep,
-) -> ItemDetails:
-
-    service = ItemService(db)
-
-    item = service.get_item(item_id)
-    if item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-
-    updated = service.update_item(item, data.model_dump(exclude_unset=True))
-
-    return ItemDetails(
-        id=updated.id,
-        name=updated.name,
-        category=updated.category,
-        location=updated.location,
-        owner=updated.owner,
-        description=updated.description,
-        legacy_id=updated.legacy_id,
-    )
 
 router.patch(
     "/{item_id}",
@@ -192,6 +148,8 @@ router.patch(
         },
     },
 )
+
+
 def update_item(
     item_id: ItemID,
     data: ItemUpdate,
@@ -201,16 +159,17 @@ def update_item(
 
     try:
         item = service.update_item(item_id, data)
-    except ValueError:
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return ItemUpdateResponse(
         id=item.id,
         description=item.description,
     )
+
 
 @router.get(
     "/{item_id}/history",
@@ -231,11 +190,11 @@ def read_item_history(
 
     try:
         history = service.get_item_history(item_id)
-    except ValueError:
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return [
         ItemHistoryEntry(

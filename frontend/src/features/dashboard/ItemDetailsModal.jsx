@@ -24,14 +24,6 @@ export default function ItemDetailsModal({
     
     const { getItemHistory } = useInventory(); 
 
-    const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
-    const [isEditingDescription, setIsEditingDescription] = useState(false);
-    const [editedDescription, setEditedDescription] = useState('');
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    const [history, setHistory] = useState([]);
-    
-    const { getItemHistory } = useInventory(); 
-
 useEffect(() => {
     if (isOpen) {
         const tomorrow = new Date();
@@ -159,7 +151,7 @@ useEffect(() => {
                             </span>
                         </button>
 
-                        {isOwner && (
+                        {canManage && (
                             <button
                                 type="button"
                                 onClick={() => {
