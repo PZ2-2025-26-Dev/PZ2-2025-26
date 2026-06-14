@@ -3,38 +3,83 @@ import { useTranslation } from 'react-i18next';
 import {
     LOCATION_TYPES,
     PARENT_TYPE_BY_TYPE,
-    buildLocationTree,
-    collectDescendantIds,
-    collectTreeNodes,
     isLocationEffectivelyActive,
     useLocations,
 } from './useLocations';
 
+const NEXT_TYPE_BY_TYPE = {
+    building: 'room',
+    room: 'cabinet',
+    cabinet: 'shelf',
+    shelf: null,
+};
+
+const LEVELS = [
+    { type: 'building', labelKey: 'selectBuilding', parentKey: null, stateKey: 'buildingId' },
+    { type: 'room', labelKey: 'selectRoom', parentKey: 'buildingId', stateKey: 'roomId' },
+    { type: 'cabinet', labelKey: 'selectCabinet', parentKey: 'roomId', stateKey: 'cabinetId' },
+    { type: 'shelf', labelKey: 'selectShelf', parentKey: 'cabinetId', stateKey: 'shelfId' },
+];
+
+const initialSelection = {
+    buildingId: '',
+    roomId: '',
+    cabinetId: '',
+    shelfId: '',
+};
+
+const initialFormData = {
+    name: '',
+    type: 'building',
+    parentId: '',
+    description: '',
+};
+
 export default function LocationManager() {
     const { t } = useTranslation();
-    const { activeLocations, createLocation, deleteLocation, error, isLoading, locations, toggleLocationActive, updateLocation } = useLocations();
-    const [editingId, setEditingId] = useState(null);
+    const {
+        activeLocations,
+        createLocation,
+        deleteLocation,
+        error,
+        getLocationPath,
+        isLoading,
+        locations,
+        toggleLocationActive,
+        updateLocation,
+    } = useLocations();
+
+    const [selection, setSelection] = useState(initialSelection);
+    const [formData, setFormData] = useState(initialFormData);
+    const [editCandidate, setEditCandidate] = useState(null);
+    const [editFormData, setEditFormData] = useState({ name: '', description: '' });
     const [deleteCandidate, setDeleteCandidate] = useState(null);
     const [replacementLocationId, setReplacementLocationId] = useState('');
-    const [formData, setFormData] = useState({
-        name: '',
-        type: 'building',
-        parentId: '',
-        description: '',
-    });
 
-    const locationTree = useMemo(() => buildLocationTree(locations), [locations]);
-    const editingNode = useMemo(() => locations.find(location => location.id === editingId), [editingId, locations]);
+    const selectedPath = useMemo(() => LEVELS
+        .map(level => locations.find(location => String(location.id) === String(selection[level.stateKey])))
+        .filter(Boolean), [locations, selection]);
+    const currentParent = selectedPath.at(-1) || null;
+    const childType = currentParent ? NEXT_TYPE_BY_TYPE[currentParent.type] : 'building';
 
-    const excludedParentIds = useMemo(() => {
-        if (!editingNode) return [];
+    const visibleLocations = useMemo(() => {
+        if (currentParent) {
+            return locations.filter(location => String(location.parentId) === String(currentParent.id));
+        }
 
-        const treeNode = buildLocationTree(locations)
-            .flatMap(root => [root, ...collectTreeNodes(root)])
-            .find(node => node.id === editingId);
+        return locations.filter(location => location.type === 'building');
+    }, [currentParent, locations]);
 
-        return treeNode ? [editingId, ...collectDescendantIds(treeNode)] : [editingId];
-    }, [editingId, editingNode, locations]);
+    const locationOptionsByType = useMemo(() => LEVELS.reduce((acc, level) => {
+        const parentId = level.parentKey ? selection[level.parentKey] : null;
+
+        acc[level.type] = locations.filter(location => (
+            location.type === level.type
+            && (!level.parentKey || String(location.parentId) === String(parentId))
+        ));
+
+        return acc;
+    }, {}), [locations, selection]);
 
     const availableParents = useMemo(() => {
         const expectedParentType = PARENT_TYPE_BY_TYPE[formData.type];
@@ -43,25 +88,35 @@ export default function LocationManager() {
 
         return locations.filter(location => (
             location.type === expectedParentType
-            && !excludedParentIds.includes(location.id)
             && isLocationEffectivelyActive(location, locations)
         ));
-    }, [excludedParentIds, formData.type, locations]);
+    }, [formData.type, locations]);
 
     const isParentRequired = Boolean(PARENT_TYPE_BY_TYPE[formData.type]);
     const canSubmit = formData.name.trim() && (!isParentRequired || formData.parentId) && !isLoading;
+    const canAddInCurrentPlace = Boolean(childType);
+    const canEdit = editFormData.name.trim() && !isLoading;
     const replacementRooms = activeLocations.filter(location => (
         location.type === 'room' && String(location.id) !== String(deleteCandidate?.id)
     ));
 
     const resetForm = () => {
-        setEditingId(null);
-        setFormData({
-            name: '',
-            type: 'building',
-            parentId: '',
-            description: '',
-        });
+        setFormData(initialFormData);
+    };
+
+    const setSelectedLevel = (levelIndex, value) => {
+        setSelection(prev => LEVELS.reduce((nextSelection, level, index) => ({
+            ...nextSelection,
+            [level.stateKey]: index < levelIndex ? prev[level.stateKey] : index === levelIndex ? value : '',
+        }), {}));
+    };
+
+    const openLocationLevel = (location) => {
+        const levelIndex = LEVELS.findIndex(level => level.type === location.type);
+
+        if (levelIndex >= 0) {
+            setSelectedLevel(levelIndex, location.id);
+        }
     };
 
     const handleTypeChange = (type) => {
@@ -72,50 +127,57 @@ export default function LocationManager() {
         }));
     };
 
-    const handleEdit = (location) => {
-        setEditingId(location.id);
+    const handleAddHere = () => {
+        if (!canAddInCurrentPlace) return;
+
         setFormData({
-            name: location.name,
-            type: location.type,
-            parentId: location.parentId || '',
-            description: location.description || '',
+            name: '',
+            type: childType,
+            parentId: currentParent?.id || '',
+            description: '',
         });
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        if (!formData.name.trim()) return;
+        if (!canSubmit) return;
 
-        const expectedParentType = PARENT_TYPE_BY_TYPE[formData.type];
-        const parentId = expectedParentType ? Number(formData.parentId) : null;
+        const result = await createLocation({
+            name: formData.name.trim(),
+            type: formData.type,
+            parentId: formData.parentId ? Number(formData.parentId) : null,
+            description: formData.description.trim(),
+        });
 
-        if (expectedParentType && !parentId) return;
-
-        if (editingId) {
-            updateLocation(editingId, {
-                name: formData.name.trim(),
-                type: formData.type,
-                parentId,
-                description: formData.description.trim(),
-            });
+        if (result.success) {
             resetForm();
-        } else {
-            const result = await createLocation({
-                name: formData.name.trim(),
-                type: formData.type,
-                parentId,
-                description: formData.description.trim(),
-            });
-
-            if (result.success) {
-                resetForm();
-            }
         }
     };
 
-    const handleToggleActive = (locationId) => {
-        toggleLocationActive(locationId);
+    const openEditModal = (location) => {
+        setEditCandidate(location);
+        setEditFormData({
+            name: location.name,
+            description: location.description || '',
+        });
+    };
+
+    const closeEditModal = () => {
+        setEditCandidate(null);
+        setEditFormData({ name: '', description: '' });
+    };
+
+    const handleEdit = (event) => {
+        event.preventDefault();
+
+        if (!canEdit) return;
+
+        updateLocation(editCandidate.id, {
+            name: editFormData.name.trim(),
+            description: editFormData.description.trim(),
+        });
+        closeEditModal();
     };
 
     const openDeleteModal = (location) => {
@@ -135,99 +197,168 @@ export default function LocationManager() {
         if (result.success) {
             setDeleteCandidate(null);
             setReplacementLocationId('');
+            setSelection(prev => Object.entries(prev).reduce((nextSelection, [key, value]) => ({
+                ...nextSelection,
+                [key]: String(value) === String(deleteCandidate.id) ? '' : value,
+            }), {}));
         }
     };
 
-    const LocationNode = ({ node, level = 0 }) => (
-        <div className="flex flex-col">
-            <div className={`flex items-center justify-between gap-3 py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-900/30 rounded-lg group transition border border-transparent hover:border-slate-100 dark:hover:border-slate-800 ${level > 0 ? 'ml-6 border-l-slate-200 dark:border-l-slate-800' : ''} ${node.isActive === false ? 'bg-slate-100/60 dark:bg-slate-900/60 opacity-70' : ''}`}>
-                <div className="min-w-0 flex items-center space-x-2">
-                    <div className="text-slate-300 dark:text-slate-600 shrink-0">
-                        {node.children.length > 0 ? (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        ) : (
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                        )}
-                    </div>
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className={`truncate text-sm ${level === 0 ? 'font-semibold text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>
-                                {node.name}
-                            </span>
-                            {node.isActive === false && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[9px] font-bold uppercase tracking-wide">
-                                    {t('locationManager.hiddenBadge')}
-                                </span>
-                            )}
-                        </div>
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
-                            {t(`locationManager.types.${node.type}`)}
-                        </div>
-                        {node.description && (
-                            <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
-                                {node.description}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                    <button
-                        onClick={() => handleEdit(node)}
-                        className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 px-2 py-1 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded"
-                    >
-                        {t('locationManager.edit')}
-                    </button>
-                    <button
-                        onClick={() => handleToggleActive(node.id)}
-                        className={`text-[10px] uppercase font-bold px-2 py-1 rounded transition ${node.isActive === false ? 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30' : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'}`}
-                    >
-                        {node.isActive === false ? t('locationManager.restore') : t('locationManager.hide')}
-                    </button>
-                    {node.type === 'room' && (
-                        <button
-                            onClick={() => openDeleteModal(node)}
-                            className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 px-2 py-1 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded"
-                        >
-                            {t('locationManager.delete')}
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {node.children.length > 0 && (
-                <div className="border-l border-slate-100 dark:border-slate-800/60 ml-[21px] mt-1 space-y-1">
-                    {node.children.map(child => (
-                        <LocationNode key={child.id} node={child} level={level + 1} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-
     return (
         <>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
-                <div className="lg:col-span-1">
-                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 animate-fadeIn">
+                <div className="space-y-4">
+                    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between mb-4">
+                            <div>
+                                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t('locationManager.navigationTitle')}</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('locationManager.navigationDesc')}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleAddHere}
+                                disabled={!canAddInCurrentPlace || isLoading}
+                                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {t('locationManager.addHere')}
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                            {LEVELS.map((level, index) => {
+                                const parentSelected = !level.parentKey || selection[level.parentKey];
+                                const options = locationOptionsByType[level.type] || [];
+
+                                return (
+                                    <div key={level.type}>
+                                        <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                            {t(`locationManager.${level.labelKey}`)}
+                                        </label>
+                                        <select
+                                            value={selection[level.stateKey]}
+                                            onChange={(event) => setSelectedLevel(index, event.target.value)}
+                                            disabled={!parentSelected || isLoading}
+                                            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="">{t('locationManager.noSelection')}</option>
+                                            {options.map(location => (
+                                                <option key={location.id} value={location.id}>
+                                                    {location.name}{location.isActive === false ? ` (${t('locationManager.hiddenBadge')})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-4 rounded-lg bg-slate-50/80 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 p-3">
+                            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                                {t('locationManager.selectedPath')}
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                {selectedPath.length > 0
+                                    ? selectedPath.map(location => location.name).join(' / ')
+                                    : t('locationManager.noSelection')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div>
+                                <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t('locationManager.visibleItems')}</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('locationManager.desc')}</p>
+                            </div>
+                        </div>
+
+                        {isLoading && visibleLocations.length === 0 ? (
+                            <div className="text-center py-8 text-sm text-slate-400">{t('locationManager.loading')}</div>
+                        ) : visibleLocations.length > 0 ? (
+                            <div className="divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden">
+                                {visibleLocations.map(location => (
+                                    <div
+                                        key={location.id}
+                                        className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-3 p-3 ${location.isActive === false ? 'bg-slate-100/70 dark:bg-slate-900/60 opacity-75' : 'bg-white dark:bg-slate-950'}`}
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">{location.name}</span>
+                                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400 text-[10px] font-bold uppercase">
+                                                    {t(`locationManager.types.${location.type}`)}
+                                                </span>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${location.isActive === false ? 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                                                    {location.isActive === false ? t('locationManager.hiddenBadge') : t('locationManager.activeBadge')}
+                                                </span>
+                                            </div>
+                                            {location.description && (
+                                                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 truncate">
+                                                    {location.description}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            {NEXT_TYPE_BY_TYPE[location.type] && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openLocationLevel(location)}
+                                                    className="px-3 py-1.5 text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg"
+                                                >
+                                                    {t('locationManager.open')}
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => openEditModal(location)}
+                                                className="px-3 py-1.5 text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg"
+                                            >
+                                                {t('locationManager.edit')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleLocationActive(location.id)}
+                                                className={`px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg ${location.isActive === false ? 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30' : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'}`}
+                                            >
+                                                {location.isActive === false ? t('locationManager.restore') : t('locationManager.hide')}
+                                            </button>
+                                            {location.type === 'room' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openDeleteModal(location)}
+                                                    className="px-3 py-1.5 text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
+                                                >
+                                                    {t('locationManager.delete')}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-sm text-slate-400">{t('locationManager.noItemsAtLevel')}</div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5 h-fit">
                     <div className="flex items-start justify-between gap-3 mb-4">
                         <div>
                             <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                                {editingId ? t('locationManager.editTitle') : t('locationManager.addTitle')}
+                                {t('locationManager.addTitle')}
                             </h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                 {t('locationManager.formDesc')}
                             </p>
                         </div>
-                        {editingId && (
-                            <button
-                                type="button"
-                                onClick={resetForm}
-                                disabled={isLoading}
-                                className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
-                            >
-                                {t('locationManager.clear')}
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            onClick={resetForm}
+                            disabled={isLoading}
+                            className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                        >
+                            {t('locationManager.clear')}
+                        </button>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -259,7 +390,7 @@ export default function LocationManager() {
                                 value={formData.type}
                                 onChange={(event) => handleTypeChange(event.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition appearance-none"
+                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition"
                             >
                                 {LOCATION_TYPES.map(type => (
                                     <option key={type} value={type}>{t(`locationManager.types.${type}`)}</option>
@@ -277,11 +408,11 @@ export default function LocationManager() {
                                     value={formData.parentId}
                                     onChange={(event) => setFormData(prev => ({ ...prev, parentId: event.target.value }))}
                                     disabled={isLoading || availableParents.length === 0}
-                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition appearance-none"
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-700 dark:text-slate-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <option value="">{t('locationManager.selectParent')}</option>
                                     {availableParents.map(parent => (
-                                        <option key={parent.id} value={parent.id}>{parent.name}</option>
+                                        <option key={parent.id} value={parent.id}>{getLocationPath(parent.id)}</option>
                                     ))}
                                 </select>
                                 {availableParents.length === 0 && (
@@ -310,37 +441,68 @@ export default function LocationManager() {
                             disabled={!canSubmit}
                             className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? t('locationManager.saving') : editingId ? t('locationManager.saveChanges') : t('locationManager.addBtn')}
+                            {isLoading ? t('locationManager.saving') : t('locationManager.addBtn')}
                         </button>
                     </form>
                 </div>
             </div>
 
-                <div className="lg:col-span-2">
-                <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-5 h-full">
-                    <div className="flex justify-between items-end mb-4">
+            {editCandidate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <form onSubmit={handleEdit} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-xl shadow-xl p-5 space-y-4">
                         <div>
-                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t('locationManager.treeTitle')}</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('locationManager.desc')}</p>
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white">{t('locationManager.editTitle')}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {getLocationPath(editCandidate.id)}
+                            </p>
                         </div>
-                    </div>
 
-                    <div className="bg-slate-50/50 dark:bg-slate-900/20 rounded-lg border border-slate-100 dark:border-slate-800/60 p-4">
-                        {isLoading && locationTree.length === 0 ? (
-                            <div className="text-center py-8 text-sm text-slate-400">{t('locationManager.loading')}</div>
-                        ) : locationTree.length > 0 ? (
-                            <div className="space-y-1">
-                                {locationTree.map(rootNode => (
-                                    <LocationNode key={rootNode.id} node={rootNode} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-sm text-slate-400">{t('locationManager.emptyTree')}</div>
-                        )}
-                    </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                {t('locationManager.nameLabel')}
+                            </label>
+                            <input
+                                type="text"
+                                required
+                                value={editFormData.name}
+                                onChange={(event) => setEditFormData(prev => ({ ...prev, name: event.target.value }))}
+                                disabled={isLoading}
+                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                {t('locationManager.descriptionLabel')}
+                            </label>
+                            <textarea
+                                rows="3"
+                                value={editFormData.description}
+                                onChange={(event) => setEditFormData(prev => ({ ...prev, description: event.target.value }))}
+                                disabled={isLoading}
+                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-slate-800 dark:text-slate-100 resize-none"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeEditModal}
+                                className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs font-medium rounded-lg"
+                            >
+                                {t('locationManager.cancelDelete')}
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!canEdit}
+                                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold rounded-lg disabled:opacity-50"
+                            >
+                                {t('locationManager.saveChanges')}
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                </div>
-            </div>
+            )}
 
             {deleteCandidate && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -360,7 +522,7 @@ export default function LocationManager() {
                         >
                             <option value="">{t('locationManager.selectReplacementRoom')}</option>
                             {replacementRooms.map(room => (
-                                <option key={room.id} value={room.id}>{room.name}</option>
+                                <option key={room.id} value={room.id}>{getLocationPath(room.id)}</option>
                             ))}
                         </select>
 
