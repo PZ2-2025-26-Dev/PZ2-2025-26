@@ -95,6 +95,31 @@ docker compose build api
 docker compose build frontend
 ```
 
+## Troubleshooting
+
+Jeżeli `docker compose up --build` kończy się błędem podobnym do:
+
+```text
+unable to get image 'pz/frontend': error during connect
+open //./pipe/dockerDesktopLinuxEngine: Nie można odnaleźć określonego pliku.
+```
+
+to Docker CLI nie połączył się z Docker Desktop Linux Engine. Najczęstsze przyczyny:
+
+- Docker Desktop nie jest uruchomiony.
+- Docker Desktop jeszcze startuje i daemon nie jest gotowy.
+- Docker Desktop działa w trybie Windows containers zamiast Linux containers.
+- WSL/Docker Desktop wymaga restartu po aktualizacji.
+
+Sprawdź najpierw:
+
+```powershell
+docker version
+docker compose version
+```
+
+Jeżeli `docker version` nie pokazuje sekcji `Server`, uruchom Docker Desktop i poczekaj, aż status zmieni się na running. Na Windowsie upewnij się też, że Docker Desktop używa Linux containers.
+
 ## Usługi w Compose
 
 `compose.yaml` w katalogu głównym uruchamia trzy usługi:
