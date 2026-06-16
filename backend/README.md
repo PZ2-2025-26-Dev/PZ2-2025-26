@@ -1,53 +1,45 @@
-## Środowisko deweloperskie
+## Backend
 
-Wymagania:
+Backend jest aplikacją FastAPI. Do pracy lokalnej można używać `uv`, a do uruchomienia całego systemu rootowego `compose.yaml`.
+
+## Środowisko Deweloperskie
+
+Wymagania do pracy bez Dockera:
+
 - Python 3.14
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- `make`
 
 Setup:
+
 ```sh
 uv sync
 . .venv/bin/activate
 ```
 
-Jeżeli korzystacie z Nix'a to jest gotowy flake, wystarczy:
+Jeżeli korzystacie z Nix'a, jest gotowy flake:
+
 ```sh
 nix develop
 ```
 
-## Skrypty
+## Makefile
 
-Formatowanie:
+Komendy backendowe są zebrane w `Makefile`:
+
 ```sh
-./scripts/fmt.sh
+make fmt
+make fmt-check
+make lint
+make unit-tests
+make integration-tests
+make pipeline
 ```
 
-Lint:
-```sh
-./scripts/lint.sh
-```
-
-Testy jednostkowe:
-```sh
-./scripts/unit-tests.sh
-```
-
-Testy integracyjne (API + DB w kontenerach):
-```sh
-./scripts/integration-tests.sh
-```
-
-Wykonaj przed wrzuceniem PR i upewnij się, że nie ma żadnych błędów:
-```sh
-./scripts/pipeline.sh
-```
+`make integration-tests` korzysta z rootowego `compose.yaml` oraz `compose.dev.yaml`, żeby uruchomić bazę i backend z zależnościami dev.
 
 ## Uruchamianie API + DB
 
-Mamy dockerfile dla API: `./Dockerfile`
+Zalecana ścieżka uruchomieniowa całego systemu znajduje się w rootowym `README.md` i korzysta z rootowego `compose.yaml`.
 
-Mamy `./compose.yaml`, który pozwala uruchomić API + DB:
-```sh
-cp example.env .env
-docker compose up --build
-```
+Devowy overlay `compose.dev.yaml` dodaje bind mounty, hot reload oraz zależności dev backendu.

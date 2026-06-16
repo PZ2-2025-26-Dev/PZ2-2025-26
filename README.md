@@ -1,6 +1,6 @@
 # PZ2 2025/26
 
-Repozytorium zawiera backend FastAPI, frontend React/Vite oraz konfiguracje Docker Compose do uruchomienia systemu.
+Repozytorium zawiera backend FastAPI, frontend React/Vite oraz konfigurację Docker Compose do uruchomienia systemu.
 
 ## Wymagania
 
@@ -60,7 +60,7 @@ Najważniejsze zmienne:
 - `PZ_CORS_ORIGINS` określa dozwolone originy frontendu.
 - `FRONTEND_PORT` wystawia frontend na hoście, domyślnie `5173`.
 - `VITE_API_URL` jest adresem API widzianym z przeglądarki użytkownika, dlatego domyślnie wskazuje `http://localhost:8000`.
-- `ADMINER_PORT` wystawia Adminera na hoście, domyslnie `8080`.
+- `ADMINER_PORT` wystawia Adminera na hoście, domyślnie `8080`.
 
 Jeżeli port `8000`, `5173` albo `8080` jest zajęty, zmień odpowiednio `API_PORT`, `FRONTEND_PORT` albo `ADMINER_PORT` w `.env`. Przy zmianie portu API pamiętaj też o aktualizacji `VITE_API_URL` i `PZ_CORS_ORIGINS`.
 
@@ -68,9 +68,9 @@ MySQL nie jest wystawiony bezpośrednio na hosta. Do podglądu bazy użyj Admine
 
 - system: `MySQL`
 - server: `db`
-- username: wartosc `DB_USER` z `.env`
-- password: wartosc `DB_PWD` z `.env`
-- database: wartosc `DB_NAME` z `.env`
+- username: wartość `DB_USER` z `.env`
+- password: wartość `DB_PWD` z `.env`
+- database: wartość `DB_NAME` z `.env`
 
 ## Przydatne Komendy
 
@@ -125,11 +125,11 @@ docker compose build api
 docker compose build frontend
 ```
 
-## Uslugi W Compose
+## Usługi W Compose
 
-`compose.yaml` w katalogu glownym uruchamia:
+`compose.yaml` w katalogu głównym uruchamia:
 
-- `db`: MySQL z trwalym wolumenem `mysql_data`.
+- `db`: MySQL z trwałym wolumenem `mysql_data`.
 - `api`: backend FastAPI budowany z `backend/Dockerfile`.
 - `frontend`: frontend budowany z `frontend/Dockerfile`.
 - `adminer`: webowy klient do bazy danych.
@@ -167,7 +167,7 @@ docker compose version
 
 Jeżeli `docker version` nie pokazuje sekcji `Server`, uruchom Docker Desktop i poczekaj, aż status zmieni się na running. Na Windowsie upewnij się też, że Docker Desktop używa Linux containers.
 
-## Uruchamianie Czesci Systemu
+## Uruchamianie Części Systemu
 
 Tylko baza i backend:
 

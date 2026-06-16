@@ -1,5 +1,7 @@
 services:
   api:
+    build:
+      target: dev
     environment:
       UV_NO_DEV: "0"
       PZ_DEBUG: "1"
