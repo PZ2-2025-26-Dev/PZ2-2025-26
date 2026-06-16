@@ -2,6 +2,11 @@
 
 Backend jest aplikacją FastAPI. Do pracy lokalnej można używać `uv`, a do uruchomienia całego systemu rootowego `compose.yaml`.
 
+Backendowy `Dockerfile` ma dwa targety:
+
+- `runtime`: obraz bez zależności dev, używany przez rootowy `compose.yaml`.
+- `dev`: obraz z zależnościami dev, używany przez `compose.dev.yaml`.
+
 ## Środowisko Deweloperskie
 
 Wymagania do pracy bez Dockera:
@@ -25,7 +30,7 @@ nix develop
 
 ## Makefile
 
-Komendy backendowe są zebrane w `Makefile`:
+Komendy backendowe są zebrane w `Makefile`. Uruchamiaj je z katalogu `backend`:
 
 ```sh
 make fmt
@@ -36,7 +41,18 @@ make integration-tests
 make pipeline
 ```
 
+Możesz też uruchamiać je z katalogu głównego repozytorium:
+
+```sh
+make -C backend fmt-check
+make -C backend lint
+make -C backend unit-tests
+make -C backend integration-tests
+```
+
 `make integration-tests` korzysta z rootowego `compose.yaml` oraz `compose.dev.yaml`, żeby uruchomić bazę i backend z zależnościami dev.
+
+Stare skrypty z `backend/scripts` zostały zastąpione przez `Makefile`.
 
 ## Uruchamianie API + DB
 

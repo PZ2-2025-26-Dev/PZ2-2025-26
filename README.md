@@ -37,6 +37,7 @@ docker compose -f compose.yaml -f compose.dev.yaml up --build
 W trybie dev:
 
 - backend ma podmontowany katalog `./backend` do `/app`
+- backend używa targetu `dev` z `backend/Dockerfile`
 - backend uruchamia `uv sync --locked --dev`, więc ma dostęp do `pytest`, `ruff` i innych zależności dev
 - frontend ma podmontowany katalog `./frontend` do `/app`
 - frontend uruchamia Vite dev server przez `npm run dev`
@@ -125,18 +126,27 @@ docker compose build api
 docker compose build frontend
 ```
 
+Komendy backendowe, takie jak formatowanie, lint i testy, są zebrane w `backend/Makefile`:
+
+```sh
+make -C backend fmt-check
+make -C backend lint
+make -C backend unit-tests
+make -C backend integration-tests
+```
+
 ## Usługi W Compose
 
 `compose.yaml` w katalogu głównym uruchamia:
 
 - `db`: MySQL z trwałym wolumenem `mysql_data`.
-- `api`: backend FastAPI budowany z `backend/Dockerfile`.
+- `api`: backend FastAPI budowany z targetu `runtime` w `backend/Dockerfile`.
 - `frontend`: frontend budowany z `frontend/Dockerfile`.
 - `adminer`: webowy klient do bazy danych.
 
 Backend czeka na zdrową bazę danych przez `depends_on` z healthcheckiem MySQL. Frontend czeka na zdrowe API sprawdzane przez endpoint `/ready`.
 
-`compose.dev.yaml` jest tylko developerskim overlayem. Nie uruchamiaj go samodzielnie, tylko razem z rootowym Compose:
+`compose.dev.yaml` jest tylko developerskim overlayem. Przełącza backend na target `dev`, dodaje bind mounty i uruchamia dev serwery. Nie uruchamiaj go samodzielnie, tylko razem z rootowym Compose:
 
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml up --build
