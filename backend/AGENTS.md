@@ -247,3 +247,48 @@ tests/
 ## 6. Organizacja Pracy i Testowanie
 
 * **Testy Jednostkowe (Unit Tests):** Każdy programista (lub agent) dopisuje testy jednostkowe (`pytest`) dla kluczowych elementów logiki biznesowej, które wprowadza w Merge Request (MR). Nie dążymy na siłę do 100% pokrycia kodu – liczy się jakość i testowanie warunków brzegowych. Mockowanie realizujemy poprzez `monkeypatch` lub `unittest.mock`.
+
+### 6.1. Dane początkowe i izolacja testów
+
+Moduł `src.seed` definiuje deterministyczny stan początkowy bazy:
+* administratora, zwykłego użytkownika i obserwatora wraz z lokalnymi kontami,
+* hierarchie lokalizacji i kategorii,
+* trzy przykładowe przedmioty w różnych kategoriach i stanach.
+
+Wspólne hasło kont seedowych to `SeedPassword123!`. Dostępne adresy e-mail:
+* `admin.seed@example.com`
+* `user.seed@example.com`
+* `observer.seed@example.com`
+
+Polecenie `python -m src.seed seed` jest idempotentne. Dodaje brakujące rekordy
+i przywraca wartości rekordów seedowych bez tworzenia duplikatów. Konflikt
+stałego ID lub unikalnego klucza z innym rekordem przerywa operację zamiast
+nadpisywać obce dane.
+
+Polecenie `python -m src.seed reset --yes` usuwa wszystkie tabele, odtwarza
+schemat i dodaje seed. Jest przeznaczone wyłącznie dla środowisk developerskich
+i testowych oraz zablokowane przy `PZ_ENV=prod`.
+
+Fixture `seeded_db` dodaje ten sam zestaw danych i zwraca sesję SQLAlchemy:
+
+```python
+from sqlalchemy.orm import Session
+
+from src.seed import SEED_IDS
+from src.users.models import User
+
+
+def test_example(seeded_db: Session):
+    admin = seeded_db.get(User, SEED_IDS.admin_user)
+
+    assert admin.email == "admin.seed@example.com"
+```
+
+`SEED_IDS` zawiera stabilne identyfikatory użytkowników, lokalizacji, kategorii
+i przedmiotów. Fixture `db` oraz oparta na niej `seeded_db` działają wewnątrz
+zewnętrznej transakcji. Po każdym teście transakcja jest wycofywana także wtedy,
+gdy testowany serwis wykonał `session.commit()`.
+
+Funkcja `seed_database(session)` nie wykonuje `commit()` i pozostawia zarządzanie
+transakcją wywołującemu. Funkcja `reset_database(engine)` odtwarza schemat oraz
+stan początkowy i jest programistycznym odpowiednikiem polecenia `reset`.
