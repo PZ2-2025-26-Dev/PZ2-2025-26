@@ -26,6 +26,28 @@ Po starcie usługi powinny być dostępne pod adresami:
 - healthcheck API: `http://localhost:8000/ready`
 - Adminer: `http://localhost:8080`
 
+## Tryb Developerski
+
+Rootowy `compose.yaml` uruchamia kod skopiowany do obrazów podczas builda. Do codziennej pracy użyj overlay'a `compose.dev.yaml`, który dodaje bind mounty, hot reload oraz zależności dev backendu.
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up --build
+```
+
+W trybie dev:
+
+- backend ma podmontowany katalog `./backend` do `/app`
+- backend uruchamia `uv sync --locked --dev`, więc ma dostęp do `pytest`, `ruff` i innych zależności dev
+- frontend ma podmontowany katalog `./frontend` do `/app`
+- frontend uruchamia Vite dev server przez `npm run dev`
+- zależności są trzymane w wolumenach `backend_venv` i `frontend_node_modules`
+
+Po zmianach w Dockerfile'ach albo lockfile'ach przebuduj obrazy:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml build
+```
+
 ## Konfiguracja `.env`
 
 Rootowy `compose.yaml` wymaga jawnej konfiguracji z pliku `.env`. Skopiuj `.env.example` do `.env` i zmieniaj tylko potrzebne wartości.
@@ -56,6 +78,12 @@ Uruchomienie całego systemu:
 
 ```sh
 docker compose up --build
+```
+
+Uruchomienie całego systemu w trybie dev:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
 Uruchomienie w tle:
@@ -108,13 +136,10 @@ docker compose build frontend
 
 Backend czeka na zdrową bazę danych przez `depends_on` z healthcheckiem MySQL. Frontend czeka na zdrowe API sprawdzane przez endpoint `/ready`.
 
-Rootowy Compose uruchamia kod skopiowany do obrazow podczas builda. Nie podmontowuje lokalnych katalogów z kodem do kontenerów.
-
-Po zmianach w kodzie, Dockerfile'ach albo zależnościach przebuduj odpowiednią usługę:
+`compose.dev.yaml` jest tylko developerskim overlayem. Nie uruchamiaj go samodzielnie, tylko razem z rootowym Compose:
 
 ```sh
-docker compose build api
-docker compose build frontend
+docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
 
 ## Troubleshooting

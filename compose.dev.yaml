@@ -1,0 +1,19 @@
+services:
+  api:
+    environment:
+      UV_NO_DEV: "0"
+      PZ_DEBUG: "1"
+    volumes:
+      - ./backend:/app
+      - backend_venv:/app/.venv
+    command: sh -c "uv sync --locked --dev && uv run fastapi dev src/main.py --host 0.0.0.0 --port 8000"
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+volumes:
+  backend_venv:
+  frontend_node_modules:
