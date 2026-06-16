@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Pobranie bazowego adresu API ze zmiennych środowiskowych Vite
 // Jeśli zmienna nie istnieje, domyślnie uderzamy na lokalny serwer FastAPI
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const axiosClient = axios.create({
     baseURL,

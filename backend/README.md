@@ -1,56 +1,64 @@
-## Środowisko deweloperskie
+## Backend
 
-Wymagania:
+Backend jest aplikacją FastAPI. Do pracy lokalnej można używać `uv`, a do uruchomienia całego systemu rootowego `compose.yaml`.
+
+Backendowy `Dockerfile` ma dwa targety:
+
+- `runtime`: obraz bez zależności dev, używany przez rootowy `compose.yaml`.
+- `dev`: obraz z zależnościami dev, używany przez `compose.dev.yaml`.
+
+## Środowisko Deweloperskie
+
+Wymagania do pracy bez Dockera:
+
 - Python 3.14
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- `make`
 
 Setup:
+
 ```sh
 uv sync
 . .venv/bin/activate
 ```
 
-Jeżeli korzystacie z Nix'a to jest gotowy flake, wystarczy:
+Jeżeli korzystacie z Nix'a, jest gotowy flake:
+
 ```sh
 nix develop
 ```
 
-## Skrypty
+## Makefile
 
-Formatowanie:
+Komendy backendowe są zebrane w `Makefile`. Uruchamiaj je z katalogu `backend`:
+
 ```sh
-./scripts/fmt.sh
+make fmt
+make fmt-check
+make lint
+make unit-tests
+make integration-tests
+make pipeline
 ```
 
-Lint:
+Możesz też uruchamiać je z katalogu głównego repozytorium:
+
 ```sh
-./scripts/lint.sh
+make -C backend fmt-check
+make -C backend lint
+make -C backend unit-tests
+make -C backend integration-tests
 ```
 
-Testy jednostkowe:
-```sh
-./scripts/unit-tests.sh
-```
+`make integration-tests` korzysta z rootowego `compose.yaml` oraz `compose.dev.yaml`, żeby uruchomić bazę i backend z zależnościami dev.
 
-Testy integracyjne (API + DB w kontenerach):
-```sh
-./scripts/integration-tests.sh
-```
-
-Wykonaj przed wrzuceniem PR i upewnij się, że nie ma żadnych błędów:
-```sh
-./scripts/pipeline.sh
-```
+Stare skrypty z `backend/scripts` zostały zastąpione przez `Makefile`.
 
 ## Uruchamianie API + DB
 
-Mamy dockerfile dla API: `./Dockerfile`
+Zalecana ścieżka uruchomieniowa całego systemu znajduje się w rootowym `README.md` i korzysta z rootowego `compose.yaml`.
 
-Mamy `./compose.yaml`, który pozwala uruchomić API + DB:
-```sh
-cp example.env .env
-docker compose up --build
-```
+Devowy overlay `compose.dev.yaml` dodaje bind mounty, hot reload oraz zależności dev backendu.
 
 ## Dane początkowe bazy
 
