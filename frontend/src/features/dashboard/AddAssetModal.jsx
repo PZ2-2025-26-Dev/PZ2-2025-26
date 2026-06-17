@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInventory } from '../inventory/useInventory';
 
@@ -18,6 +18,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
         { id: 8, name: 'Akcesoria i optyka', parentId: null },
     ];
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const users = [
         { id: 1, name: 'Adam Nowak' },
         { id: 2, name: 'dr inż. Jan Kowalski' },
@@ -27,6 +28,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
         { id: 6, name: 'Kubuś Puchatek' },
     ];
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const locations = [
         { id: 1, name: 'D10', path: 'Budynek D10' },
         { id: 2, name: 'D11', path: 'Budynek D11' },

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import  { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useUsers } from './useUsers';
 
@@ -34,17 +34,18 @@ export default function UserManager({ onPendingCountChange }) {
         onPendingCountChange?.(pendingCount);
     }, [onPendingCountChange, pendingCount]);
 
-    const refreshUsers = async () => {
+    const refreshUsers = useCallback(async () => {
         const result = await listUsers(filters);
         if (result.success) {
             setUsers(result.users);
             setTotalCount(result.totalCount);
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    },[]);
 
     useEffect(() => {
         refreshUsers();
-    }, [filters.role, filters.status, filters.page, filters.limit]);
+    }, [filters.role, filters.status, filters.page, filters.limit, refreshUsers]);
 
     const handleSearchSubmit = (event) => {
         event.preventDefault();
