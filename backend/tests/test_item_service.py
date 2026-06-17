@@ -1,24 +1,32 @@
 from datetime import datetime
+from uuid import uuid7
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, event
 from sqlalchemy import exc as sql_exc
-from src.database import Base
-from src.items.service import ItemService
-from src.items.schemas import ItemCreate
-from src.categories.models import Category
-from src.locations.models import Location
-from src.locations.constants import LocationType
-from src.users.models import User
+from sqlalchemy.orm import sessionmaker
+
 from src.auth.constants import UserRole, UserStatus
+from src.categories.models import Category
+from src.database import Base
 from src.items.constants import ItemChangeLogType, ItemStatus
-from src.items.schemas import ItemUpdate
 from src.items.models import Item, ItemHistory
-from uuid import uuid7
+from src.items.schemas import ItemCreate, ItemUpdate
+from src.items.service import ItemService
+from src.locations.constants import LocationType
+from src.locations.models import Location
+from src.users.models import User
+
 
 def setup_inmemory_db():
     engine = create_engine("sqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
 
@@ -29,7 +37,13 @@ def test_add_item_success():
         # create required relations
         cat = Category(name="TestCat", parent_id=None)
         loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
-        user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+        user = User(
+            first_name="Adam",
+            last_name="Nowak",
+            email="adam@example.com",
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE,
+        )
 
         session.add_all([cat, loc, user])
         session.commit()
@@ -74,7 +88,13 @@ def test_update_item_success():
         # create required relations
         cat = Category(name="TestCat", parent_id=None)
         loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
-        user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+        user = User(
+            first_name="Adam",
+            last_name="Nowak",
+            email="adam@example.com",
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE,
+        )
 
         session.add_all([cat, loc, user])
         session.commit()
@@ -102,6 +122,7 @@ def test_update_item_success():
         assert updated_item.id == item.id
         assert updated_item.description == "Nowy opis"
 
+
 def test_update_item_not_found():
     Session = setup_inmemory_db()
 
@@ -121,7 +142,13 @@ def test_get_item_history_success():
     with Session() as session:
         cat = Category(name="TestCat", parent_id=None)
         loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
-        user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+        user = User(
+            first_name="Adam",
+            last_name="Nowak",
+            email="adam@example.com",
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE,
+        )
 
         session.add_all([cat, loc, user])
         session.commit()
@@ -177,13 +204,20 @@ def test_get_item_history_not_found():
         with pytest.raises(ValueError):
             service.get_item_history(99999)
 
+
 def test_get_item_history_empty():
     Session = setup_inmemory_db()
 
     with Session() as session:
         cat = Category(name="TestCat", parent_id=None)
         loc = Location(name="D10", type=LocationType.BUILDING, description=None, parent_id=None, is_active=True)
-        user = User(first_name="Adam", last_name="Nowak", email="adam@example.com", role=UserRole.USER, status=UserStatus.ACTIVE)
+        user = User(
+            first_name="Adam",
+            last_name="Nowak",
+            email="adam@example.com",
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE,
+        )
         session.add_all([cat, loc, user])
         session.commit()
 
