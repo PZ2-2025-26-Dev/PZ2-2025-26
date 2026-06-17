@@ -49,7 +49,7 @@ jobs:
         run: make integration-tests
 
   frontend:
-    name: Frontend build
+    name: Frontend build and lint
     runs-on: ubuntu-latest
 
     defaults:
