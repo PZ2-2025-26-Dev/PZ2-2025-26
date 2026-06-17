@@ -12,6 +12,7 @@ from src.items.schemas import (
     ItemCreateResponse,
     ItemDetails,
     ItemHistoryEntry,
+    ItemID,
     ItemLocation,
     ItemOwner,
     ItemPagination,
@@ -20,7 +21,6 @@ from src.items.schemas import (
     ItemUpdateResponse,
     LocationID,
     SearchStr,
-    ItemID
 )
 from src.items.service import ItemService
 
@@ -112,6 +112,7 @@ def create_item(
         description=new_item.description,
     )
 
+
 @router.patch(
     "/{item_id}",
     response_model=ItemUpdateResponse,
@@ -136,16 +137,17 @@ def update_item(
 
     try:
         item = service.update_item(item_id, data)
-    except ValueError:
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return ItemUpdateResponse(
         id=item.id,
         description=item.description,
     )
+
 
 @router.get(
     "/{item_id}/history",
@@ -166,11 +168,11 @@ def read_item_history(
 
     try:
         history = service.get_item_history(item_id)
-    except ValueError:
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return [
         ItemHistoryEntry(
