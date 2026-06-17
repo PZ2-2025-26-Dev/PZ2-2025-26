@@ -124,3 +124,20 @@ class UserService:
 
     def _has_records(self, model: type, condition) -> bool:
         return bool(self.db.scalar(select(model.id).where(condition).limit(1)))
+
+    def update_status(self, user_id: int, status: UserStatus) -> User:
+        if status not in {
+            UserStatus.ACTIVE,
+            UserStatus.BLOCKED,
+            UserStatus.REJECTED,
+            UserStatus.INACTIVE,
+        }:
+            raise ValueError("Invalid status")
+
+        user = self.get_user(user_id)
+        user.status = status
+
+        self.db.commit()
+        self.db.refresh(user)
+
+        return user

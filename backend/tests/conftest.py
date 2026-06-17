@@ -1,18 +1,15 @@
-<<<<<<< HEAD
 import pytest
-
-from src.database import SessionLocal
-=======
 from collections.abc import Generator
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
-from src.database import Base, get_db
+from src.database import Base, get_db, engine
 from src.main import app
 from src.config import config
+from src.seed import seed_database
+
 
 # używamy tej samej bazy co aplikacja (MySQL)
 SQLALCHEMY_DATABASE_URL = config.database_url
@@ -36,22 +33,18 @@ def setup_database():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
->>>>>>> 56f953c (task 30-us-r05 backend + frontend)
 
 
 @pytest.fixture()
 def db():
-<<<<<<< HEAD
-    # DISCUSS:
-    # możemy dodać rollback po każdym testcase
-    # ale to wymaga, żeby w klasach Service nie używać db.commit()
-    with SessionLocal() as session:
-        yield session
-=======
     connection = engine.connect()
     transaction = connection.begin()
 
-    session = TestingSessionLocal(bind=connection)
+    session = Session(
+        bind=connection,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
 
     try:
         yield session
@@ -59,6 +52,12 @@ def db():
         session.close()
         transaction.rollback()
         connection.close()
+
+
+@pytest.fixture()
+def seeded_db(db: Session) -> Session:
+    seed_database(db)
+    return db
 
 
 @pytest.fixture()
@@ -75,4 +74,3 @@ def client(db):
         yield c
 
     app.dependency_overrides.clear()
->>>>>>> 56f953c (task 30-us-r05 backend + frontend)

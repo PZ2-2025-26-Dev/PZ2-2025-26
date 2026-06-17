@@ -5,6 +5,8 @@ class UserStatus(Enum):
     ACTIVE = "active"
     PENDING_APPROVAL = "pending_approval"
     INACTIVE = "inactive"
+    BLOCKED = "blocked"
+    REJECTED = "rejected"
 
 
 class UserRole(Enum):

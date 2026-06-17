@@ -1,7 +1,7 @@
 # workaround:
 # dopóki nie mamy innych testów jednostkowych
 # potrzebujemy jakiś prosty test, który nie jest oznaczony "integration"
-# żeby `./scripts/pipeline.sh` działało poprawnie
+# żeby `make pipeline` działało poprawnie
 # Jak dodamy inne testy jednostkowe to możemy ten usunąć
 
 

@@ -9,8 +9,8 @@ export const ENDPOINTS = {
         REFRESH: '/auth/refresh',
     },
     USERS: {
-        BASE: '/users',
-        DETAILS: (id) => `/users/${id}`,
+        BASE: '/api/v1/users',
+        DETAILS: (id) => `/api/v1/users/${id}`,
     },
     ITEMS: {
         BASE: '/items',
