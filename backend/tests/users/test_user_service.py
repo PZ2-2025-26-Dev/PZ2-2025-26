@@ -25,6 +25,7 @@ from src.users.service import (
 
 pytestmark = pytest.mark.integration
 
+
 @pytest.fixture(autouse=True)
 def user_tables() -> Iterator[None]:
     Base.metadata.create_all(bind=engine)

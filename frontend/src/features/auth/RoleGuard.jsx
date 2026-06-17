@@ -1,4 +1,4 @@
-import React from 'react';
+import 'react';
 import { hasPermission } from './permissions';
 
 export default function RoleGuard({ user, requiredPermission, children }) {

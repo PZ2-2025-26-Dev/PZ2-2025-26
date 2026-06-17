@@ -60,12 +60,14 @@ export const useInventory = () => {
      * @param {number} itemId - ID przedmiotu
      * @returns {Promise<{success: boolean, data?: Array, error?: string, statusCode?: number}>}
      */
+
     const getItemHistory = useCallback(async (itemId) => {
         setIsLoading(true);
         setError(null);
 
         try {
             // TODO: replace with GET /items/{itemId}/history
+            console.log(`Zmockowane pobieranie historii dla przedmiotu ID: ${itemId}`);
 
             return {
                 success: true,
