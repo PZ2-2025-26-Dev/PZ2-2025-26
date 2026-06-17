@@ -21,8 +21,10 @@ unit-tests:
 
 integration-tests:
 	$(COMPOSE) up --build --wait db api
-	$(COMPOSE) exec api uv run python -m pytest -vv tests -m "integration"
-	$(COMPOSE) down --volumes
+	status=0; \
+	$(COMPOSE) exec api uv run python -m pytest -vv tests -m "integration" || status=$$?; \
+	$(COMPOSE) down --volumes; \
+	exit $$status
 
 pipeline: fmt-check lint unit-tests integration-tests
 
