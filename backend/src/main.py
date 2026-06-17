@@ -19,6 +19,7 @@ from src.items import models as items_models  # noqa: F401
 from src.items.router import router as items_router
 from src.loans import models as loans_models  # noqa: F401
 from src.locations import models as locations_models  # noqa: F401
+from src.locations.router import router as locations_router
 from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
 
@@ -50,6 +51,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(items_router)
+app.include_router(locations_router, prefix="/api/v1")
 
 
 @app.get("/ready")
