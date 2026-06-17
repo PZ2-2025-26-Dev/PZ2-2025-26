@@ -237,8 +237,10 @@ src/
 ├── database.py            # Zarządzanie połączeniem z bazą (Engine, SessionLocal, get_db)
 └── main.py                # Inicjalizacja FastAPI, routerów /v1 i lifespan
 tests/
-└── auth/                  # Testy jednostkowe dla domeny auth
-└── {domain}/              # Testy jednostkowe dla ..., analogicznie dla każdej domeny z `src`
+├── conftest.py            # Wspólne fixture DB, seeded_db i api_client
+├── helpers.py             # Reużywalne stałe i funkcje pomocnicze do testów
+├── auth/                  # Testy domenowe auth
+└── {domain}/              # Testy domenowe, analogicznie dla każdej domeny z `src`
 
 ```
 
@@ -246,9 +248,63 @@ tests/
 
 ## 6. Organizacja Pracy i Testowanie
 
-* **Testy Jednostkowe (Unit Tests):** Każdy programista (lub agent) dopisuje testy jednostkowe (`pytest`) dla kluczowych elementów logiki biznesowej, które wprowadza w Merge Request (MR). Nie dążymy na siłę do 100% pokrycia kodu – liczy się jakość i testowanie warunków brzegowych. Mockowanie realizujemy poprzez `monkeypatch` lub `unittest.mock`.
+* **Testy Jednostkowe (Unit Tests):** Każdy programista (lub agent) dopisuje testy jednostkowe (`pytest`) dla czystej logiki biznesowej, walidacji i zachowań, które nie zależą od faktycznego silnika SQL. Nie dążymy na siłę do 100% pokrycia kodu – liczy się jakość i testowanie warunków brzegowych. Mockowanie realizujemy poprzez `monkeypatch` lub `unittest.mock`.
+* **Testy Integracyjne:** Każdy test dotykający SQLAlchemy, ograniczeń relacyjnych, transakcji albo endpointów FastAPI korzystających z bazy oznaczamy przez `pytestmark = pytest.mark.integration`. Te testy muszą działać na MySQL, nie na sqlite.
 
-### 6.1. Dane początkowe i izolacja testów
+Uruchamianie:
+* `make unit-tests` uruchamia testy bez markera `integration`.
+* `make integration-tests` uruchamia Docker Compose, bazę MySQL i testy integracyjne w kontenerze `api`.
+* `make pipeline` uruchamia format check, lint, unit tests i integration tests.
+
+Nie dodajemy nowych testów bazodanowych na sqlite. sqlite różni się od MySQL
+między innymi obsługą kluczy obcych, typów, transakcji i zachowaniem połączeń
+w wątkach, więc daje fałszywe poczucie bezpieczeństwa.
+
+### 6.1. Fixture i helpery testowe
+
+Wspólne fixture są w `tests/conftest.py`:
+* `db` tworzy sesję SQLAlchemy na prawdziwej bazie i owija pojedynczy test w zewnętrzną transakcję.
+* `seeded_db` wywołuje `seed_database(db)` i zwraca tę samą sesję.
+* `api_client` tworzy `FastAPI TestClient` z nadpisanym `get_db`, dzięki czemu endpoint i asercje w teście widzą tę samą transakcję.
+* `test_database_schema` tworzy schemat raz na sesję pytest i dropuje go po zakończeniu. Fixture przerywa działanie przy `PZ_ENV=prod`.
+
+Nie dropujemy tabel w fixture per test. Jeżeli testowany kod wykonuje
+`session.commit()`, fixture `db` nadal izoluje zmiany przez zewnętrzną transakcję
+i rollback po teście.
+
+Wspólne stałe i funkcje pomocnicze dodajemy do `tests/helpers.py`, jeżeli mogą
+być użyte przez więcej niż jeden test. Aktualnie dostępne są między innymi:
+* `DEFAULT_ITEM_PAYLOAD`
+* `make_item_payload(**overrides)`
+* `create_item_via_api(client, **overrides)`
+* `get_item_or_fail(db, item_id)`
+* `assert_item_created_with_history(db, item_id)`
+
+Przykład testu endpointu i bazy:
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from src.seed import SEED_IDS
+from tests.helpers import assert_item_created_with_history, make_item_payload
+
+pytestmark = pytest.mark.integration
+
+
+def test_create_item(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        "/items",
+        json=make_item_payload(name="Kamera dokumentacyjna"),
+    )
+
+    assert response.status_code == 201
+    item = assert_item_created_with_history(seeded_db, response.json()["id"])
+    assert item.owner_id == SEED_IDS.regular_user
+```
+
+### 6.2. Dane początkowe i izolacja testów
 
 Moduł `src.seed` definiuje deterministyczny stan początkowy bazy:
 * administratora, zwykłego użytkownika i obserwatora wraz z lokalnymi kontami,
