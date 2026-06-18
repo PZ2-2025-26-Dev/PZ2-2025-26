@@ -24,27 +24,27 @@ router = APIRouter(prefix="/items")
 
 
 @router.get(
-"",
-response_model=ItemsPaged,
-status_code=status.HTTP_200_OK,
-summary="Wylistuj przedmioty",
-responses={
-status.HTTP_200_OK: {
-"model": ItemsPaged,
-"description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
-}
-},
+    "",
+    response_model=ItemsPaged,
+    status_code=status.HTTP_200_OK,
+    summary="Wylistuj przedmioty",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemsPaged,
+            "description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
+        }
+    },
 )
 def read_items(
-db: DBDep,
-name: SearchStr | None = None,
-description: SearchStr | None = None,
-category_id: CategoryID | None = None,
-location_id: LocationID | None = None,
-owner_id: UserID | None = None,
-status: ItemStatus | None = None,
-page: Annotated[int, Query(ge=1)] = 1,
-limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    db: DBDep,
+    name: SearchStr | None = None,
+    description: SearchStr | None = None,
+    category_id: CategoryID | None = None,
+    location_id: LocationID | None = None,
+    owner_id: UserID | None = None,
+    status: ItemStatus | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> ItemsPaged:
     service = ItemService(db)
 
@@ -78,7 +78,6 @@ limit: Annotated[int, Query(ge=1, le=50)] = 20,
             total=total,
         ),
     )
-
 
 
 @router.post(
@@ -115,6 +114,7 @@ def create_item(
         status=new_item.status,
         description=new_item.description,
     )
+
 
 @router.get(
     "/{item_id}",
@@ -190,6 +190,7 @@ def update_item(
         id=item.id,
         description=item.description,
     )
+
 
 @router.delete(
     "/{item_id}",

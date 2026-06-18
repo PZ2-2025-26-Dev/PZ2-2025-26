@@ -50,9 +50,10 @@ def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seede
     assert history[0]["updated_by"] == SEED_IDS.regular_user
     assert seeded_db.get(Item, created["id"]) is not None
 
-def test_get_item_endpoint_returns_item_details(
-api_client: TestClient, seeded_db: Session,
 
+def test_get_item_endpoint_returns_item_details(
+    api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get(f"/items/{SEED_IDS.laptop}")
 
@@ -65,31 +66,34 @@ api_client: TestClient, seeded_db: Session,
     assert body["category_id"]
     assert body["location_id"]
 
-def test_get_item_endpoint_returns_404_for_missing_item(
-api_client: TestClient, seeded_db: Session,
 
+def test_get_item_endpoint_returns_404_for_missing_item(
+    api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get("/items/999999")
 
     assert response.status_code == 404
 
+
 def test_delete_item_endpoint_removes_item(
     api_client: TestClient,
     seeded_db: Session,
-    ):
+):
     response = api_client.delete(f"/items/{SEED_IDS.laptop}")
 
     assert response.status_code == 204
 
     assert seeded_db.get(Item, SEED_IDS.laptop) is None
 
-def test_read_items_filters_by_owner(
-    api_client: TestClient, seeded_db: Session,
 
-    ):
+def test_read_items_filters_by_owner(
+    api_client: TestClient,
+    seeded_db: Session,
+):
     response = api_client.get(
-    "/items",
-    params={"owner_id": SEED_IDS.regular_user},
+        "/items",
+        params={"owner_id": SEED_IDS.regular_user},
     )
 
     assert response.status_code == 200
@@ -99,12 +103,13 @@ def test_read_items_filters_by_owner(
     assert "items" in body
     assert len(body["items"]) > 0
 
+
 def test_read_items_filters_by_name(
-api_client: TestClient,
+    api_client: TestClient,
 ):
     response = api_client.get(
-    "/items",
-    params={"name": "Laptop"},
+        "/items",
+        params={"name": "Laptop"},
     )
 
     assert response.status_code == 200
@@ -113,15 +118,16 @@ api_client: TestClient,
 
     assert "items" in body
 
+
 def test_read_items_supports_pagination(
-api_client: TestClient,
+    api_client: TestClient,
 ):
     response = api_client.get(
-    "/items",
-    params={
-    "page": 1,
-    "limit": 2,
-    },
+        "/items",
+        params={
+            "page": 1,
+            "limit": 2,
+        },
     )
 
     assert response.status_code == 200

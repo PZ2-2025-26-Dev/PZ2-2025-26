@@ -55,8 +55,9 @@ def test_add_item_missing_relations(db: Session):
     with pytest.raises(sql_exc.IntegrityError):
         service.add_item(data)
 
+
 def test_get_item_success(
-seeded_db: Session,
+    seeded_db: Session,
 ):
     service = ItemService(seeded_db)
 
@@ -64,16 +65,18 @@ seeded_db: Session,
 
     assert item.id == SEED_IDS.laptop
 
+
 def test_get_item_missing(
-seeded_db: Session,
+    seeded_db: Session,
 ):
     service = ItemService(seeded_db)
 
     with pytest.raises(ValueError, match="Item not found"):
         service.get_item(999999)
 
+
 def test_delete_item_success(
-seeded_db: Session,
+    seeded_db: Session,
 ):
     service = ItemService(seeded_db)
 
@@ -81,8 +84,9 @@ seeded_db: Session,
 
     assert seeded_db.get(Item, SEED_IDS.laptop) is None
 
+
 def test_search_items_by_owner(
-seeded_db: Session,
+    seeded_db: Session,
 ):
     service = ItemService(seeded_db)
 
@@ -103,8 +107,9 @@ seeded_db: Session,
     for item in items:
         assert item.owner_id == SEED_IDS.regular_user
 
+
 def test_search_items_by_name(
-seeded_db: Session,
+    seeded_db: Session,
 ):
     service = ItemService(seeded_db)
 
@@ -122,8 +127,9 @@ seeded_db: Session,
     assert total >= 0
     assert isinstance(items, list)
 
+
 def test_search_items_pagination(
-seeded_db: Session,
+    seeded_db: Session,
 ):
     service = ItemService(seeded_db)
 
