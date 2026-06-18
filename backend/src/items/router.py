@@ -7,18 +7,14 @@ from src.dependencies import DBDep
 from src.items.constants import ItemStatus
 from src.items.schemas import (
     CategoryID,
-    ItemCategory,
     ItemCreate,
     ItemCreateResponse,
-    ItemDetails,
     ItemHistoryEntry,
     ItemID,
-    ItemLocation,
-    ItemOwner,
     ItemPagination,
+    ItemResponse,
     ItemsPaged,
     ItemUpdate,
-    ItemUpdateResponse,
     LocationID,
     SearchStr,
 )
@@ -28,53 +24,61 @@ router = APIRouter(prefix="/items")
 
 
 @router.get(
-    "",
-    response_model=ItemsPaged,
-    status_code=status.HTTP_200_OK,
-    summary="Wylistuj przedmioty",
-    responses={
-        status.HTTP_200_OK: {
-            "model": ItemsPaged,
-            "description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
-        }
-    },
+"",
+response_model=ItemsPaged,
+status_code=status.HTTP_200_OK,
+summary="Wylistuj przedmioty",
+responses={
+status.HTTP_200_OK: {
+"model": ItemsPaged,
+"description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
+}
+},
 )
 def read_items(
-    search: SearchStr | None = None,
-    category_id: CategoryID | None = None,
-    location_id: LocationID | None = None,
-    owner_id: UserID | None = None,
-    status: ItemStatus | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+db: DBDep,
+name: SearchStr | None = None,
+description: SearchStr | None = None,
+category_id: CategoryID | None = None,
+location_id: LocationID | None = None,
+owner_id: UserID | None = None,
+status: ItemStatus | None = None,
+page: Annotated[int, Query(ge=1)] = 1,
+limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> ItemsPaged:
+    service = ItemService(db)
+
+    items, total = service.search_items(
+        name=name,
+        description=description,
+        category_id=category_id,
+        location_id=location_id,
+        owner_id=owner_id,
+        status=status,
+        page=page,
+        limit=limit,
+    )
+
     return ItemsPaged(
         items=[
-            ItemDetails(
-                id=1,
-                name="Nokia 3310",
-                category=ItemCategory(
-                    id=1,
-                    name="Elektronika / Telefony",
-                ),
-                location=ItemLocation(
-                    id=1,
-                    path="D10 / 204",
-                ),
-                owner=ItemOwner(
-                    id=1,
-                    name="Batman",
-                ),
-                description=None,
-                legacy_id=None,
-            ),
+            ItemResponse(
+                id=item.id,
+                name=item.name,
+                category_id=item.category_id,
+                location_id=item.location_id,
+                owner_id=item.owner_id,
+                description=item.description,
+                status=item.status,
+            )
+            for item in items
         ],
         pagination=ItemPagination(
             page=page,
             limit=limit,
-            total=1,
+            total=total,
         ),
     )
+
 
 
 @router.post(
@@ -112,15 +116,54 @@ def create_item(
         description=new_item.description,
     )
 
+@router.get(
+    "/{item_id}",
+    response_model=ItemResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz szczegóły przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemResponse,
+            "description": "Pomyślnie zwrócono szczegóły przedmiotu",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def read_item(
+    item_id: ItemID,
+    db: DBDep,
+) -> ItemResponse:
+    service = ItemService(db)
+
+    try:
+        item = service.get_item(item_id)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        ) from err
+
+    return ItemResponse(
+        id=item.id,
+        name=item.name,
+        category_id=item.category_id,
+        location_id=item.location_id,
+        owner_id=item.owner_id,
+        description=item.description,
+        status=item.status,
+    )
+
 
 @router.patch(
     "/{item_id}",
-    response_model=ItemUpdateResponse,
+    response_model=ItemUpdate,
     status_code=status.HTTP_200_OK,
     summary="Aktualizuj dane przedmiotu",
     responses={
         status.HTTP_200_OK: {
-            "model": ItemUpdateResponse,
+            "model": ItemUpdate,
             "description": "Dane przedmiotu zostały zaktualizowane.",
         },
         status.HTTP_404_NOT_FOUND: {
@@ -132,7 +175,7 @@ def update_item(
     item_id: ItemID,
     data: ItemUpdate,
     db: DBDep,
-) -> ItemUpdateResponse:
+) -> ItemUpdate:
     service = ItemService(db)
 
     try:
@@ -143,10 +186,37 @@ def update_item(
             detail="Item not found",
         ) from err
 
-    return ItemUpdateResponse(
+    return ItemUpdate(
         id=item.id,
         description=item.description,
     )
+
+@router.delete(
+    "/{item_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Usuń przedmiot",
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Przedmiot został usunięty",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def delete_item(
+    item_id: ItemID,
+    db: DBDep,
+) -> None:
+    service = ItemService(db)
+
+    try:
+        service.delete_item(item_id)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        ) from err
 
 
 @router.get(
