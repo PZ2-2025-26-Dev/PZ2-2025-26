@@ -3,8 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.middleware.cors import CORSMiddleware
-
 # WORKAROUND:
 # W trakcie projektu przerzucimy się na alembic
 # póki co musimy importować modele SQLALchemy explicite.
@@ -23,8 +21,7 @@ from src.locations import models as locations_models  # noqa: F401
 from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
 from starlette.middleware.sessions import SessionMiddleware
-
-
+from src.config import config
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,6 +40,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=config.cors_headers,
+)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=config.jwt_secret_key,
 )
 
 app.include_router(auth_router)

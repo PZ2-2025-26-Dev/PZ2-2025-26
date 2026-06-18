@@ -39,6 +39,7 @@ class GoogleCallback(BaseModel):
 class User(BaseModel):
     id: UserID
     role: UserRole
+    name: str
 
 
 class TokenResponse(BaseModel):

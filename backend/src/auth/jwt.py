@@ -8,8 +8,7 @@ from src.config import settings
 def create_access_token(user_id: int) -> str:
     payload = {
         "sub": str(user_id),
-        "exp": datetime.now(UTC)
-        + timedelta(minutes=settings.access_token_expire_minutes),
+        "exp": datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes),
         "type": "access",
     }
 

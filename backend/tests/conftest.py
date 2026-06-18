@@ -1,15 +1,14 @@
-import pytest
 from collections.abc import Generator
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from src.database import Base, get_db, engine
-from src.main import app
 from src.config import config
+from src.database import Base, get_db
+from src.main import app
 from src.seed import seed_database
-
 
 # używamy tej samej bazy co aplikacja (MySQL)
 SQLALCHEMY_DATABASE_URL = config.database_url

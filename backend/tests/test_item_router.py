@@ -1,12 +1,14 @@
+from datetime import datetime
 from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
-from datetime import datetime
+
 from src.items.constants import ItemChangeLogType
-from src.main import app
 from src.items.service import ItemService
+from src.main import app
 
 client = TestClient(app)
+
 
 def test_update_item_success(monkeypatch):
     def mock_update_item(self, item_id, data):
@@ -23,9 +25,7 @@ def test_update_item_success(monkeypatch):
 
     response = client.patch(
         "/items/1",
-        json={
-            "description": "Nowy opis"
-        },
+        json={"description": "Nowy opis"},
     )
 
     assert response.status_code == 200
@@ -34,6 +34,7 @@ def test_update_item_success(monkeypatch):
 
     assert body["id"] == 1
     assert body["description"] == "Nowy opis"
+
 
 def test_update_item_not_found(monkeypatch):
     def mock_update_item(self, item_id, data):
@@ -47,12 +48,11 @@ def test_update_item_not_found(monkeypatch):
 
     response = client.patch(
         "/items/999",
-        json={
-            "description": "Nowy opis"
-        },
+        json={"description": "Nowy opis"},
     )
 
     assert response.status_code == 404
+
 
 def test_get_item_history_success(monkeypatch):
     def mock_get_item_history(self, item_id):
@@ -81,6 +81,7 @@ def test_get_item_history_success(monkeypatch):
     assert body[0]["id"] == 1
     assert body[0]["updated_by"] == 5
     assert body[0]["description"] == "Item created"
+
 
 def test_get_item_history_not_found(monkeypatch):
     def mock_get_item_history(self, item_id):

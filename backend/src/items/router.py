@@ -12,6 +12,7 @@ from src.items.schemas import (
     ItemCreateResponse,
     ItemDetails,
     ItemHistoryEntry,
+    ItemID,
     ItemLocation,
     ItemOwner,
     ItemPagination,
@@ -20,7 +21,6 @@ from src.items.schemas import (
     ItemUpdateResponse,
     LocationID,
     SearchStr,
-    ItemID
 )
 from src.items.service import ItemService
 
@@ -112,6 +112,7 @@ def create_item(
         description=new_item.description,
     )
 
+
 @router.patch(
     "/{item_id}",
     response_model=ItemUpdateResponse,
@@ -146,6 +147,7 @@ def update_item(
         id=item.id,
         description=item.description,
     )
+
 
 @router.get(
     "/{item_id}/history",

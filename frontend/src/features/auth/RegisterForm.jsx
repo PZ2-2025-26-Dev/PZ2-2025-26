@@ -3,8 +3,9 @@ import { register, googleLogin } from './authService';
 import { useTranslation } from 'react-i18next';
 
 const ROLES = [
-    { value: 'REGULAR', label: 'Regular' },
-    { value: 'READ_ONLY', label: 'Read Only' }
+  { value: 'USER', label: 'User' },
+  { value: 'ADMIN', label: 'Admin' },
+  { value: 'OBSERVER', label: 'Observer' }
 ];
 
 export default function RegisterForm({ onSwitchToLogin }) {

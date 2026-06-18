@@ -1,11 +1,8 @@
-import json
-import urllib.error
-import urllib.parse
-import urllib.request
 
-from fastapi import APIRouter, HTTPException, Request, Depends, status
+from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
+from urllib.parse import urlencode
 
-from src.auth.constants import UserRole, UserStatus
 from src.auth.google_oauth import oauth
 from src.auth.jwt import (
     create_access_token,
@@ -14,15 +11,15 @@ from src.auth.jwt import (
 )
 from src.auth.service import (
     get_or_create_google_user,
-    register_user,
     login_user,
+    register_user,
+    get_current_user,
 )
 from src.config import settings
-from src.database import get_db
+from src.dependencies import DBDep
 from src.schemas import ErrorResponse
 
 from .schemas import (
-    GoogleCallback,
     TokenRefreshIn,
     TokenResponse,
     User,
@@ -54,7 +51,7 @@ router = APIRouter(prefix="/auth")
 )
 def register(
     data: UserCreate,
-    db=Depends(get_db),
+    db: DBDep,
 ) -> UserCreateResponse:
     user = register_user(
         db=db,
@@ -67,7 +64,6 @@ def register(
         id=user.id,
         status=user.status,
     )
-
 
 
 @router.post(
@@ -93,7 +89,7 @@ def register(
 )
 def login(
     data: UserLogin,
-    db=Depends(get_db),
+    db: DBDep,
 ) -> UserLoginResponse:
     user = login_user(
         db=db,
@@ -109,6 +105,7 @@ def login(
         user=User(
             id=user.id,
             role=user.role,
+            name=f"{user.first_name} {user.last_name or ''}".strip(),
         ),
     )
 
@@ -137,7 +134,7 @@ async def refresh_token(data: TokenRefreshIn) -> TokenResponse:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
-        )
+        ) from exc
 
     if payload.get("type") != "refresh":
         raise HTTPException(
@@ -181,32 +178,13 @@ async def refresh_token(data: TokenRefreshIn) -> TokenResponse:
     },
 )
 async def google_authorize(request: Request):
+    print("SESSION BEFORE REDIRECT:", dict(request.session))
     redirect_uri = settings.google_redirect_uri
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
-
-
-@router.get(
-    "/google/callback",
-    summary="Callback logowania Google",
-    description="Obsługuje OAuth2 callback z Google, tworzy lub pobiera użytkownika i zwraca JWT.",
-    status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "description": "Pomyślne logowanie przez Google i zwrócenie tokena JWT.",
-        },
-        status.HTTP_400_BAD_REQUEST: {
-            "model": ErrorResponse,
-            "description": "Błąd autoryzacji Google (np. mismatching state).",
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "model": ErrorResponse,
-            "description": "Błąd serwera podczas przetwarzania OAuth.",
-        },
-    },
-)
-async def google_callback(request: Request, db=Depends(get_db)):
+@router.get("/google/callback")
+async def google_callback(request: Request, db: DBDep):
     token = await oauth.google.authorize_access_token(request)
 
     userinfo = token["userinfo"]
@@ -216,17 +194,26 @@ async def google_callback(request: Request, db=Depends(get_db)):
     first_name = userinfo["given_name"]
     last_name = userinfo["family_name"]
 
-    user = get_or_create_google_user(
-        db, email, google_id, first_name, last_name
-    )
+    user = get_or_create_google_user(db, email, google_id, first_name, last_name)
 
     access_token = create_access_token(user.id)
 
+    params = urlencode({
+        "token": access_token
+    })
+
+    return RedirectResponse(
+        url=f"http://localhost:5173/auth/google/callback?{params}"
+    )
+
+@router.get("/me")
+def me(db: DBDep, request: Request):
+    user = get_current_user(db, request)
+
     return {
-        "access_token": access_token,
-        "token_type": "Bearer",
-        "user": {
-            "id": user.id,
-            "role": user.role,
-        },
+        "id": user.id,
+        "email": user.email,
+        "name": f"{user.first_name} {user.last_name or ''}".strip(),
+        "role": user.role,
+        "status": user.status
     }

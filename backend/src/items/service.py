@@ -1,12 +1,11 @@
 from uuid import uuid7
 
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory
-from src.items.schemas import ItemCreate
-from src.items.schemas import ItemUpdate
+from src.items.schemas import ItemCreate, ItemUpdate
 from src.utils import now
 
 
@@ -44,8 +43,12 @@ class ItemService:
         self.db.refresh(new_item)
 
         return new_item
-    
-    def update_item(self, item_id: int, data: ItemUpdate,) -> Item:
+
+    def update_item(
+        self,
+        item_id: int,
+        data: ItemUpdate,
+    ) -> Item:
         """Update item fields in a single transaction.
 
         Raises ValueError when item does not exist.
@@ -63,7 +66,7 @@ class ItemService:
         self.db.refresh(item)
 
         return item
-    
+
     def get_item_history(self, item_id: int) -> list[ItemHistory]:
         """Get item history ordered by newest first.
 
@@ -75,10 +78,6 @@ class ItemService:
         if item is None:
             raise ValueError("Item not found")
 
-        stmt = (
-            select(ItemHistory)
-            .where(ItemHistory.item_id == item_id)
-            .order_by(ItemHistory.updated_at.desc())
-        )
+        stmt = select(ItemHistory).where(ItemHistory.item_id == item_id).order_by(ItemHistory.updated_at.desc())
 
         return self.db.execute(stmt).scalars().all()

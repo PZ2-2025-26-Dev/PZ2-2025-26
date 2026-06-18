@@ -10,19 +10,38 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess }) {
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
-        setLoading(true);
-        try {
-            const res = await login({ email, password });
+    setLoading(true);
 
-            localStorage.setItem('access_token', res.data.access_token);
+    try {
+        const res = await login({ email, password });
 
-            onLoginSuccess(res.data.user);
-        } catch (e) {
-            alert(t('auth.loginError'));
-        } finally {
-            setLoading(false);
+        const userData = {
+            id: res.data.user.id,
+            name: `${res.data.user.first_name} ${res.data.user.last_name || ''}`.trim(),
+            role: res.data.user.role,
+            status: 'ACTIVE'
+        };
+        onLoginSuccess(userData, res.data.access_token);
+
+    } catch (e) {
+        const status = e?.response?.status;
+        const detail = e?.response?.data?.detail;
+
+        if (status === 403 && detail === "PENDING_APPROVAL") {
+            alert("Konto oczekuje na akceptację");
+            return;
         }
-    };
+
+        if (status === 401) {
+            alert("Błędny login lub hasło");
+            return;
+        }
+
+        alert("Błąd serwera");
+    }finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className="w-full max-w-md bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">

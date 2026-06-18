@@ -1,14 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 
 from src.auth.constants import UserRole, UserStatus
-from src.dependencies import DBDep
-from src.schemas import ErrorResponse
-from src.auth.dependencies import get_current_user, require_admin
+from src.auth.dependencies import require_admin
 from src.auth.models import UserAccount
-
-from sqlalchemy import select
+from src.dependencies import DBDep
 
 from .schemas import (
     BaseUserDetails,
@@ -18,19 +16,15 @@ from .schemas import (
     UserStatusUpdate,
 )
 from .service import (
-    UserService,
-    UserNotFoundError,
     InvalidUserApprovalRoleError,
-    UserOwnsItemsError,
     UserHasHistoricalReferencesError,
+    UserNotFoundError,
+    UserOwnsItemsError,
+    UserService,
 )
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-
-# -------------------------
-# helper
-# -------------------------
 def to_user_details(user, account: UserAccount | None = None) -> UserDetails:
     return UserDetails(
         id=user.id,
@@ -42,12 +36,6 @@ def to_user_details(user, account: UserAccount | None = None) -> UserDetails:
         provider=account.provider if account else None,
         provider_user_id=account.provider_user_id if account else None,
     )
-
-
-# -------------------------
-# GET /users (ADMIN ONLY)
-# -------------------------
-from sqlalchemy import select
 
 @router.get(
     "",
@@ -77,24 +65,15 @@ def read_users(
 
     user_ids = [u.id for u in users]
 
-    accounts = db.execute(
-        select(UserAccount).where(UserAccount.user_id.in_(user_ids))
-    ).scalars().all()
+    accounts = db.execute(select(UserAccount).where(UserAccount.user_id.in_(user_ids))).scalars().all()
 
     account_map = {a.user_id: a for a in accounts}
 
     return UsersPaged(
-        items=[
-            to_user_details(u, account_map.get(u.id))
-            for u in users
-        ],
+        items=[to_user_details(u, account_map.get(u.id)) for u in users],
         total_count=total_count,
     )
 
-
-# -------------------------
-# GET /users/{id} (ADMIN ONLY)
-# -------------------------
 @router.get("/{user_id}")
 def read_user(user_id: int, db: DBDep, admin=Depends(require_admin)):
 
@@ -102,19 +81,13 @@ def read_user(user_id: int, db: DBDep, admin=Depends(require_admin)):
 
     try:
         user = service.get_user(user_id)
-    except UserNotFoundError:
-        raise HTTPException(404, "Nie znaleziono użytkownika.")
+    except UserNotFoundError as exc:
+        raise HTTPException(404, "Nie znaleziono użytkownika.") from exc
 
-    account = db.execute(
-        select(UserAccount).where(UserAccount.user_id == user_id)
-    ).scalar_one_or_none()
+    account = db.execute(select(UserAccount).where(UserAccount.user_id == user_id)).scalar_one_or_none()
 
     return to_user_details(user, account)
 
-
-# -------------------------
-# PUT /users/{id} (ADMIN ONLY)
-# -------------------------
 @router.put(
     "/{user_id}",
     response_model=UserDetails,
@@ -131,23 +104,19 @@ def update_user(
 
     try:
         user = service.update_user(user_id, data)
-    except UserNotFoundError:
+    except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Nie znaleziono użytkownika.",
-        )
-    except InvalidUserApprovalRoleError:
+        ) from exc
+    except InvalidUserApprovalRoleError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Przy aktywacji konta należy nadać rolę user albo observer.",
-        )
+        ) from exc
 
     return to_user_details(user)
 
-
-# -------------------------
-# PATCH /users/{id}/approval (ADMIN ONLY)
-# -------------------------
 @router.patch(
     "/{user_id}/approval",
     response_model=UserDetails,
@@ -163,18 +132,15 @@ def update_user_approval(
     service = UserService(db)
     try:
         user = service.update_status(user_id, data.status)
-    except UserNotFoundError:
+    except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Nie znaleziono użytkownika.",
-        )
+        ) from exc
 
     return to_user_details(user)
 
 
-# -------------------------
-# DELETE /users/{id} (ADMIN ONLY)
-# -------------------------
 @router.delete(
     "/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -189,18 +155,20 @@ def delete_user(
 
     try:
         service.delete_user(user_id)
-    except UserNotFoundError:
+    except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Nie znaleziono użytkownika.",
-        )
-    except UserOwnsItemsError:
+        ) from exc
+    except UserOwnsItemsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Użytkownik jest właścicielem przedmiotów. Najpierw przepisz dane.",
-        )
-    except UserHasHistoricalReferencesError:
+        ) from exc
+    except UserHasHistoricalReferencesError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Użytkownik ma historię powiązań – użyj dezaktywacji zamiast usuwania.",
-        )
+        ) from exc
+
+    

@@ -31,6 +31,7 @@ class Item(Base):
     # TODO:
     # public_id: Mapped[UUID]
 
+
 class ItemHistory(Base):
     __tablename__ = "item_history"
 

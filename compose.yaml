@@ -1,5 +1,7 @@
 services:
   db:
+    ports:
+      - "3306:3306"
     image: mysql:9.7.0
     restart: unless-stopped
     environment:
@@ -26,11 +28,16 @@ services:
     ports:
       - "${API_PORT:?Variable not set}:8000"
     environment:
-      PZ_DATABASE_URL: ${PZ_DATABASE_URL:?Variable not set}
-      PZ_DEBUG: ${PZ_DEBUG:?Variable not set}
-      PZ_CORS_ORIGINS: ${PZ_CORS_ORIGINS:?Variable not set}
-      PZ_CORS_HEADERS: ${PZ_CORS_HEADERS:?Variable not set}
-      PZ_ENV: ${PZ_ENV:?Variable not set}
+      DATABASE_URL: ${DATABASE_URL:?Variable not set}
+      DEBUG: ${DEBUG:?Variable not set}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Variable not set}
+      CORS_HEADERS: ${CORS_HEADERS:?Variable not set}
+      ENV: ${ENV:?Variable not set}
+
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Variable not set}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Variable not set}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Variable not set}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:?Variable not set}
     depends_on:
       db:
         condition: service_healthy
@@ -60,7 +67,7 @@ services:
     image: adminer:5.4.0
     restart: unless-stopped
     ports:
-      - "${ADMINER_PORT:?Variable not set}:8080"
+      - "${ADMINER_PORT:?Variable not set}:8081"
     environment:
       ADMINER_DEFAULT_SERVER: db
     depends_on:

@@ -79,12 +79,15 @@ class ItemsPaged(BaseModel):
     items: list[ItemDetails]
     pagination: ItemPagination
 
+
 class ItemUpdate(BaseModel):
     description: ItemDescription | None = None
+
 
 class ItemUpdateResponse(BaseModel):
     id: ItemID
     description: ItemDescription | None
+
 
 class ItemHistoryEntry(BaseModel):
     id: int
@@ -92,6 +95,7 @@ class ItemHistoryEntry(BaseModel):
     updated_by: int
     change_type: ItemChangeLogType
     description: str | None
+
 
 class ItemHistoryResponse(BaseModel):
     entries: list[ItemHistoryEntry]
