@@ -41,3 +41,11 @@ npm install
 ```bash
 npm run dev
 ```
+
+### 3. Sprawdź lint
+
+Projekt używa ESLint do statycznej analizy kodu. Linter można uruchomić lokalnie komendą:
+
+```bash
+npm run lint
+```

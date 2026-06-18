@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -9,7 +8,6 @@ from sqlalchemy.orm import Session
 from src.auth.constants import AuthProvider, UserRole, UserStatus
 from src.auth.models import UserAccount
 from src.categories.models import Category
-from src.database import Base, engine
 from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
 from src.items.models import Item, ItemACL, ItemHistory
 from src.locations.constants import LocationType
@@ -25,6 +23,7 @@ from src.users.service import (
 
 pytestmark = pytest.mark.integration
 
+<<<<<<< HEAD
 
 @pytest.fixture(autouse=True)
 def user_tables() -> Iterator[None]:
@@ -32,6 +31,8 @@ def user_tables() -> Iterator[None]:
     yield
     Base.metadata.drop_all(bind=engine)
 
+=======
+>>>>>>> origin/main
 
 def add_users(db: Session) -> None:
     db.add_all(

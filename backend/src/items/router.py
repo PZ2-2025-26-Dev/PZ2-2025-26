@@ -137,11 +137,11 @@ def update_item(
 
     try:
         item = service.update_item(item_id, data)
-    except ValueError:
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return ItemUpdateResponse(
         id=item.id,
@@ -168,11 +168,11 @@ def read_item_history(
 
     try:
         history = service.get_item_history(item_id)
-    except ValueError:
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return [
         ItemHistoryEntry(
