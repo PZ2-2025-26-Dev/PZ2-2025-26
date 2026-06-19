@@ -209,7 +209,7 @@ def update_item(
         ) from err
 
     return ItemUpdate(
-        id=item.id,
+        name=item.name,
         description=item.description,
         category_id=item.category_id,
         location_id=item.location_id,

@@ -172,6 +172,7 @@ class ItemService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.execute(count_stmt).scalar_one()
 
+        stmt = stmt.order_by(Item.id)
         offset = (page - 1) * limit
         stmt = stmt.offset(offset).limit(limit)
 
