@@ -1,5 +1,6 @@
-import pytest
 from uuid import uuid4
+
+import pytest
 from fastapi import HTTPException
 
 from src.auth.constants import AuthProvider, UserRole, UserStatus
@@ -32,11 +33,7 @@ def test_register_user_success(db):
     assert user.role == UserRole.USER
     assert user.status == UserStatus.PENDING_APPROVAL
 
-    account = (
-        db.query(UserAccount)
-        .filter(UserAccount.user_id == user.id)
-        .first()
-    )
+    account = db.query(UserAccount).filter(UserAccount.user_id == user.id).first()
 
     assert account is not None
     assert account.provider == AuthProvider.LOCAL
@@ -160,11 +157,7 @@ def test_google_user_created(db):
     assert user.email == email
     assert user.status == UserStatus.PENDING_APPROVAL
 
-    account = (
-        db.query(UserAccount)
-        .filter(UserAccount.user_id == user.id)
-        .first()
-    )
+    account = db.query(UserAccount).filter(UserAccount.user_id == user.id).first()
 
     assert account.provider == AuthProvider.GOOGLE
 

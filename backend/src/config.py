@@ -26,7 +26,7 @@ class Config(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="pz_",
-        env_file=(".env","../.env", "backend/.env"),
+        env_file=(".env", "../.env", "backend/.env"),
         extra="ignore",
     )
 
