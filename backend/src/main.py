@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 # WORKAROUND:
 # W trakcie projektu przerzucimy się na alembic
@@ -20,8 +21,7 @@ from src.loans import models as loans_models  # noqa: F401
 from src.locations import models as locations_models  # noqa: F401
 from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
-from starlette.middleware.sessions import SessionMiddleware
-from src.config import config
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

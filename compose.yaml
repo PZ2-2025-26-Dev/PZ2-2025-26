@@ -53,7 +53,7 @@ services:
       target: dev
     restart: unless-stopped
     ports:
-      - "${PZ_FRONTEND_PORT:?Variable not set}:5173"
+      - "${FRONTEND_PORT:?Variable not set}:5173"
     environment:
       VITE_API_URL: ${PZ_VITE_API_URL:?Variable not set}
     depends_on:

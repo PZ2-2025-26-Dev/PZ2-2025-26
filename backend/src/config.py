@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from src.constants import Environment
 
@@ -20,7 +20,7 @@ class Config(BaseSettings):
     # Google OAuth
     google_client_id: str
     google_client_secret: str
-    google_redirect_uri: str 
+    google_redirect_uri: str
 
     access_token_expire_minutes: int = 30
     jwt_algorithm: str = "HS256"
@@ -30,7 +30,6 @@ class Config(BaseSettings):
         env_file=(".env", "backend/.env"),
         extra="ignore",
     )
-    
+
 
 config = Config()
-

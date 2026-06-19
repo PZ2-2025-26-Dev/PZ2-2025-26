@@ -1,14 +1,11 @@
-
-from fastapi import APIRouter, HTTPException, Request, status, Depends
-from fastapi.responses import RedirectResponse
-from fastapi.concurrency import run_in_threadpool
-from urllib.parse import urlencode
 from typing import Annotated
+from urllib.parse import urlencode
 
-from src.users.models import User as UserModel
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import RedirectResponse
+
 from src.auth.dependencies import get_current_user
-
-
 from src.auth.google_oauth import oauth
 from src.auth.jwt import (
     create_access_token,
@@ -23,6 +20,7 @@ from src.auth.service import (
 from src.config import config
 from src.dependencies import DBDep
 from src.schemas import ErrorResponse
+from src.users.models import User as UserModel
 
 from .schemas import (
     CurrentUserResponse,
@@ -213,9 +211,8 @@ async def google_callback(request: Request, db: DBDep):
 
     params = urlencode({"token": access_token})
 
-    return RedirectResponse(
-        url=f"http://localhost:5173/auth/google/callback?{params}"
-    )
+    return RedirectResponse(url=f"http://localhost:5173/auth/google/callback?{params}")
+
 
 @router.get(
     "/me",

@@ -9,10 +9,10 @@ from src.auth.constants import (
     UserRole,
     UserStatus,
 )
-from src.auth.models import UserAccount
-from src.users.models import User
-from src.dependencies import DBDep
 from src.auth.jwt import decode_token
+from src.auth.models import UserAccount
+from src.dependencies import DBDep
+from src.users.models import User
 
 password_hasher = PasswordHasher()
 
@@ -40,9 +40,7 @@ def get_or_create_google_user(
             )
         return user
 
-    user = db.execute(
-        select(User).where(User.email == email)
-    ).scalar_one_or_none()
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
     if not user:
         user = User(
@@ -145,10 +143,7 @@ def login_user(
             detail="Nieprawidłowy email lub hasło.",
         ) from exc
     if user.status == UserStatus.PENDING_APPROVAL:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="PENDING_APPROVAL"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PENDING_APPROVAL")
 
     if user.status != UserStatus.ACTIVE:
         raise HTTPException(

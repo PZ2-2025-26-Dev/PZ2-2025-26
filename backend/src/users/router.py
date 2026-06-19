@@ -25,6 +25,7 @@ from .service import (
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+
 def to_user_details(user, account: UserAccount | None = None) -> UserDetails:
     return UserDetails(
         id=user.id,
@@ -36,6 +37,7 @@ def to_user_details(user, account: UserAccount | None = None) -> UserDetails:
         provider=account.provider if account else None,
         provider_user_id=account.provider_user_id if account else None,
     )
+
 
 @router.get(
     "",
@@ -74,6 +76,7 @@ def read_users(
         total_count=total_count,
     )
 
+
 @router.get("/{user_id}")
 def read_user(user_id: int, db: DBDep, admin=Depends(require_admin)):
 
@@ -87,6 +90,7 @@ def read_user(user_id: int, db: DBDep, admin=Depends(require_admin)):
     account = db.execute(select(UserAccount).where(UserAccount.user_id == user_id)).scalar_one_or_none()
 
     return to_user_details(user, account)
+
 
 @router.put(
     "/{user_id}",
@@ -116,6 +120,7 @@ def update_user(
         ) from exc
 
     return to_user_details(user)
+
 
 @router.patch(
     "/{user_id}/approval",
@@ -163,7 +168,7 @@ def delete_user(
     except UserOwnsItemsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-             detail=(
+            detail=(
                 "Nie można usunąć użytkownika, ponieważ jest właścicielem przedmiotów. "
                 "Najpierw przepisz przedmioty do innego użytkownika."
             ),
@@ -173,5 +178,3 @@ def delete_user(
             status_code=status.HTTP_409_CONFLICT,
             detail="Użytkownik ma historię powiązań – użyj dezaktywacji zamiast usuwania.",
         ) from exc
-
-    
