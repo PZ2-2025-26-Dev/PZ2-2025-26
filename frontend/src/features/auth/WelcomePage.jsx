@@ -1,4 +1,4 @@
-import  { useEffect, useState } from 'react';
+import  { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function WelcomePage({ onLocalLogin, onRegister, isDarkMode, setIsDarkMode }) {

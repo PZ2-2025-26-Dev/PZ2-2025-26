@@ -8,10 +8,10 @@ export const ENDPOINTS = {
 
         REFRESH: '/auth/refresh',
     },
-    USERS: {
-        BASE: '/api/v1/users',
-        DETAILS: (id) => `/api/v1/users/${id}`,
-    },
+    // USERS: {
+    //     BASE: '/api/v1/users',
+    //     DETAILS: (id) => `/api/v1/users/${id}`,
+    // },
     ITEMS: {
         BASE: '/items',
         DETAILS: (id) => `/items/${id}`,

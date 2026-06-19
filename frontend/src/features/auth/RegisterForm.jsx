@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { register, googleLogin } from './authService';
 import { useTranslation } from 'react-i18next';
 
-const ROLES = [
-  { value: 'USER', label: 'User' },
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'OBSERVER', label: 'Observer' }
-];
+// const ROLES = [
+//   { value: 'USER', label: 'User' },
+//   { value: 'ADMIN', label: 'Admin' },
+//   { value: 'OBSERVER', label: 'Observer' }
+// ];
 
 export default function RegisterForm({ onSwitchToLogin }) {
     const { t } = useTranslation();
