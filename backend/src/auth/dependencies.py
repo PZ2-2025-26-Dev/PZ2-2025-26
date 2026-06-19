@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -7,12 +9,17 @@ from src.auth.jwt import decode_token
 from src.database import get_db
 from src.users.models import User
 
+# --- FastAPI dependencies (Annotated style) ---
+
 bearer_scheme = HTTPBearer()
+
+DBSession = Annotated[Session, Depends(get_db)]
+BearerCreds = Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)]
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
+    credentials: BearerCreds,
+    db: DBSession,
 ) -> User:
     token = credentials.credentials
 
@@ -47,8 +54,11 @@ def get_current_user(
     return user
 
 
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
 def require_admin(
-    user: User = Depends(get_current_user),
+    user: CurrentUser,
 ) -> User:
     if user.role != UserRole.ADMIN:
         raise HTTPException(
