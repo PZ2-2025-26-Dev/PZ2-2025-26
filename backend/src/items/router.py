@@ -5,12 +5,16 @@ from fastapi import APIRouter, HTTPException, Query, status
 from src.auth.schemas import UserID
 from src.dependencies import DBDep
 from src.items.constants import ItemStatus
+from src.items.helpers import build_location_path
 from src.items.schemas import (
     CategoryID,
+    ItemCategory,
     ItemCreate,
     ItemCreateResponse,
     ItemHistoryEntry,
     ItemID,
+    ItemLocation,
+    ItemOwner,
     ItemPagination,
     ItemResponse,
     ItemsPaged,
@@ -64,9 +68,18 @@ def read_items(
             ItemResponse(
                 id=item.id,
                 name=item.name,
-                category_id=item.category_id,
-                location_id=item.location_id,
-                owner_id=item.owner_id,
+                category=ItemCategory(
+                    id=item.category.id,
+                    name=item.category.name,
+                ),
+                location=ItemLocation(
+                    id=item.location.id,
+                    path=build_location_path(item.location),
+                ),
+                owner=ItemOwner(
+                    id=item.owner.id,
+                    name=item.owner.first_name,
+                ),
                 description=item.description,
                 status=item.status,
             )
@@ -148,9 +161,18 @@ def read_item(
     return ItemResponse(
         id=item.id,
         name=item.name,
-        category_id=item.category_id,
-        location_id=item.location_id,
-        owner_id=item.owner_id,
+        category=ItemCategory(
+            id=item.category.id,
+            name=item.category.name,
+        ),
+        owner=ItemOwner(
+            id=item.owner.id,
+            name=item.owner.first_name,
+        ),
+        location=ItemLocation(
+            id=item.location.id,
+            path=build_location_path(item.location),
+        ),
         description=item.description,
         status=item.status,
     )
@@ -189,6 +211,10 @@ def update_item(
     return ItemUpdate(
         id=item.id,
         description=item.description,
+        category_id=item.category_id,
+        location_id=item.location_id,
+        owner_id=item.owner_id,
+        status=item.status,
     )
 
 

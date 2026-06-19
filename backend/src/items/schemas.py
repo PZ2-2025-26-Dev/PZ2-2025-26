@@ -33,16 +33,6 @@ class ItemCreateResponse(BaseModel):
     description: ItemDescription | None
 
 
-class ItemResponse(BaseModel):
-    name: ItemName
-    id: ItemID
-    category_id: CategoryID
-    location_id: LocationID
-    owner_id: UserID
-    description: ItemDescription | None
-    status: ItemStatus = ItemStatus.AVAILABLE
-
-
 class ItemCategory(BaseModel):
     id: CategoryID
     name: CategoryName
@@ -56,6 +46,16 @@ class ItemLocation(BaseModel):
 class ItemOwner(BaseModel):
     id: UserID
     name: UserName
+
+
+class ItemResponse(BaseModel):
+    name: ItemName
+    id: ItemID
+    category: ItemCategory
+    location: ItemLocation
+    owner: ItemOwner
+    description: ItemDescription | None
+    status: ItemStatus = ItemStatus.AVAILABLE
 
 
 class ItemDetails(BaseModel):

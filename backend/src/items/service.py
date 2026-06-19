@@ -1,7 +1,7 @@
 from uuid import uuid7
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory
@@ -110,7 +110,15 @@ class ItemService:
         return item
 
     def get_item(self, item_id: int) -> Item:
-        item = self.db.get(Item, item_id)
+        item = self.db.execute(
+            select(Item)
+            .where(Item.id == item_id)
+            .options(
+                selectinload(Item.category),
+                selectinload(Item.location),
+                selectinload(Item.owner),
+            )
+        ).scalar_one_or_none()
 
         if item is None:
             raise ValueError("Item not found")
@@ -137,7 +145,11 @@ class ItemService:
         page: int,
         limit: int,
     ) -> tuple[list[Item], int]:
-        stmt = select(Item)
+        stmt = select(Item).options(
+            selectinload(Item.category),
+            selectinload(Item.location),
+            selectinload(Item.owner),
+        )
 
         if owner_id is not None:
             stmt = stmt.where(Item.owner_id == owner_id)

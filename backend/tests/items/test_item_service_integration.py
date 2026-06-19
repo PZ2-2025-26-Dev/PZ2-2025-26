@@ -1,16 +1,16 @@
-from src.seed import SEED_IDS
 import pytest
 from sqlalchemy import exc as sql_exc
 from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole, UserStatus
 from src.categories.models import Category
-from src.items.models import Item
 from src.items.constants import ItemStatus
+from src.items.models import Item
 from src.items.schemas import ItemCreate
 from src.items.service import ItemService
 from src.locations.constants import LocationType
 from src.locations.models import Location
+from src.seed import SEED_IDS
 from src.users.models import User
 
 pytestmark = pytest.mark.integration
