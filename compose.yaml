@@ -1,14 +1,12 @@
 services:
   db:
-    ports:
-      - "3306:3306"
     image: mysql:9.7.0
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PWD:?Variable not set}
-      MYSQL_DATABASE: ${DB_NAME:?Variable not set}
-      MYSQL_USER: ${DB_USER:?Variable not set}
-      MYSQL_PASSWORD: ${DB_PWD:?Variable not set}
+      MYSQL_ROOT_PASSWORD: ${PZ_DB_ROOT_PWD:?Variable not set}
+      MYSQL_DATABASE: ${PZ_DB_NAME:?Variable not set}
+      MYSQL_USER: ${PZ_DB_USER:?Variable not set}
+      MYSQL_PASSWORD: ${PZ_DB_PASSWORD:?Variable not set}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -26,18 +24,17 @@ services:
       target: runtime
     restart: unless-stopped
     ports:
-      - "${API_PORT:?Variable not set}:8000"
+      - "${PZ_API_PORT:?Variable not set}:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:?Variable not set}
-      DEBUG: ${DEBUG:?Variable not set}
-      CORS_ORIGINS: ${CORS_ORIGINS:?Variable not set}
-      CORS_HEADERS: ${CORS_HEADERS:?Variable not set}
-      ENV: ${ENV:?Variable not set}
-
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Variable not set}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Variable not set}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Variable not set}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:?Variable not set}
+      PZ_DATABASE_URL: ${PZ_DATABASE_URL:?Variable not set}
+      PZ_DEBUG: ${PZ_DEBUG:?Variable not set}
+      PZ_CORS_ORIGINS: ${PZ_CORS_ORIGINS:?Variable not set}
+      PZ_CORS_HEADERS: ${PZ_CORS_HEADERS:?Variable not set}
+      PZ_ENV: ${PZ_ENV:?Variable not set}
+      PZ_JWT_SECRET_KEY: ${PZ_JWT_SECRET_KEY:?Variable not set}
+      PZ_GOOGLE_CLIENT_ID: ${PZ_GOOGLE_CLIENT_ID:?Variable not set}
+      PZ_GOOGLE_CLIENT_SECRET: ${PZ_GOOGLE_CLIENT_SECRET:?Variable not set}
+      PZ_GOOGLE_REDIRECT_URI: ${PZ_GOOGLE_REDIRECT_URI:?Variable not set}
     depends_on:
       db:
         condition: service_healthy
@@ -56,9 +53,9 @@ services:
       target: dev
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:?Variable not set}:5173"
+      - "${PZ_FRONTEND_PORT:?Variable not set}:5173"
     environment:
-      VITE_API_URL: ${VITE_API_URL:?Variable not set}
+      VITE_API_URL: ${PZ_VITE_API_URL:?Variable not set}
     depends_on:
       api:
         condition: service_healthy
@@ -67,7 +64,7 @@ services:
     image: adminer:5.4.0
     restart: unless-stopped
     ports:
-      - "${ADMINER_PORT:?Variable not set}:8081"
+      - "${PZ_ADMINER_PORT:?Variable not set}:8080"
     environment:
       ADMINER_DEFAULT_SERVER: db
     depends_on:

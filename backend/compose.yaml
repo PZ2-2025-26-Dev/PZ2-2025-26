@@ -6,9 +6,21 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    
-    env_file:
-      - .env
+    environment:
+      - PZ_DATABASE_URL=${PZ_DATABASE_URL:?Variable not set}
+      - PZ_DEBUG=${PZ_DEBUG:?Variable not set}
+      - PZ_CORS_ORIGINS=${PZ_CORS_ORIGINS:?Variable not set}
+      - PZ_CORS_HEADERS=${PZ_CORS_HEADERS:?Variable not set}
+
+      - PZ_ENV=${PZ_ENV:?Variable not set}
+
+      - PZ_JWT_SECRET_KEY=${PZ_JWT_SECRET_KEY:?Variable not set}
+      - PZ_ACCESS_TOKEN_EXPIRE_MINUTES=${PZ_ACCESS_TOKEN_EXPIRE_MINUTES:?Variable not set}
+      - PZ_JWT_ALGORITHM=${PZ_JWT_ALGORITHM:?Variable not set}
+
+      - PZ_GOOGLE_CLIENT_ID=${PZ_GOOGLE_CLIENT_ID:?Variable not set}
+      - PZ_GOOGLE_CLIENT_SECRET=${PZ_GOOGLE_CLIENT_SECRET:?Variable not set}
+      - PZ_GOOGLE_REDIRECT_URI=${PZ_GOOGLE_REDIRECT_URI:?Variable not set}
     depends_on:
       db:
         condition: service_healthy
@@ -16,13 +28,11 @@ services:
 
   db:
     image: mysql:9.7.0
-    ports:
-      - "3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PWD:?Variable not set}
-      - MYSQL_DATABASE=${DB_NAME:?Variable not set}
-      - MYSQL_USER=${DB_USER:?Variable not set}
-      - MYSQL_PASSWORD=${DB_PWD:?Variable not set}
+      - MYSQL_ROOT_PASSWORD=${PZ_MYSQL_ROOT_PASSWORD:?Variable not set}
+      - MYSQL_DATABASE=${PZ_DB_NAME:?Variable not set}
+      - MYSQL_USER=${PZ_DB_USER:?Variable not set}
+      - MYSQL_PASSWORD=${PZ_DB_PASSWORD:?Variable not set}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -31,18 +41,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: uv run pytest -v
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: mysql+pymysql://root:${DB_ROOT_PWD}@db:3306/${DB_NAME}
 
 volumes:
   mysql_data:

@@ -27,5 +27,5 @@ class UserStatusUpdate(BaseModel):
 
 
 class UsersPaged(BaseModel):
-    items: list[UserDetails]
+    users: list[UserDetails]
     total_count: int

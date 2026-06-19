@@ -54,3 +54,11 @@ class UserLoginResponse(TokenResponse):
 
 class TokenRefreshIn(BaseModel):
     refresh_token: RefreshToken
+
+
+class CurrentUserResponse(BaseModel):
+    id: int
+    email: str
+    name: str
+    role: UserRole
+    status: UserStatus

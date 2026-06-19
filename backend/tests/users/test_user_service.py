@@ -23,16 +23,6 @@ from src.users.service import (
 
 pytestmark = pytest.mark.integration
 
-<<<<<<< HEAD
-
-@pytest.fixture(autouse=True)
-def user_tables() -> Iterator[None]:
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-=======
->>>>>>> origin/main
 
 def add_users(db: Session) -> None:
     db.add_all(

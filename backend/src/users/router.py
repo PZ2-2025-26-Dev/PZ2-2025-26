@@ -70,7 +70,7 @@ def read_users(
     account_map = {a.user_id: a for a in accounts}
 
     return UsersPaged(
-        items=[to_user_details(u, account_map.get(u.id)) for u in users],
+        users=[to_user_details(u, account_map.get(u.id)) for u in users],
         total_count=total_count,
     )
 
@@ -163,7 +163,10 @@ def delete_user(
     except UserOwnsItemsError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Użytkownik jest właścicielem przedmiotów. Najpierw przepisz dane.",
+             detail=(
+                "Nie można usunąć użytkownika, ponieważ jest właścicielem przedmiotów. "
+                "Najpierw przepisz przedmioty do innego użytkownika."
+            ),
         ) from exc
     except UserHasHistoricalReferencesError as exc:
         raise HTTPException(

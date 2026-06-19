@@ -1,14 +1,3 @@
-<<<<<<< HEAD
-from collections.abc import Generator
-
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
-from src.config import config
-from src.database import Base, get_db
-=======
 from collections.abc import Iterator
 
 import pytest
@@ -18,32 +7,8 @@ from sqlalchemy.orm import Session
 from src.config import config
 from src.constants import Environment
 from src.database import Base, engine, get_db
->>>>>>> origin/main
 from src.main import app
 from src.seed import seed_database
-
-# używamy tej samej bazy co aplikacja (MySQL)
-SQLALCHEMY_DATABASE_URL = config.database_url
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,
-)
-
-TestingSessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
-    expire_on_commit=False,
-)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def setup_database():
-    # tworzy wszystkie tabele z modeli SQLAlchemy
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -83,21 +48,6 @@ def seeded_db(db: Session) -> Session:
 
 
 @pytest.fixture()
-<<<<<<< HEAD
-def client(db):
-    def override_get_db() -> Generator:
-        try:
-            yield db
-        finally:
-            pass
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    with TestClient(app) as c:
-        yield c
-
-    app.dependency_overrides.clear()
-=======
 def api_client(db: Session) -> Iterator[TestClient]:
     def override_get_db() -> Iterator[Session]:
         yield db
@@ -112,4 +62,3 @@ def api_client(db: Session) -> Iterator[TestClient]:
             app.dependency_overrides.pop(get_db, None)
         else:
             app.dependency_overrides[get_db] = previous_override
->>>>>>> origin/main

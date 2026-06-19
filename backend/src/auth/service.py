@@ -24,7 +24,25 @@ def get_or_create_google_user(
     first_name: str,
     last_name: str,
 ):
-    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    account = db.execute(
+        select(UserAccount).where(
+            UserAccount.provider == AuthProvider.GOOGLE,
+            UserAccount.provider_user_id == google_id,
+        )
+    ).scalar_one_or_none()
+
+    if account:
+        user = db.get(User, account.user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="UserAccount exists but User is missing",
+            )
+        return user
+
+    user = db.execute(
+        select(User).where(User.email == email)
+    ).scalar_one_or_none()
 
     if not user:
         user = User(
@@ -37,20 +55,13 @@ def get_or_create_google_user(
         db.add(user)
         db.flush()
 
-    account = db.execute(
-        select(UserAccount).where(
-            UserAccount.user_id == user.id,
-            UserAccount.provider == AuthProvider.GOOGLE,
-        )
-    ).scalar_one_or_none()
+    account = UserAccount(
+        user_id=user.id,
+        provider=AuthProvider.GOOGLE,
+        provider_user_id=google_id,
+    )
 
-    if not account:
-        account = UserAccount(
-            user_id=user.id,
-            provider=AuthProvider.GOOGLE,
-            provider_user_id=google_id,
-        )
-        db.add(account)
+    db.add(account)
 
     db.commit()
     db.refresh(user)
@@ -144,24 +155,5 @@ def login_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Brak uprawnień.",
         )
-
-    return user
-
-def get_current_user(db: DBDep, request):
-    auth = request.headers.get("Authorization")
-
-    if not auth:
-        raise HTTPException(401, "No token")
-
-    token = auth.replace("Bearer ", "")
-
-    payload = decode_token(token)
-
-    user_id = payload.get("sub")
-
-    user = db.get(User, int(user_id))
-
-    if not user:
-        raise HTTPException(401, "User not found")
 
     return user

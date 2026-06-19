@@ -1,7 +1,13 @@
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status, Depends
 from fastapi.responses import RedirectResponse
+from fastapi.concurrency import run_in_threadpool
 from urllib.parse import urlencode
+from typing import Annotated
+
+from src.users.models import User as UserModel
+from src.auth.dependencies import get_current_user
+
 
 from src.auth.google_oauth import oauth
 from src.auth.jwt import (
@@ -13,13 +19,13 @@ from src.auth.service import (
     get_or_create_google_user,
     login_user,
     register_user,
-    get_current_user,
 )
-from src.config import settings
+from src.config import config
 from src.dependencies import DBDep
 from src.schemas import ErrorResponse
 
 from .schemas import (
+    CurrentUserResponse,
     TokenRefreshIn,
     TokenResponse,
     User,
@@ -178,8 +184,8 @@ async def refresh_token(data: TokenRefreshIn) -> TokenResponse:
     },
 )
 async def google_authorize(request: Request):
-    print("SESSION BEFORE REDIRECT:", dict(request.session))
-    redirect_uri = settings.google_redirect_uri
+    redirect_uri = config.google_redirect_uri
+    print(config.cors_origins)
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -194,26 +200,34 @@ async def google_callback(request: Request, db: DBDep):
     first_name = userinfo["given_name"]
     last_name = userinfo["family_name"]
 
-    user = get_or_create_google_user(db, email, google_id, first_name, last_name)
+    user = await run_in_threadpool(
+        get_or_create_google_user,
+        db,
+        email,
+        google_id,
+        first_name,
+        last_name,
+    )
 
     access_token = create_access_token(user.id)
 
-    params = urlencode({
-        "token": access_token
-    })
+    params = urlencode({"token": access_token})
 
     return RedirectResponse(
         url=f"http://localhost:5173/auth/google/callback?{params}"
     )
 
-@router.get("/me")
-def me(db: DBDep, request: Request):
-    user = get_current_user(db, request)
-
-    return {
-        "id": user.id,
-        "email": user.email,
-        "name": f"{user.first_name} {user.last_name or ''}".strip(),
-        "role": user.role,
-        "status": user.status
-    }
+@router.get(
+    "/me",
+    response_model=CurrentUserResponse,
+)
+def me(
+    user: Annotated[UserModel, Depends(get_current_user)],
+) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=user.id,
+        email=user.email,
+        name=f"{user.first_name} {user.last_name or ''}".strip(),
+        role=user.role,
+        status=user.status,
+    )

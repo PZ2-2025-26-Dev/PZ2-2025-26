@@ -1,33 +1,36 @@
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 from src.constants import Environment
 
 
 class Config(BaseSettings):
     debug: bool = True
-    database_url: str = Field(..., env="DATABASE_URL")
+    database_url: str = ""
 
-    # Konfiguracja CORS dla FastAPI.
     cors_origins: list[str] = []
     cors_headers: list[str] = ["*"]
 
     env: Environment = Environment.DEV
 
-    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
-    jwt_algorithm: str = Field("HS256", env="JWT_ALGORITHM")
-    access_token_expire_minutes: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    # JWT
+    jwt_secret_key: str
+    jwt_refresh_secret_key: str | None = None
 
-    google_client_id: str = Field(..., env="GOOGLE_CLIENT_ID")
-    google_client_secret: str = Field(..., env="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str = Field(..., env="GOOGLE_REDIRECT_URI")
+    # Google OAuth
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str 
+
+    access_token_expire_minutes: int = 30
+    jwt_algorithm: str = "HS256"
 
     model_config = SettingsConfigDict(
-        # env_prefix="pz_",
-        env_file=".env",
+        env_prefix="pz_",
+        env_file=(".env", "backend/.env"),
         extra="ignore",
     )
+    
 
+config = Config()
 
-settings = Config()
-config = settings
