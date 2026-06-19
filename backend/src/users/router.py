@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from src.auth.constants import UserRole, UserStatus
-from src.auth.dependencies import require_admin, CurrentUser
+from src.auth.dependencies import CurrentUser
 from src.auth.models import UserAccount
 from src.dependencies import DBDep
 

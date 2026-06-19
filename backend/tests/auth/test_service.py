@@ -1,11 +1,8 @@
 import pytest
+from uuid import uuid4
 from fastapi import HTTPException
 
-from src.auth.constants import (
-    AuthProvider,
-    UserRole,
-    UserStatus,
-)
+from src.auth.constants import AuthProvider, UserRole, UserStatus
 from src.auth.models import UserAccount
 from src.auth.service import (
     get_or_create_google_user,
@@ -13,30 +10,44 @@ from src.auth.service import (
     register_user,
 )
 
+pytestmark = pytest.mark.integration
+
+
+def unique_email(prefix: str = "user") -> str:
+    return f"{prefix}_{uuid4()}@example.com"
+
 
 def test_register_user_success(db):
+    email = unique_email("john")
+
     user = register_user(
         db=db,
-        email="john@example.com",
+        email=email,
         password="Password123!",
         first_name="John",
         last_name="Doe",
     )
 
-    assert user.email == "john@example.com"
+    assert user.email == email
     assert user.role == UserRole.USER
     assert user.status == UserStatus.PENDING_APPROVAL
 
-    account = db.query(UserAccount).filter(UserAccount.user_id == user.id).first()
+    account = (
+        db.query(UserAccount)
+        .filter(UserAccount.user_id == user.id)
+        .first()
+    )
 
     assert account is not None
     assert account.provider == AuthProvider.LOCAL
 
 
 def test_register_user_existing_email(db):
+    email = unique_email("john")
+
     register_user(
         db=db,
-        email="john@example.com",
+        email=email,
         password="Password123!",
         first_name="John",
         last_name="Doe",
@@ -45,7 +56,7 @@ def test_register_user_existing_email(db):
     with pytest.raises(HTTPException) as exc:
         register_user(
             db=db,
-            email="john@example.com",
+            email=email,
             password="Password123!",
             first_name="John",
             last_name="Doe",
@@ -55,20 +66,23 @@ def test_register_user_existing_email(db):
 
 
 def test_login_user_success(db):
+    email = unique_email("login")
+
     created = register_user(
         db=db,
-        email="john@example.com",
+        email=email,
         password="Password123!",
         first_name="John",
         last_name="Doe",
     )
 
     created.status = UserStatus.ACTIVE
-    db.commit()
+    db.flush()
+    db.refresh(created)
 
     user = login_user(
         db=db,
-        email="john@example.com",
+        email=email,
         password="Password123!",
     )
 
@@ -79,7 +93,7 @@ def test_login_wrong_email(db):
     with pytest.raises(HTTPException) as exc:
         login_user(
             db=db,
-            email="missing@example.com",
+            email=unique_email("missing"),
             password="Password123!",
         )
 
@@ -87,21 +101,24 @@ def test_login_wrong_email(db):
 
 
 def test_login_wrong_password(db):
+    email = unique_email("login")
+
     created = register_user(
         db=db,
-        email="john@example.com",
+        email=email,
         password="Password123!",
         first_name="John",
         last_name="Doe",
     )
 
     created.status = UserStatus.ACTIVE
-    db.commit()
+    db.flush()
+    db.refresh(created)
 
     with pytest.raises(HTTPException) as exc:
         login_user(
             db=db,
-            email="john@example.com",
+            email=email,
             password="wrong",
         )
 
@@ -109,9 +126,11 @@ def test_login_wrong_password(db):
 
 
 def test_login_not_active(db):
+    email = unique_email("inactive")
+
     register_user(
         db=db,
-        email="john@example.com",
+        email=email,
         password="Password123!",
         first_name="John",
         last_name="Doe",
@@ -120,7 +139,7 @@ def test_login_not_active(db):
     with pytest.raises(HTTPException) as exc:
         login_user(
             db=db,
-            email="john@example.com",
+            email=email,
             password="Password123!",
         )
 
@@ -128,26 +147,34 @@ def test_login_not_active(db):
 
 
 def test_google_user_created(db):
+    email = unique_email("google")
+
     user = get_or_create_google_user(
         db=db,
-        email="google@example.com",
+        email=email,
         google_id="google-123",
         first_name="John",
         last_name="Doe",
     )
 
-    assert user.email == "google@example.com"
+    assert user.email == email
     assert user.status == UserStatus.PENDING_APPROVAL
 
-    account = db.query(UserAccount).filter(UserAccount.user_id == user.id).first()
+    account = (
+        db.query(UserAccount)
+        .filter(UserAccount.user_id == user.id)
+        .first()
+    )
 
     assert account.provider == AuthProvider.GOOGLE
 
 
 def test_google_user_not_duplicated(db):
+    email = unique_email("google")
+
     user1 = get_or_create_google_user(
         db=db,
-        email="google@example.com",
+        email=email,
         google_id="123",
         first_name="John",
         last_name="Doe",
@@ -155,7 +182,7 @@ def test_google_user_not_duplicated(db):
 
     user2 = get_or_create_google_user(
         db=db,
-        email="google@example.com",
+        email=email,
         google_id="123",
         first_name="John",
         last_name="Doe",
