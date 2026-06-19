@@ -9,9 +9,7 @@ from src.auth.constants import (
     UserRole,
     UserStatus,
 )
-from src.auth.jwt import decode_token
 from src.auth.models import UserAccount
-from src.dependencies import DBDep
 from src.users.models import User
 
 password_hasher = PasswordHasher()
