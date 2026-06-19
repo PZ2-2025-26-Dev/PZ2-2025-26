@@ -7,7 +7,7 @@
     "localLogin": "Logowanie lokalne",
     "registerLink": "Zarejestruj nowe konto (Wymaga zatwierdzenia)",
     "selectRoleTitle": "Wybierz rolę systemową (Symulacja MVP):",
-    "backBtn": "Anuluj",
+    "backBtn": "Przejdź do strony głównej",
     "card1Title": "Ewidencja i Statusy",
     "card1Desc": "Błyskawiczny wgląd w parametry urządzeń, daty kalibracji oraz przypisanych opiekunów.",
     "card2Title": "Kody QR i Szybkie Akcje",
@@ -193,6 +193,8 @@
     "registerError": "Błąd rejestracji. Sprawdź formularz.",
     "registerSuccess": "Konto utworzone. Oczekuje na zatwierdzenie.",
     "googleLoginError": "Logowanie przez Google nie powiodło się. Spróbuj ponownie.",
-    "googleCallbackLoading": "Logowanie przez Google..."
+    "googleCallbackLoading": "Logowanie przez Google...",
+    "invalidEmail": "Podaj poprawny adres e-mail",
+    "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków"
   }
 }

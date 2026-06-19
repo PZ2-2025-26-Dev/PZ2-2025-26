@@ -7,7 +7,7 @@
     "localLogin": "Local Authentication",
     "registerLink": "Register local account (Requires admin approval)",
     "selectRoleTitle": "Select a system role (MVP Simulation):",
-    "backBtn": "Cancel",
+    "backBtn": "Przejdź do strony głównej",
     "card1Title": "Inventory & Statuses",
     "card1Desc": "Instant access to device parameters, calibration dates, and assigned supervisors.",
     "card2Title": "QR Codes & Quick Actions",
@@ -193,6 +193,8 @@
     "registerError": "Registration failed. Please check the form.",
     "registerSuccess": "Account created successfully. Awaiting approval.",
     "googleLoginError": "Google login failed. Please try again.",
-    "googleCallbackLoading": "Signing in with Google..."
+    "googleCallbackLoading": "Signing in with Google...",
+    "invalidEmail": "Invalid email address.",
+    "passwordTooShort": "Password must be at least 8 characters long."
   }
 }

@@ -165,11 +165,13 @@ export default function App() {
                 ) : authView === 'login' ? (
                     <LoginForm
                         onSwitchToRegister={() => setAuthView('register')}
+                        onBack={() => setAuthView('welcome')}
                         onLoginSuccess={handleLoginSuccess}
                     />
                 ) : (
                     <RegisterForm
                         onSwitchToLogin={() => setAuthView('login')}
+                        onBack={() => setAuthView('welcome')}
                     />
                 )}
             </div>
