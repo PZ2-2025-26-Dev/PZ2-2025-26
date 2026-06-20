@@ -23,16 +23,8 @@ import { Textarea } from '@/components/ui/textarea';
 import type { AppUser, InventoryItem } from '@/types';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
+import { useItemAttachments } from '../inventory/useItemAttachments';
 import { useInventory } from '../inventory/useInventory';
-
-type AttachmentEntry = {
-    id: number;
-    original_filename: string;
-    mime_type: string;
-    size_bytes: number;
-    uploaded_at: string;
-    uploaded_by: { id: number; name: string };
-};
 
 type HistoryEntry = {
     id: string | number;
@@ -63,20 +55,25 @@ export default function ItemDetailsModal({
     onUpdateStatus,
 }: ItemDetailsModalProps) {
     const { t } = useTranslation();
-    const { getItemHistory, listAttachments, uploadAttachments, downloadAttachment, deleteAttachment } = useInventory();
+    const { getItemHistory } = useInventory();
     const [returnDate, setReturnDate] = useState('');
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedDescription, setEditedDescription] = useState('');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
-    const [attachments, setAttachments] = useState<AttachmentEntry[]>([]);
-    const [isAttachmentsLoading, setIsAttachmentsLoading] = useState(false);
-    const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
-    const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
     const itemId = typeof item?.id === 'number' ? item.id : Number(item?.id);
-    const hasApiItemId = Number.isInteger(itemId) && itemId > 0;
+    const {
+        attachments,
+        isLoading: isAttachmentsLoading,
+        isUploading: isUploadingAttachments,
+        error: attachmentError,
+        hasApiItemId,
+        handleUpload,
+        handleDownload,
+        handleDelete,
+    } = useItemAttachments(itemId, isOpen);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -87,18 +84,7 @@ export default function ItemDetailsModal({
         setIsEditingDescription(false);
         setIsDescriptionOpen(false);
         setIsHistoryOpen(false);
-        setAttachments([]);
-        setAttachmentError(null);
-
-        if (hasApiItemId) {
-            setIsAttachmentsLoading(true);
-            listAttachments(itemId).then((result) => {
-                if (result.success) setAttachments(result.data ?? []);
-                else setAttachmentError(result.error ?? null);
-                setIsAttachmentsLoading(false);
-            });
-        }
-    }, [isOpen, item, hasApiItemId, itemId, listAttachments]);
+    }, [isOpen, item]);
 
     if (!item) return null;
 
@@ -114,29 +100,6 @@ export default function ItemDetailsModal({
             const result = await getItemHistory(item.id);
             if (result.success) setHistory(result.data);
         }
-    };
-
-    const handleUploadAttachments = async (files: File[]) => {
-        if (!hasApiItemId) return;
-        setIsUploadingAttachments(true);
-        setAttachmentError(null);
-        const result = await uploadAttachments(itemId, files);
-        if (result.success) setAttachments(result.data ?? []);
-        else setAttachmentError(result.error ?? null);
-        setIsUploadingAttachments(false);
-    };
-
-    const handleDownloadAttachment = async (attachment: AttachmentEntry) => {
-        if (!hasApiItemId) return;
-        const result = await downloadAttachment(itemId, attachment.id, attachment.original_filename);
-        if (!result.success) setAttachmentError(result.error ?? null);
-    };
-
-    const handleDeleteAttachment = async (attachmentId: number) => {
-        if (!hasApiItemId) return;
-        const result = await deleteAttachment(itemId, attachmentId);
-        if (result.success) setAttachments((current) => current.filter((entry) => entry.id !== attachmentId));
-        else setAttachmentError(result.error ?? null);
     };
 
     const renderDescription = (text: string) => {
@@ -290,9 +253,9 @@ export default function ItemDetailsModal({
                                         canUpload={isOwner}
                                         isUploading={isUploadingAttachments}
                                         error={attachmentError}
-                                        onUpload={handleUploadAttachments}
-                                        onDownload={handleDownloadAttachment}
-                                        onDelete={handleDeleteAttachment}
+                                        onUpload={handleUpload}
+                                        onDownload={handleDownload}
+                                        onDelete={handleDelete}
                                     />
                                 )}
                                 <Separator />

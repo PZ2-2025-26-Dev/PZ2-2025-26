@@ -9,6 +9,7 @@ from src.auth.schemas import UserID
 from src.dependencies import DBDep
 from src.items.attachment_service import (
     AttachmentNotFoundError,
+    AttachmentStorageError,
     AttachmentTooLargeError,
     ItemAttachmentService,
     ItemNotFoundError,
@@ -351,6 +352,10 @@ def read_item_attachments(
             "model": ErrorResponse,
             "description": "Plik przekracza dozwolony rozmiar.",
         },
+        status.HTTP_507_INSUFFICIENT_STORAGE: {
+            "model": ErrorResponse,
+            "description": "Brak miejsca na dysku lub błąd zapisu pliku.",
+        },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
             "description": "Tylko właściciel przedmiotu może dodawać pliki.",
@@ -381,6 +386,11 @@ def upload_item_attachments(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Attachment exceeds maximum allowed size",
+        ) from err
+    except AttachmentStorageError as err:
+        raise HTTPException(
+            status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
+            detail="Unable to store attachment",
         ) from err
 
     return ItemAttachmentsListResponse(attachments=attachments)

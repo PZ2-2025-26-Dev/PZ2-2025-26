@@ -183,6 +183,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                 category: categories.find((category) => category.id === Number(formData.categoryId))?.name ?? '',
                 location: locations.find((location) => location.id === locationId)?.path ?? '',
                 owner: ownerName,
+                ownerId,
                 description: formData.description,
             });
             onClose();

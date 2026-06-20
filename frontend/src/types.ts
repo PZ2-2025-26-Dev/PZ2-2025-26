@@ -16,7 +16,7 @@ export type InventoryItem = {
     category: string;
     location: string;
     owner: string;
-    ownerId?: number;
+    ownerId: number;
     borrower?: string | null;
     dueDate?: string | null;
     description?: string;

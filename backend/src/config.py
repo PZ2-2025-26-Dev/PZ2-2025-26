@@ -25,7 +25,6 @@ class Config(BaseSettings):
     jwt_algorithm: str = "HS256"
 
     upload_dir: str = "uploads"
-    max_upload_size_bytes: int = 50 * 1024 * 1024
 
     model_config = SettingsConfigDict(env_prefix="pz_", extra="ignore")
 

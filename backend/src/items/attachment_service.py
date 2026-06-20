@@ -30,6 +30,10 @@ class AttachmentTooLargeError(Exception):
     pass
 
 
+class AttachmentStorageError(Exception):
+    pass
+
+
 class ItemAttachmentService:
     def __init__(self, db: Session):
         self.db = db
@@ -88,38 +92,48 @@ class ItemAttachmentService:
             return []
 
         upload_dir = self._item_upload_dir(item_id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            upload_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as err:
+            raise AttachmentStorageError() from err
 
         created: list[ItemAttachmentResponse] = []
-        max_size = min(config.max_upload_size_bytes, ATTACHMENT_MAX_SIZE_BYTES)
 
-        for upload in files:
-            if not upload.filename:
-                continue
+        try:
+            for upload in files:
+                if not upload.filename:
+                    continue
 
-            content = upload.file.read()
-            if len(content) > max_size:
-                raise AttachmentTooLargeError()
+                content = upload.file.read()
+                if len(content) > ATTACHMENT_MAX_SIZE_BYTES:
+                    raise AttachmentTooLargeError()
 
-            stored_filename = f"{uuid4().hex}_{Path(upload.filename).name}"
-            file_path = upload_dir / stored_filename
-            file_path.write_bytes(content)
+                stored_filename = f"{uuid4().hex}_{Path(upload.filename).name}"
+                file_path = upload_dir / stored_filename
+                try:
+                    file_path.write_bytes(content)
+                except OSError as err:
+                    raise AttachmentStorageError() from err
 
-            attachment = ItemAttachment(
-                item_id=item_id,
-                original_filename=upload.filename,
-                stored_filename=stored_filename,
-                mime_type=upload.content_type or "application/octet-stream",
-                size_bytes=len(content),
-                uploaded_at=now(),
-                uploaded_by=uploaded_by,
-            )
-            self.db.add(attachment)
-            self.db.flush()
+                attachment = ItemAttachment(
+                    item_id=item_id,
+                    original_filename=upload.filename,
+                    stored_filename=stored_filename,
+                    mime_type=upload.content_type or "application/octet-stream",
+                    size_bytes=len(content),
+                    uploaded_at=now(),
+                    uploaded_by=uploaded_by,
+                )
+                self.db.add(attachment)
+                self.db.flush()
 
-            created.append(self._to_response(attachment, uploader))
+                created.append(self._to_response(attachment, uploader))
 
-        self.db.commit()
+            self.db.commit()
+        except (AttachmentTooLargeError, AttachmentStorageError):
+            self.db.rollback()
+            raise
+
         return created
 
     def get_attachment_file(self, item_id: int, attachment_id: int) -> tuple[Path, str, str]:

@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -7,7 +8,11 @@ from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole, UserStatus
 from src.categories.models import Category
-from src.items.attachment_service import ItemAttachmentService, ItemNotFoundError
+from src.items.attachment_service import (
+    AttachmentStorageError,
+    ItemAttachmentService,
+    ItemNotFoundError,
+)
 from src.items.models import Item
 from src.items.schemas import ItemCreate
 from src.items.service import ItemService
@@ -135,6 +140,28 @@ def test_list_attachments_item_not_found(db: Session):
 
     with pytest.raises(ItemNotFoundError):
         service.list_attachments(99999)
+
+
+def test_upload_storage_error_on_write(db: Session, tmp_path, monkeypatch):
+    monkeypatch.setattr("src.items.attachment_service.config.upload_dir", str(tmp_path))
+
+    item, user = _create_item_with_user(db)
+    service = ItemAttachmentService(db)
+
+    upload = Mock()
+    upload.filename = "manual.pdf"
+    upload.content_type = "application/pdf"
+    upload.file = io.BytesIO(b"pdf-content")
+
+    def raise_os_error(_self, _data):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(Path, "write_bytes", raise_os_error)
+
+    with pytest.raises(AttachmentStorageError):
+        service.upload_attachments(item.id, user.id, [upload])
+
+    assert service.list_attachments(item.id) == []
 
 
 def test_read_item_attachments_not_found(monkeypatch):
