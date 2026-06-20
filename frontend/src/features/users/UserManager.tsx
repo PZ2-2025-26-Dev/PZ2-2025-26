@@ -55,7 +55,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
 
     useEffect(() => {
         void refreshUsers();
-    }, [filters.role, filters.status, filters.page, filters.limit, refreshUsers]);
+    }, [filters.role, filters.status, filters.page, filters.limit]);
 
     const patchUser = (updatedUser: ManagedUser) => {
         setUsers((current) => current.map((user) => user.id === updatedUser.id ? updatedUser : user));
