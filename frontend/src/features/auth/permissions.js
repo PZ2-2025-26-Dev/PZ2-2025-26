@@ -1,7 +1,7 @@
 export const ROLES = {
     ADMIN: 'admin',
-    REGULAR: 'regular',
-    READ_ONLY: 'read-only',
+    USER: 'user',
+    OBSERVER: 'observer',
     ZERO_ACCESS: 'zero-access'
 };
 
@@ -22,12 +22,12 @@ export const ROLE_PERMISSIONS = {
         PERMISSIONS.SYSTEM_EXPORT,
         PERMISSIONS.SYSTEM_MANAGE
     ],
-    [ROLES.REGULAR]: [
+    [ROLES.USER]: [
         PERMISSIONS.ITEM_CREATE,
         PERMISSIONS.ITEM_LIST,
         PERMISSIONS.ITEM_EDIT_OWN
     ],
-    [ROLES.READ_ONLY]: [
+    [ROLES.OBSERVER]: [
         PERMISSIONS.ITEM_LIST
     ],
     [ROLES.ZERO_ACCESS]: []

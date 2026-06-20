@@ -2,6 +2,8 @@ from uuid import UUID, uuid7
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path

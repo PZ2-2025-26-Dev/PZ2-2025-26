@@ -25,31 +25,35 @@ pytestmark = pytest.mark.integration
 
 
 def add_users(db: Session) -> None:
-    db.add_all(
-        [
-            User(
-                first_name="Anna",
-                last_name="Admin",
-                email="anna.admin@example.com",
-                role=UserRole.ADMIN,
-                status=UserStatus.ACTIVE,
-            ),
-            User(
-                first_name="Jan",
-                last_name="Kowalski",
-                email="jan.kowalski@example.com",
-                role=UserRole.USER,
-                status=UserStatus.PENDING_APPROVAL,
-            ),
-            User(
-                first_name="Olga",
-                last_name="Observer",
-                email="olga.observer@example.com",
-                role=UserRole.OBSERVER,
-                status=UserStatus.INACTIVE,
-            ),
-        ]
+    users = (
+        User(
+            first_name="Anna",
+            last_name="Admin",
+            email="anna.admin@example.com",
+            role=UserRole.ADMIN,
+            status=UserStatus.ACTIVE,
+        ),
+        User(
+            first_name="Jan",
+            last_name="Kowalski",
+            email="jan.kowalski@example.com",
+            role=UserRole.USER,
+            status=UserStatus.PENDING_APPROVAL,
+        ),
+        User(
+            first_name="Olga",
+            last_name="Observer",
+            email="olga.observer@example.com",
+            role=UserRole.OBSERVER,
+            status=UserStatus.INACTIVE,
+        ),
     )
+
+    for user in users:
+        exists = db.scalar(select(User.id).where(User.email == user.email))
+        if exists is None:
+            db.add(user)
+
     db.commit()
 
 

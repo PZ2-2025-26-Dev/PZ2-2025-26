@@ -30,9 +30,16 @@ class UserLogin(BaseModel):
     password: Password
 
 
+class GoogleCallback(BaseModel):
+    code: str
+    state: str | None = None
+    redirect_uri: str | None = None
+
+
 class User(BaseModel):
     id: UserID
     role: UserRole
+    name: str
 
 
 class TokenResponse(BaseModel):
@@ -47,3 +54,11 @@ class UserLoginResponse(TokenResponse):
 
 class TokenRefreshIn(BaseModel):
     refresh_token: RefreshToken
+
+
+class CurrentUserResponse(BaseModel):
+    id: int
+    email: str
+    name: str
+    role: UserRole
+    status: UserStatus

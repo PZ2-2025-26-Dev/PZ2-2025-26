@@ -3,11 +3,11 @@
     "title": "Integrated Measuring Apparatus Management System",
     "subtitle": "AGH University of Science and Technology in Kraków",
     "description": "A comprehensive logistical and inventory platform dedicated to faculty staff and students. Provides full control over hardware database, precise location, and booking workflows.",
-    "ssoButton": "Sign in with AGH SSO",
+    "ssoButton": "Sign in with Google",
     "localLogin": "Local Authentication",
     "registerLink": "Register local account (Requires admin approval)",
     "selectRoleTitle": "Select a system role (MVP Simulation):",
-    "backBtn": "Cancel",
+    "backBtn": "Przejdź do strony głównej",
     "card1Title": "Inventory & Statuses",
     "card1Desc": "Instant access to device parameters, calibration dates, and assigned supervisors.",
     "card2Title": "QR Codes & Quick Actions",
@@ -170,6 +170,37 @@
       "pending_approval": "Pending approval",
       "inactive": "Inactive",
       "deactivated": "Inactive"
-    }
+    },
+    "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset."
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+
+    "loginButton": "Sign In",
+    "registerButton": "Register",
+
+    "googleLogin": "Sign in with Google",
+    "googleRegister": "Register with Google",
+
+    "dontHaveAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginError": "Login failed. Please check your credentials.",
+    "loginErrorTitle": "Unable to sign in",
+    "invalidCredentials": "Incorrect email address or password.",
+    "pendingApprovalError": "Your account is awaiting administrator approval.",
+    "serverError": "A server error occurred. Please try again later.",
+    "loggingIn": "Signing in...",
+    "or": "or",
+    "registerError": "Registration failed. Please check the form.",
+    "registerSuccess": "Account created successfully. Awaiting approval.",
+    "googleLoginError": "Google login failed. Please try again.",
+    "googleCallbackLoading": "Signing in with Google...",
+    "invalidEmail": "Invalid email address.",
+    "passwordTooShort": "Password must be at least 8 characters long."
   }
 }

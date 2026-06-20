@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, Enum, ForeignKey, String, Uuid, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.categories.models import Category
+from src.categories.models import Category
 from src.database import Base
 from src.items.constants import (
     ITEM_DESC_LENGTH,
@@ -14,6 +15,8 @@ from src.items.constants import (
     ItemPermissionType,
     ItemStatus,
 )
+from src.locations.models import Location
+from src.users.models import User
 from src.locations.models import Location
 from src.users.models import User
 
@@ -33,6 +36,10 @@ class Item(Base):
     category: Mapped[Category] = relationship()
     location: Mapped[Location] = relationship()
 
+    owner: Mapped[User] = relationship()
+    category: Mapped[Category] = relationship()
+    location: Mapped[Location] = relationship()
+
     status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus))
     description: Mapped[str | None] = mapped_column(String(ITEM_DESC_LENGTH))
 
@@ -44,6 +51,7 @@ class ItemHistory(Base):
     __tablename__ = "item_history"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"))
     item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"))
 
     updated_at: Mapped[datetime] = mapped_column(DateTime)
@@ -58,6 +66,7 @@ class ItemACL(Base):
     __tablename__ = "item_acl"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"))
     item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     permission: Mapped[ItemPermissionType] = mapped_column(Enum(ItemPermissionType))

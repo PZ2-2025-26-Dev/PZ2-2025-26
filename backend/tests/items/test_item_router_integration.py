@@ -38,6 +38,12 @@ def test_update_item_endpoint_updates_live_database(api_client: TestClient, seed
     assert body["owner_id"] == item.owner_id
     assert body["category_id"] == item.category_id
     assert body["location_id"] == item.location_id
+    body = response.json()
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert body["description"] == item.description
+    assert body["owner_id"] == item.owner_id
+    assert body["category_id"] == item.category_id
+    assert body["location_id"] == item.location_id
 
 
 def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seeded_db: Session):

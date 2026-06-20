@@ -26,6 +26,7 @@ def test_database_schema() -> Iterator[None]:
 def db(test_database_schema: None) -> Iterator[Session]:
     connection = engine.connect()
     transaction = connection.begin()
+
     session = Session(
         bind=connection,
         expire_on_commit=False,
