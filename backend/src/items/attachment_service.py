@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 
 from src.config import config
 from src.items.constants import ATTACHMENT_MAX_SIZE_BYTES
+from src.items.helpers import format_user_name
 from src.items.models import Item, ItemAttachment
 from src.items.schemas import ItemAttachmentAuthor, ItemAttachmentResponse
-from src.items.helpers import format_user_name
 from src.users.models import User
 from src.utils import now
 
