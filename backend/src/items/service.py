@@ -2,6 +2,7 @@ from uuid import UUID, uuid7
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
+
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
@@ -18,9 +19,9 @@ from src.items.schemas import (
     ItemPagination,
     ItemSearch,
     ItemSearchResponse,
+    ItemsPaged,
     ItemUpdate,
     ItemUpdateResponse,
-    ItemsPaged,
 )
 from src.utils import now
 

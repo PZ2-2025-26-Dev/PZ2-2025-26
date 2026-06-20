@@ -1,5 +1,6 @@
 import pytest
-from sqlalchemy import exc as sql_exc, select
+from sqlalchemy import exc as sql_exc
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole, UserStatus
