@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
+
 app = FastAPI(version="0.1.0", lifespan=lifespan)
 
 # Konfiguracja CORS dla FastAPI.

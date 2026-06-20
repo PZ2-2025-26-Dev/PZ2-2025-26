@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser
+from src.auth.schemas import UserID
 from src.dependencies import DBDep
 from src.items.attachment_service import (
     AttachmentNotFoundError,
@@ -14,6 +15,7 @@ from src.items.attachment_service import (
 )
 from src.items.constants import ItemStatus
 from src.items.helpers import build_location_path
+from src.items.models import Item
 from src.items.schemas import (
     CategoryID,
     ItemAttachmentsListResponse,
@@ -31,10 +33,8 @@ from src.items.schemas import (
     LocationID,
     SearchStr,
 )
-from src.items.models import Item
 from src.items.service import ItemService
 from src.schemas import ErrorResponse
-from src.auth.schemas import UserID
 from src.users.models import User
 
 router = APIRouter(prefix="/items")
@@ -328,11 +328,11 @@ def read_item_attachments(
 
     try:
         attachments = service.list_attachments(item_id)
-    except ItemNotFoundError:
+    except ItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
+        ) from err
 
     return ItemAttachmentsListResponse(attachments=attachments)
 
@@ -372,16 +372,16 @@ def upload_item_attachments(
 
     try:
         attachments = service.upload_attachments(item_id, user.id, files)
-    except ItemNotFoundError:
+    except ItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
-    except AttachmentTooLargeError:
+        ) from err
+    except AttachmentTooLargeError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Attachment exceeds maximum allowed size",
-        )
+        ) from err
 
     return ItemAttachmentsListResponse(attachments=attachments)
 
@@ -409,11 +409,11 @@ def download_item_attachment(
 
     try:
         file_path, original_filename, mime_type = service.get_attachment_file(item_id, attachment_id)
-    except (ItemNotFoundError, AttachmentNotFoundError):
+    except (ItemNotFoundError, AttachmentNotFoundError) as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Attachment not found",
-        )
+        ) from err
 
     return FileResponse(
         path=file_path,
@@ -451,13 +451,13 @@ def delete_item_attachment(
 
     try:
         service.delete_attachment(item_id, attachment_id, user.id)
-    except ItemNotFoundError:
+    except ItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
-        )
-    except AttachmentNotFoundError:
+        ) from err
+    except AttachmentNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Attachment not found",
-        )
+        ) from err
