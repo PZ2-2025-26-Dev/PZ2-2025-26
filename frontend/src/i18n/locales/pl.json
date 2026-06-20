@@ -1,5 +1,13 @@
 {
   "welcome": {
+    "faculty": "Wydział Fizyki i Informatyki Stosowanej",
+    "language": "Język",
+    "systemLabel": "System wewnętrzny",
+    "productName": "Aparatura WFiIS",
+    "conciseDescription": "Ewidencja sprzętu, lokalizacji i wypożyczeń w jednym miejscu.",
+    "enterSystem": "Przejdź do logowania",
+    "noAccount": "Nie masz konta?",
+    "createAccount": "Utwórz konto",
     "title": "Zintegrowany System Zarządzania Aparaturą Pomiarową",
     "subtitle": "Akademia Górniczo-Hutnicza im. Stanisława Staszica w Krakowie",
     "description": "Wszechstronna platforma logistyczno-ewidencyjna dedykowana dla pracowników oraz studentów wydziału. Zapewnia pełną kontrolę nad bazą sprzętową, lokalizacją oraz procesem rezerwacji.",
@@ -172,6 +180,16 @@
       "deactivated": "Nieaktywny"
     },
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie."
+  },
+  "qrScanner": {
+    "button": "Skanuj QR",
+    "title": "Skaner kodu QR",
+    "description": "Skieruj aparat na kod QR przypisany do przedmiotu.",
+    "starting": "Uruchamianie aparatu...",
+    "cameraError": "Nie udało się uruchomić aparatu.",
+    "permissionHint": "Sprawdź uprawnienia aparatu w ustawieniach przeglądarki.",
+    "hint": "Kod zostanie odczytany automatycznie.",
+    "close": "Zamknij skaner"
   },
   "auth": {
     "login": "Logowanie",
