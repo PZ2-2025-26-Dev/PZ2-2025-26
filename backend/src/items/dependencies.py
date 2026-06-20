@@ -147,28 +147,6 @@ def assert_can_change_owner(user: User) -> None:
             detail="Tylko administrator może zmieniać właściciela przedmiotu.",
         )
 
-
-def assert_can_manage_item_gallery(user: User, item: Item, db: Session) -> None:
-    if user.role == UserRole.ADMIN:
-        return
-
-    if user.role == UserRole.USER and item.owner_id == user.id:
-        return
-
-    if user.role == UserRole.USER and has_item_permission(
-        db,
-        item.id,
-        user.id,
-        ItemPermissionType.EDIT_GALLERY,
-    ):
-        return
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Brak uprawnień do zarządzania galerią zdjęć przedmiotu.",
-    )
-
-
 def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
     if user.role == UserRole.ADMIN:
         return
