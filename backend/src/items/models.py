@@ -1,8 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Uuid
-from sqlalchemy import JSON, DateTime, Enum, ForeignKey, String, Uuid
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.categories.models import Category

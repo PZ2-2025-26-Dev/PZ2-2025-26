@@ -1,5 +1,5 @@
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import UploadFile
 from sqlalchemy import select
@@ -38,8 +38,8 @@ class ItemAttachmentService:
     def __init__(self, db: Session):
         self.db = db
 
-    def _ensure_item_exists(self, item_id: int) -> Item:
-        item = self.db.get(Item, item_id)
+    def _get_item_by_uuid(self, item_id: UUID) -> Item:
+        item = self.db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
         if item is None:
             raise ItemNotFoundError()
         return item
@@ -50,8 +50,8 @@ class ItemAttachmentService:
             raise UserNotFoundError()
         return user
 
-    def _item_upload_dir(self, item_id: int) -> Path:
-        return Path(config.upload_dir) / str(item_id)
+    def _item_upload_dir(self, item: Item) -> Path:
+        return Path(config.upload_dir) / str(item.id)
 
     def _to_response(self, attachment: ItemAttachment, uploader: User) -> ItemAttachmentResponse:
         return ItemAttachmentResponse(
@@ -66,13 +66,13 @@ class ItemAttachmentService:
             ),
         )
 
-    def list_attachments(self, item_id: int) -> list[ItemAttachmentResponse]:
-        self._ensure_item_exists(item_id)
+    def list_attachments(self, item_id: UUID) -> list[ItemAttachmentResponse]:
+        item = self._get_item_by_uuid(item_id)
 
         stmt = (
             select(ItemAttachment, User)
             .join(User, User.id == ItemAttachment.uploaded_by)
-            .where(ItemAttachment.item_id == item_id)
+            .where(ItemAttachment.item_id == item.id)
             .order_by(ItemAttachment.uploaded_at.desc())
         )
         rows = self.db.execute(stmt).all()
@@ -81,17 +81,17 @@ class ItemAttachmentService:
 
     def upload_attachments(
         self,
-        item_id: int,
+        item_id: UUID,
         uploaded_by: int,
         files: list[UploadFile],
     ) -> list[ItemAttachmentResponse]:
-        self._ensure_item_exists(item_id)
+        item = self._get_item_by_uuid(item_id)
         uploader = self._ensure_user_exists(uploaded_by)
 
         if not files:
             return []
 
-        upload_dir = self._item_upload_dir(item_id)
+        upload_dir = self._item_upload_dir(item)
         try:
             upload_dir.mkdir(parents=True, exist_ok=True)
         except OSError as err:
@@ -116,7 +116,7 @@ class ItemAttachmentService:
                     raise AttachmentStorageError() from err
 
                 attachment = ItemAttachment(
-                    item_id=item_id,
+                    item_id=item.id,
                     original_filename=upload.filename,
                     stored_filename=stored_filename,
                     mime_type=upload.content_type or "application/octet-stream",
@@ -130,34 +130,34 @@ class ItemAttachmentService:
                 created.append(self._to_response(attachment, uploader))
 
             self.db.commit()
-        except (AttachmentTooLargeError, AttachmentStorageError):
+        except AttachmentTooLargeError, AttachmentStorageError:
             self.db.rollback()
             raise
 
         return created
 
-    def get_attachment_file(self, item_id: int, attachment_id: int) -> tuple[Path, str, str]:
-        self._ensure_item_exists(item_id)
+    def get_attachment_file(self, item_id: UUID, attachment_id: int) -> tuple[Path, str, str]:
+        item = self._get_item_by_uuid(item_id)
 
         attachment = self.db.get(ItemAttachment, attachment_id)
-        if attachment is None or attachment.item_id != item_id:
+        if attachment is None or attachment.item_id != item.id:
             raise AttachmentNotFoundError()
 
-        file_path = self._item_upload_dir(item_id) / attachment.stored_filename
+        file_path = self._item_upload_dir(item) / attachment.stored_filename
         if not file_path.is_file():
             raise AttachmentNotFoundError()
 
         return file_path, attachment.original_filename, attachment.mime_type
 
-    def delete_attachment(self, item_id: int, attachment_id: int, deleted_by: int) -> None:
-        self._ensure_item_exists(item_id)
+    def delete_attachment(self, item_id: UUID, attachment_id: int, deleted_by: int) -> None:
+        item = self._get_item_by_uuid(item_id)
         self._ensure_user_exists(deleted_by)
 
         attachment = self.db.get(ItemAttachment, attachment_id)
-        if attachment is None or attachment.item_id != item_id:
+        if attachment is None or attachment.item_id != item.id:
             raise AttachmentNotFoundError()
 
-        file_path = self._item_upload_dir(item_id) / attachment.stored_filename
+        file_path = self._item_upload_dir(item) / attachment.stored_filename
         if file_path.is_file():
             file_path.unlink()
 

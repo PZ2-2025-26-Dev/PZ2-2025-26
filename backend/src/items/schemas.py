@@ -10,12 +10,12 @@ from src.categories.schemas import CategoryID, CategoryName
 from src.items.constants import (
     ATTACHMENT_FILENAME_MAX_LENGTH,
     ATTACHMENT_MIME_TYPE_MAX_LENGTH,
+    BASIC_LENGTH,
     ITEM_DESC_LENGTH,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
     ItemStatus,
 )
-from src.items.constants import BASIC_LENGTH, ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
 from src.locations.schemas import LocationID, LocationPath
 
 type ItemID = UUID
@@ -133,8 +133,8 @@ class ItemHistoryGet(BaseModel):
     description: str | None
 
 
-class ItemHistoryResponse(BaseModel):
-    entries: list[ItemHistoryEntry]
+class ItemHistoryGetResponse(BaseModel):
+    entries: list[ItemHistoryGet]
 
 
 type AttachmentID = int
@@ -158,5 +158,3 @@ class ItemAttachmentResponse(BaseModel):
 
 class ItemAttachmentsListResponse(BaseModel):
     attachments: list[ItemAttachmentResponse]
-class ItemHistoryGetResponse(BaseModel):
-    entries: list[ItemHistoryGet]

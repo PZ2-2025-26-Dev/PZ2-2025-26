@@ -1,11 +1,12 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 
 from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser
-from src.auth.schemas import UserID
 from src.dependencies import DBDep
 from src.items.attachment_service import (
     AttachmentNotFoundError,
@@ -14,17 +15,9 @@ from src.items.attachment_service import (
     ItemAttachmentService,
     ItemNotFoundError,
 )
-from src.items.constants import ItemStatus
-from src.items.helpers import build_location_path
 from src.items.models import Item
 from src.items.schemas import (
-    CategoryID,
     ItemAttachmentsListResponse,
-    ItemCategory,
-from fastapi import APIRouter, Depends, HTTPException, status
-
-from src.dependencies import DBDep
-from src.items.schemas import (
     ItemCreate,
     ItemCreateResponse,
     ItemGetResponse,
@@ -42,8 +35,8 @@ from src.users.models import User
 router = APIRouter(prefix="/items")
 
 
-def _ensure_item_owner(item_id: int, user: User, db: DBDep) -> None:
-    item = db.get(Item, item_id)
+def _ensure_item_owner(item_id: UUID, user: User, db: DBDep) -> None:
+    item = db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
     if item.owner_id != user.id and user.role != UserRole.ADMIN:
@@ -137,7 +130,7 @@ def read_item(
             "description": "Dane przedmiotu zostały zaktualizowane.",
         },
         status.HTTP_404_NOT_FOUND: {
-            "description": "Nie znaleziono przedmiotu.",
+            "description": "Nie znaleziono przedmiotu",
         },
     },
 )
@@ -209,17 +202,6 @@ def read_item_history(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Nie znaleziono przedmiotu",
         ) from err
-
-    return [
-        ItemHistoryEntry(
-            id=entry.id,
-            updated_at=entry.updated_at,
-            updated_by=entry.updated_by,
-            change_type=entry.change_type,
-            description=entry.description,
-        )
-        for entry in history
-    ]
 
 
 @router.get(

@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 from unittest.mock import Mock
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -50,6 +51,9 @@ def _create_item_with_user(db: Session) -> tuple[Item, User]:
 
     item = ItemService(db).add_item(data)
     return item, user
+
+
+MISSING_ITEM_ID = UUID("00000000-0000-7000-8000-000000000099")
 
 
 def test_upload_and_list_attachments(db: Session, tmp_path, monkeypatch):
@@ -139,7 +143,7 @@ def test_list_attachments_item_not_found(db: Session):
     service = ItemAttachmentService(db)
 
     with pytest.raises(ItemNotFoundError):
-        service.list_attachments(99999)
+        service.list_attachments(MISSING_ITEM_ID)
 
 
 def test_upload_storage_error_on_write(db: Session, tmp_path, monkeypatch):
@@ -170,6 +174,6 @@ def test_read_item_attachments_not_found(monkeypatch):
 
     monkeypatch.setattr(ItemAttachmentService, "list_attachments", mock_list)
 
-    response = client.get("/items/999/attachments")
+    response = client.get(f"/items/{MISSING_ITEM_ID}/attachments")
 
     assert response.status_code == 404
