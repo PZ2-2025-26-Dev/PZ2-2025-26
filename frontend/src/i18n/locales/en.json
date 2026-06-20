@@ -189,7 +189,12 @@
     "cancel": "Cancel",
     "save": "Save",
     "openLink": "Open link",
-    "history": "History of changes"
+    "history": "History of changes",
+    "attachments": "Attachments",
+    "uploadFiles": "Upload files",
+    "noAttachments": "No attachments",
+    "attachmentMeta": "{{author}} · {{date}} · {{size}}",
+    "deleteAttachment": "Delete"
   },
   "userManager": {
     "totalUsers": "Total users",

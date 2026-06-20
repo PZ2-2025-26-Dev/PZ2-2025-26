@@ -22,6 +22,8 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import type { AppUser, InventoryItem } from '@/types';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
+import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
+import { useItemAttachments } from '../inventory/useItemAttachments';
 import { useInventory } from '../inventory/useInventory';
 
 type HistoryEntry = {
@@ -61,6 +63,18 @@ export default function ItemDetailsModal({
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
 
+    const itemId = item?.id ?? null;
+    const {
+        attachments,
+        isLoading: isAttachmentsLoading,
+        isUploading: isUploadingAttachments,
+        error: attachmentError,
+        hasApiItemId,
+        handleUpload,
+        handleDownload,
+        handleDelete,
+    } = useItemAttachments(itemId, isOpen);
+
     useEffect(() => {
         if (!isOpen) return;
         const tomorrow = new Date();
@@ -74,7 +88,9 @@ export default function ItemDetailsModal({
 
     if (!item) return null;
 
-    const isOwner = user.name === item.owner || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+    const isOwner = user.name === item.owner
+        || item.ownerId === user.id
+        || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
     const canBorrow = user.role === 'regular' || user.role === 'admin';
 
     const toggleHistory = async () => {
@@ -230,6 +246,18 @@ export default function ItemDetailsModal({
                                 ) : (
                                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{renderDescription(item.description || '-')}</p>
                                 ))}
+                                {hasApiItemId && (
+                                    <ItemAttachmentsPanel
+                                        attachments={attachments}
+                                        isLoading={isAttachmentsLoading}
+                                        canUpload={isOwner}
+                                        isUploading={isUploadingAttachments}
+                                        error={attachmentError}
+                                        onUpload={handleUpload}
+                                        onDownload={handleDownload}
+                                        onDelete={handleDelete}
+                                    />
+                                )}
                                 <Separator />
                                 <Button variant="ghost" size="sm" onClick={toggleHistory}>
                                     <History />{t('itemDetailsModal.history')}{isHistoryOpen ? <ChevronUp /> : <ChevronDown />}
