@@ -10,11 +10,12 @@ import { Label } from '@/components/ui/label';
 import { googleLogin, register } from './authService';
 
 type RegisterFormProps = {
-    onSwitchToLogin: () => void;
-    onBack: () => void;
+  onSwitchToLogin: () => void;
+  onBack: () => void;
+  onRegisterSuccess: () => void; 
 };
 
-export default function RegisterForm({ onSwitchToLogin, onBack }: RegisterFormProps) {
+export default function RegisterForm({ onSwitchToLogin, onBack, onRegisterSuccess }: RegisterFormProps) {
     const { t } = useTranslation();
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -38,6 +39,8 @@ export default function RegisterForm({ onSwitchToLogin, onBack }: RegisterFormPr
         try {
             await register(form);
             setMessage({ type: 'success', text: t('auth.registerSuccess') });
+
+            onRegisterSuccess();
         } catch {
             setMessage({ type: 'error', text: t('auth.registerError') });
         } finally {
