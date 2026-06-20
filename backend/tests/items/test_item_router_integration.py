@@ -127,7 +127,7 @@ def test_download_item_qr_png_endpoint_returns_png(
     api_client: TestClient,
     seeded_db: Session,
 ):
-    created = api_client.post("/items", json=make_item_payload(name="Drukarka etykiet")).json()
+    created = api_client.post("/items", json=make_item_payload(name="Terminal mobilny")).json()
 
     response = api_client.get(f"/items/{created['id']}/qr.png")
 
