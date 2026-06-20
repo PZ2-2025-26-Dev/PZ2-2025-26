@@ -67,10 +67,10 @@ export default function ItemDetailsModal({
         tomorrow.setDate(tomorrow.getDate() + 1);
         setReturnDate(tomorrow.toISOString().split('T')[0]);
         setEditedDescription(item?.description ?? '');
+        setHistory([]);
         setIsEditingDescription(false);
         setIsDescriptionOpen(false);
         setIsHistoryOpen(false);
-    }, [isOpen, item]);
 
     if (!item) return null;
 
