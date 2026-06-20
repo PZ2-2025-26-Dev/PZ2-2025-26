@@ -55,14 +55,9 @@ class LocationsPaged(BaseModel):
     pagination: LocationPagination
 
 
-class LocationDeleteRequest(BaseModel):
-    replacement_location_id: LocationID
-
-
 class LocationDeleteResponse(BaseModel):
     id: LocationID
-    replacement_location_id: LocationID
-    migrated_items_count: int
+    deleted_locations_count: int
 
 
 class LocationHistoryEntry(BaseModel):

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, Archive, Building2, ChevronDown, ChevronRight, DoorOpen, Layers3, MapPin, Pencil, Plus, RefreshCw, type LucideIcon } from 'lucide-react';
+import { AlertCircle, Archive, Building2, ChevronDown, ChevronRight, DoorOpen, Layers3, MapPin, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -39,6 +39,10 @@ type LocationFormState = {
     parentId: string;
     description: string;
     status: typeof LOCATION_STATUSES[number];
+};
+
+type DeleteErrorState = {
+    locationName: string;
 };
 
 const buildLocationTree = (locations: Location[]) => {
@@ -89,7 +93,7 @@ const collectDescendantIds = (locationId: number, locations: Location[]) => {
 
 export default function LocationManager() {
     const { t } = useTranslation();
-    const { listLocations, createLocation, updateLocation, isLoading, error, clearError } = useLocations();
+    const { listLocations, createLocation, updateLocation, deleteLocation, isLoading, error, clearError } = useLocations();
 
     const [locations, setLocations] = useState<Location[]>([]);
     const [newLocationName, setNewLocationName] = useState('');
@@ -98,6 +102,8 @@ export default function LocationManager() {
     const [newLocationDescription, setNewLocationDescription] = useState('');
     const [editingLocation, setEditingLocation] = useState<Location | null>(null);
     const [editForm, setEditForm] = useState<LocationFormState | null>(null);
+    const [deletingLocation, setDeletingLocation] = useState<Location | null>(null);
+    const [deleteError, setDeleteError] = useState<DeleteErrorState | null>(null);
     const [expandedLocationIds, setExpandedLocationIds] = useState<Set<number>>(() => new Set());
 
     const locationTree = useMemo(() => buildLocationTree(locations), [locations]);
@@ -204,6 +210,24 @@ export default function LocationManager() {
         }
     };
 
+    const handleDeleteLocation = async () => {
+        if (!deletingLocation) return;
+
+        const locationName = deletingLocation.name;
+        const result = await deleteLocation(deletingLocation.id);
+
+        if (result.success) {
+            setDeletingLocation(null);
+            await refreshLocations();
+        } else {
+            setDeletingLocation(null);
+            setDeleteError({
+                locationName,
+            });
+            clearError();
+        }
+    };
+
     const toggleLocation = (locationId: number) => {
         setExpandedLocationIds((current) => {
             const next = new Set(current);
@@ -251,6 +275,9 @@ export default function LocationManager() {
                     <div className="flex shrink-0 items-center gap-2">
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('locationManager.edit')}>
                             <Pencil />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => setDeletingLocation(node)} aria-label={t('locationManager.delete')}>
+                            <Trash2 />
                         </Button>
                         <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                             {t(`locationManager.types.${node.type}`)}
@@ -426,6 +453,37 @@ export default function LocationManager() {
                         <Button type="submit" form="edit-location-form" disabled={isLoading || !editForm?.name.trim() || (isEditParentRequired && editForm?.parentId === ROOT_LOCATION)}>
                             {isLoading ? t('locationManager.saving') : t('locationManager.save')}
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(deletingLocation)} onOpenChange={(open) => !open && setDeletingLocation(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('locationManager.deleteTitle')}</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {t('locationManager.deleteDesc', { name: deletingLocation?.name })}
+                    </p>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeletingLocation(null)}>{t('locationManager.cancel')}</Button>
+                        <Button variant="destructive" onClick={() => void handleDeleteLocation()} disabled={isLoading}>
+                            {isLoading ? t('locationManager.deleting') : t('locationManager.confirmDelete')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(deleteError)} onOpenChange={(open) => !open && setDeleteError(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-rose-700 dark:text-rose-300">{t('locationManager.deleteErrorTitle')}</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {t('locationManager.deleteErrorDesc', { name: deleteError?.locationName })}
+                    </p>
+                    <DialogFooter>
+                        <Button onClick={() => setDeleteError(null)}>{t('locationManager.close')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

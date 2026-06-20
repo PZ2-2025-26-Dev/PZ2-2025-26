@@ -148,6 +148,23 @@ export const useLocations = () => {
         }
     }, []);
 
+    const deleteLocation = useCallback(async (locationId: number) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            await axiosClient.delete(ENDPOINTS.LOCATIONS.DETAILS(locationId));
+
+            return { success: true };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -156,6 +173,7 @@ export const useLocations = () => {
         listLocations,
         createLocation,
         updateLocation,
+        deleteLocation,
         isLoading,
         error,
         clearError,

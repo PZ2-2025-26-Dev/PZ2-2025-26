@@ -6,7 +6,6 @@ from src.dependencies import DBDep
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.schemas import (
     LocationCreate,
-    LocationDeleteRequest,
     LocationDeleteResponse,
     LocationDetails,
     LocationHistoryEntry,
@@ -17,8 +16,7 @@ from src.locations.schemas import (
 )
 from src.locations.service import (
     InvalidLocationParentError,
-    LocationDeleteReplacementError,
-    LocationHasChildrenError,
+    LocationHasAssignedItemsError,
     LocationNotFoundError,
     LocationService,
 )
@@ -141,15 +139,15 @@ def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep) ->
     "/{location_id}",
     response_model=LocationDeleteResponse,
     status_code=status.HTTP_200_OK,
-    summary="Usuń lokalizację i przenieś przypisane przedmioty",
+    summary="Usuń pustą lokalizację",
     responses={
         status.HTTP_200_OK: {
             "model": LocationDeleteResponse,
-            "description": "Lokalizacja została usunięta, a przypisane przedmioty przeniesione.",
+            "description": "Lokalizacja i jej puste poddrzewo zostały usunięte.",
         },
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Lokalizacja nie może zostać usunięta z podanym zastępstwem.",
+            "description": "Lokalizacja lub jej poddrzewo zawiera przypisane przedmioty.",
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
@@ -157,18 +155,15 @@ def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep) ->
         },
     },
 )
-def delete_location(location_id: LocationID, data: LocationDeleteRequest, db: DBDep) -> LocationDeleteResponse:
+def delete_location(location_id: LocationID, db: DBDep) -> LocationDeleteResponse:
     try:
-        migrated_items_count = LocationService(db).delete_location(
-            location_id=location_id,
-            replacement_location_id=data.replacement_location_id,
-        )
-    except (LocationDeleteReplacementError, LocationHasChildrenError) as err:
+        deleted_locations_count = LocationService(db).delete_location(location_id)
+    except LocationHasAssignedItemsError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ErrorResponse(
                 code=status.HTTP_400_BAD_REQUEST,
-                detail="Location cannot be deleted with the provided replacement.",
+                detail="Location cannot be deleted because it or its descendants contain assigned items.",
             ).model_dump(),
         ) from err
     except LocationNotFoundError as err:
@@ -179,8 +174,7 @@ def delete_location(location_id: LocationID, data: LocationDeleteRequest, db: DB
 
     return LocationDeleteResponse(
         id=location_id,
-        replacement_location_id=data.replacement_location_id,
-        migrated_items_count=migrated_items_count,
+        deleted_locations_count=deleted_locations_count,
     )
 
 

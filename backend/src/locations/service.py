@@ -16,11 +16,7 @@ class InvalidLocationParentError(Exception):
     pass
 
 
-class LocationHasChildrenError(Exception):
-    pass
-
-
-class LocationDeleteReplacementError(Exception):
+class LocationHasAssignedItemsError(Exception):
     pass
 
 
@@ -116,30 +112,29 @@ class LocationService:
 
         return self.get_location(location.id)
 
-    def delete_location(self, location_id: int, replacement_location_id: int, changed_by: int | None = None) -> int:
+    def delete_location(self, location_id: int, changed_by: int | None = None) -> int:
         location = self._get_location(location_id)
-        replacement = self._get_location(replacement_location_id)
+        subtree = self._location_subtree(location_id)
+        subtree_ids = [location_id for location_id, _depth in subtree]
 
-        if location.id == replacement.id:
-            raise LocationDeleteReplacementError()
-        if self.db.scalar(select(Location.id).where(Location.parent_id == location_id).limit(1)) is not None:
-            raise LocationHasChildrenError()
+        assigned_items_count = self.db.scalar(select(func.count(Item.id)).where(Item.location_id.in_(subtree_ids))) or 0
+        if assigned_items_count > 0:
+            raise LocationHasAssignedItemsError()
 
-        items = list(self.db.scalars(select(Item).where(Item.location_id == location_id)).all())
-        for item in items:
-            item.location_id = replacement.id
-
-        migrated_items_count = len(items)
+        deleted_locations_count = len(subtree)
         self._add_history(
             location.id,
             LocationHistoryChangeType.DELETED,
-            f"Deleted location {location.name}; moved {migrated_items_count} items to {replacement.name}",
+            f"Deleted location {location.name}",
             changed_by,
         )
-        self.db.delete(location)
+        for subtree_location_id, _depth in subtree:
+            subtree_location = self._get_location_model(subtree_location_id)
+            if subtree_location is not None:
+                self.db.delete(subtree_location)
         self.db.commit()
 
-        return migrated_items_count
+        return deleted_locations_count
 
     def list_history(self, location_id: int) -> list[LocationHistory]:
         self._get_location(location_id)
@@ -195,6 +190,29 @@ class LocationService:
             current = self._get_location_model(current.parent_id) if current.parent_id is not None else None
 
         return False
+
+    def _location_subtree(self, location_id: int) -> list[tuple[int, int]]:
+        location_tree = (
+            select(
+                Location.id,
+                literal(0).label("depth"),
+            )
+            .where(Location.id == location_id)
+            .cte("location_tree", recursive=True)
+        )
+        child = aliased(Location)
+        location_tree = location_tree.union_all(
+            select(
+                child.id,
+                (location_tree.c.depth + 1).label("depth"),
+            ).where(child.parent_id == location_tree.c.id)
+        )
+
+        return list(
+            self.db.execute(
+                select(location_tree.c.id, location_tree.c.depth).order_by(location_tree.c.depth.desc())
+            ).all()
+        )
 
     def _add_history(
         self,
