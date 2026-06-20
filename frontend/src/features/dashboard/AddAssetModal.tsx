@@ -20,10 +20,12 @@ import { Textarea } from '@/components/ui/textarea';
 import type { InventoryItem, AppUser } from '@/types';
 import { ROLES } from '../auth/permissions';
 import { useInventory } from '../inventory/useInventory';
+import { useLocations } from '../locations/useLocations';
 import { useUsers } from '../users/useUsers';
 
 type Category = { id: number; name: string; parentId: number | null };
 type ApiUser = { id: number; firstName: string; lastName: string };
+type LocationOption = { id: number; path: string };
 
 const getUserName = (user: Pick<ApiUser, 'firstName' | 'lastName'>) =>
     `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
@@ -39,12 +41,6 @@ const INITIAL_CATEGORIES: Category[] = [
     { id: 8, name: 'Akcesoria i optyka', parentId: null },
 ];
 
-const LOCATIONS = [
-    { id: 1, path: 'Budynek D10' },
-    { id: 2, path: 'Budynek D11' },
-    { id: 3, path: 'Budynek C3' },
-];
-
 type AddAssetModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -56,12 +52,15 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     const { t } = useTranslation();
     const { createItem, isLoading, error, clearError } = useInventory();
     const { listUsers } = useUsers();
+    const { listLocations } = useLocations();
 
     const isAdmin = user.role === ROLES.ADMIN;
 
     const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
     const [users, setUsers] = useState<ApiUser[]>([]);
+    const [locations, setLocations] = useState<LocationOption[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
+    const [locationsLoading, setLocationsLoading] = useState(false);
     const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryParentId, setNewCategoryParentId] = useState('root');
@@ -69,7 +68,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         name: '',
         description: '',
         categoryId: String(INITIAL_CATEGORIES[0].id),
-        locationId: String(LOCATIONS[0].id),
+        locationId: '',
         ownerId: '',
     });
 
@@ -96,9 +95,27 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
             name: '',
             description: '',
             categoryId: String(categories[0]?.id ?? ''),
-            locationId: String(LOCATIONS[0].id),
+            locationId: '',
             ownerId: defaultOwnerId,
         });
+
+        setLocationsLoading(true);
+        listLocations({ limit: 100 })
+            .then((result) => {
+                if (!result.success) {
+                    setLocations([]);
+                    return;
+                }
+
+                setLocations(result.locations);
+                if (result.locations.length > 0) {
+                    setFormData((current) => ({
+                        ...current,
+                        locationId: String(result.locations[0].id),
+                    }));
+                }
+            })
+            .finally(() => setLocationsLoading(false));
 
         if (!isAdmin) {
             setUsers([]);
@@ -119,7 +136,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                 }
             })
             .finally(() => setUsersLoading(false));
-    }, [isOpen, categories, clearError, isAdmin, user.id, listUsers]);
+    }, [isOpen, categories, clearError, isAdmin, user.id, listUsers, listLocations]);
 
     const handleAddCategory = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -142,12 +159,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         if (!formData.name.trim()) return;
 
         const ownerId = isAdmin ? Number(formData.ownerId) : Number(user.id);
-        if (!ownerId) return;
+        const locationId = Number(formData.locationId);
+        if (!ownerId || !locationId) return;
 
         const result = await createItem({
             name: formData.name,
             categoryId: Number(formData.categoryId),
-            locationId: Number(formData.locationId),
+            locationId,
             ownerId,
             description: formData.description || null,
         });
@@ -163,7 +181,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                 status: result.data.status,
                 name: formData.name,
                 category: categories.find((category) => category.id === Number(formData.categoryId))?.name ?? '',
-                location: LOCATIONS.find((location) => location.id === Number(formData.locationId))?.path ?? '',
+                location: locations.find((location) => location.id === locationId)?.path ?? '',
                 owner: ownerName,
                 description: formData.description,
             });
@@ -269,16 +287,26 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
                         <div className="space-y-2">
                             <Label>{t('addAssetModal.building')} *</Label>
-                            <Select value={formData.locationId} onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}>
+                            <Select
+                                value={formData.locationId}
+                                onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
+                                disabled={locationsLoading || locations.length === 0}
+                            >
                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>{LOCATIONS.map((location) => <SelectItem key={location.id} value={String(location.id)}>{location.path}</SelectItem>)}</SelectContent>
+                                <SelectContent>
+                                    {locations.map((location) => (
+                                        <SelectItem key={location.id} value={String(location.id)}>
+                                            {location.path}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
                             </Select>
                         </div>
                     </form>
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>{t('addAssetModal.cancel')}</Button>
-                        <Button type="submit" form="add-asset-form" disabled={isLoading || (isAdmin && usersLoading)}>
+                        <Button type="submit" form="add-asset-form" disabled={isLoading || locationsLoading || locations.length === 0 || (isAdmin && usersLoading)}>
                             {isLoading ? t('addAssetModal.saving') : t('addAssetModal.save')}
                         </Button>
                     </DialogFooter>
