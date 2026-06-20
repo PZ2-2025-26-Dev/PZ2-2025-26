@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
     Box,
@@ -21,25 +21,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { AppUser, InventoryItem } from '@/types';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
+import { useCategories } from '../categories/useCategories';
+import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
 import UserManager from '../users/UserManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 
-const INITIAL_ITEMS: InventoryItem[] = [
-    { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski', description: 'Dwukanałowy oscyloskop cyfrowy przeznaczony do pomiarów sygnałów analogowych i cyfrowych.' },
-    { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01', description: 'Generator sygnałów arbitralnych. Dokumentacja producenta: https://en.wikipedia.org/wiki/Function_generator' },
-    { id: 'AGH-WFIIS-0391', name: 'Zasilacz laboratoryjny programowalny', producer: 'Rigol', model: 'DP832', serialNumber: 'DP8B123456', status: 'oczekuje akceptacji', category: 'Zasilacze laboratoryjne', location: 'Budynek D10 / Pokój 204 / Szafa C', owner: 'dr inż. Jan Kowalski', borrower: 'Anna Malik', description: 'Trzykanałowy zasilacz laboratoryjny wykorzystywany w laboratoriach elektroniki, automatyki i systemów wbudowanych.' },
-];
-
-const CATEGORIES = ['Aparatura pomiarowa', 'Oscyloskopy', 'Generatory funkcyjne', 'Aparatura zasilająca', 'Zasilacze laboratoryjne', 'Sprzęt IT', 'Laptopy', 'Akcesoria i optyka'];
-const STATUSES = ['dostępny', 'wypożyczony', 'oczekuje akceptacji', 'uszkodzony', 'zarezerwowany'];
+type CategoryOption = { id: number; name: string };
 
 type DashboardPageProps = {
     user: AppUser;
@@ -50,7 +46,12 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
+    const { listItems, isLoading, error, clearError } = useInventory();
+    const { listCategories } = useCategories();
+
+    const [items, setItems] = useState<InventoryItem[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [categoryFilter, setCategoryFilter] = useState('all');
@@ -65,16 +66,54 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [isDarkMode]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
-    const filteredItems = canViewList
-        ? items.filter((item) => {
+
+    const refreshItems = useCallback(async () => {
+        const result = await listItems({ limit: 50 });
+        if (result.success) {
+            setItems(result.items);
+            setTotalCount(result.total);
+        }
+    }, [listItems]);
+
+    const refreshCategories = useCallback(async () => {
+        const result = await listCategories({ limit: 100 });
+        if (result.success) {
+            setCategories(result.categories);
+        }
+    }, [listCategories]);
+
+    useEffect(() => {
+        if (!canViewList) return;
+        refreshItems();
+        refreshCategories();
+    }, [canViewList, refreshItems, refreshCategories]);
+
+    const filteredItems = useMemo(() => {
+        if (!canViewList) return [];
+
+        return items.filter((item) => {
             const query = searchQuery.toLowerCase();
-            const matchesSearch = [item.name, item.producer, String(item.id), item.serialNumber]
-                .some((value) => value?.toLowerCase().includes(query));
-            return matchesSearch
-                && (statusFilter === 'all' || item.status === statusFilter)
-                && (categoryFilter === 'all' || item.category === categoryFilter);
-        })
-        : [];
+            const matchesSearch = !query || [
+                item.name,
+                String(item.id),
+                item.inventory_number,
+                item.description,
+                item.category,
+                item.location,
+                item.owner,
+            ].some((value) => value?.toLowerCase().includes(query));
+            const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+            const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+    }, [canViewList, items, searchQuery, statusFilter, categoryFilter]);
+
+    const stats = useMemo(() => ({
+        total: totalCount,
+        borrowed: items.filter((item) => item.status === 'loaned').length,
+        pending: items.filter((item) => item.status === 'pending_approval').length,
+        damaged: items.filter((item) => item.status === 'broken').length,
+    }), [items, totalCount]);
 
     const handleUpdateItemStatus = (
         itemId: string | number,
@@ -91,6 +130,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         } : item));
         setIsDetailsModalOpen(false);
     };
+
+    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`, { defaultValue: status });
 
     return (
         <div className="flex min-h-screen flex-col bg-slate-50 font-sans dark:bg-slate-900">
@@ -144,11 +185,22 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         </TabsList>
 
                         <TabsContent value="inventory" className="space-y-5">
+                            {error && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle />
+                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                    <AlertDescription className="flex items-center justify-between gap-3">
+                                        <span>{error}</span>
+                                        <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
                             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                                <StatCard title={t('dashboard.totalAssets')} value={items.length + 1245} icon={Box} />
-                                <StatCard title={t('dashboard.borrowedAssets')} value="142" icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
-                                <StatCard title={t('dashboard.pendingApprovals')} value="7" icon={Users} className="text-amber-600 dark:text-amber-400" />
-                                <StatCard title={t('dashboard.damagedAssets')} value="3" icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
+                                <StatCard title={t('dashboard.totalAssets')} value={stats.total} icon={Box} />
+                                <StatCard title={t('dashboard.borrowedAssets')} value={stats.borrowed} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
+                                <StatCard title={t('dashboard.pendingApprovals')} value={stats.pending} icon={Users} className="text-amber-600 dark:text-amber-400" />
+                                <StatCard title={t('dashboard.damagedAssets')} value={stats.damaged} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
                             </div>
 
                             <Card>
@@ -168,20 +220,30 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         </div>
                                     </div>
                                     <div className="grid gap-3 border-t border-slate-100 pt-4 dark:border-slate-800 sm:grid-cols-2">
-                                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                            <SelectTrigger><SelectValue placeholder={t('dashboard.filterStatus')} /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t('dashboard.all')}</SelectItem>
-                                                {STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                            <SelectTrigger><SelectValue placeholder={t('dashboard.filterCategory')} /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t('dashboard.all')}</SelectItem>
-                                                {CATEGORIES.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="status-filter">{t('dashboard.filterStatus')}</Label>
+                                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                                <SelectTrigger id="status-filter"><SelectValue placeholder={t('dashboard.all')} /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t('dashboard.all')}</SelectItem>
+                                                    {ITEM_STATUSES.map((status) => (
+                                                        <SelectItem key={status} value={status}>{getStatusLabel(status)}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="category-filter">{t('dashboard.filterCategory')}</Label>
+                                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                                <SelectTrigger id="category-filter"><SelectValue placeholder={t('dashboard.all')} /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t('dashboard.all')}</SelectItem>
+                                                    {categories.map((category) => (
+                                                        <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -199,17 +261,25 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {filteredItems.length > 0 ? filteredItems.map((item) => (
+                                        {isLoading && filteredItems.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="py-10 text-center text-slate-400">
+                                                    {t('userManager.loading')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : filteredItems.length > 0 ? filteredItems.map((item) => (
                                             <TableRow key={item.id} className="cursor-pointer" onClick={() => { setSelectedItem(item); setIsDetailsModalOpen(true); }}>
-                                                <TableCell className="font-mono text-xs text-slate-400">{item.id}</TableCell>
+                                                <TableCell className="font-mono text-xs text-slate-400">{item.inventory_number ?? item.id}</TableCell>
                                                 <TableCell>
                                                     <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
-                                                    <div className="text-[10px] text-slate-400">{item.producer} / {item.model}</div>
+                                                    {item.description && (
+                                                        <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="text-slate-600 dark:text-slate-400">{item.category}</TableCell>
                                                 <TableCell className="max-w-[220px] whitespace-normal text-slate-600 dark:text-slate-400">{item.location}</TableCell>
                                                 <TableCell>
-                                                    <StatusBadge status={item.status} />
+                                                    <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
                                                     {item.borrower && <div className="mt-1 text-[9px] text-slate-400">{item.borrower} ({item.dueDate})</div>}
                                                 </TableCell>
                                                 <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
@@ -236,7 +306,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 )}
             </main>
 
-            <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={(asset: InventoryItem) => setItems((current) => [asset, ...current])} />
+            <AddAssetModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSave={() => refreshItems()}
+                user={user}
+            />
             <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
         </div>
     );
