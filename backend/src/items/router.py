@@ -153,6 +153,9 @@ def scan_item(
     except ValueError:
         return error_response(status.HTTP_400_BAD_REQUEST, "Invalid QR code")
 
+    if code != str(item_uuid):
+        return error_response(status.HTTP_400_BAD_REQUEST, "Invalid QR code")
+
     try:
         return ItemService(db).get_item_by_qr_code(item_uuid)
     except ValueError:
@@ -218,11 +221,12 @@ def download_item_qr_png(
 )
 def download_item_label_pdf(
     item_id: ItemID,
-    data: ItemLabelRequest,
     db: DBDep,
     _reader: RequireItemReader,
+    data: ItemLabelRequest | None = None,
 ) -> StreamingResponse | JSONResponse:
     service = ItemService(db)
+    label_request = data or ItemLabelRequest()
 
     try:
         item = service.get_item_for_label(item_id)
@@ -230,7 +234,7 @@ def download_item_label_pdf(
         return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
 
     try:
-        label = generate_label_pdf(item, data.fields, data.width_mm, data.height_mm)
+        label = generate_label_pdf(item, label_request.fields, label_request.width_mm, label_request.height_mm)
     except ValueError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
 
@@ -265,11 +269,12 @@ def download_item_label_pdf(
 )
 def download_item_label_png(
     item_id: ItemID,
-    data: ItemLabelRequest,
     db: DBDep,
     _reader: RequireItemReader,
+    data: ItemLabelRequest | None = None,
 ) -> StreamingResponse | JSONResponse:
     service = ItemService(db)
+    label_request = data or ItemLabelRequest()
 
     try:
         item = service.get_item_for_label(item_id)
@@ -277,7 +282,7 @@ def download_item_label_png(
         return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
 
     try:
-        label = generate_label_image(item, data.fields, "PNG", data.width_mm, data.height_mm)
+        label = generate_label_image(item, label_request.fields, "PNG", label_request.width_mm, label_request.height_mm)
     except ValueError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
 

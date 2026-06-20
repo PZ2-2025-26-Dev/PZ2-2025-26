@@ -105,10 +105,31 @@ def test_scan_item_endpoint_returns_item(
     assert body["name"] == created["name"]
 
 
+def test_scan_item_endpoint_returns_seed_item_by_uuid(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/scan/{SEED_IDS.laptop_uuid}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == str(SEED_IDS.laptop_uuid)
+    assert body["name"] == "Laptop developerski"
+
+
 def test_scan_item_endpoint_returns_400_for_invalid_code(
     api_client: TestClient,
 ):
     response = api_client.get("/items/scan/not-a-uuid")
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Invalid QR code"}
+
+
+def test_scan_item_endpoint_returns_400_for_non_canonical_uuid(
+    api_client: TestClient,
+):
+    response = api_client.get("/items/scan/00000000000000000000000000040001")
 
     assert response.status_code == 400
     assert response.json() == {"code": 400, "detail": "Invalid QR code"}
@@ -181,6 +202,32 @@ def test_download_item_label_endpoint_accepts_empty_fields(
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_pdf_endpoint_accepts_missing_body(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Etykieta bez konfiguracji")).json()
+
+    response = api_client.post(f"/items/{created['id']}/label.pdf")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_download_item_label_png_endpoint_accepts_missing_body(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="PNG bez konfiguracji")).json()
+
+    response = api_client.post(f"/items/{created['id']}/label.png")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
 
 
 def test_download_item_label_endpoint_supports_parameters_fields(

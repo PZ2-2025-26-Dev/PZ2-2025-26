@@ -136,7 +136,27 @@ class ItemLabelField(StrEnum):
 
 
 class ItemLabelRequest(BaseModel):
-    fields: list[str] = Field(default_factory=list)
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "fields": [],
+                    "width_mm": 76.2,
+                    "height_mm": 30.48,
+                },
+                {
+                    "fields": ["name", "category", "location", "parameters.serial_number"],
+                    "width_mm": 50,
+                    "height_mm": 25,
+                },
+            ]
+        }
+    )
+
+    fields: list[str] = Field(
+        default_factory=list,
+        examples=[["name", "category", "location", "parameters.serial_number"]],
+    )
     width_mm: Annotated[float, Field(ge=20, le=200)] = 76.2
     height_mm: Annotated[float, Field(ge=10, le=150)] = 30.48
 
