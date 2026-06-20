@@ -37,12 +37,9 @@ type CategoriesPagedResponse = {
 export type CategoryCreateInput = {
     name: string;
     parentId: number | null;
-    description: string | null;
 };
 
-export type CategoryUpdateInput = CategoryCreateInput & {
-    isActive: boolean;
-};
+export type CategoryUpdateInput = CategoryCreateInput;
 
 const normalizeCategory = (category: CategoryApiResponse): Category => ({
     id: category.id,
@@ -56,14 +53,11 @@ const normalizeCategory = (category: CategoryApiResponse): Category => ({
 const toCreatePayload = (category: CategoryCreateInput) => ({
     name: category.name,
     parent_id: category.parentId,
-    description: category.description,
 });
 
 const toUpdatePayload = (category: CategoryUpdateInput) => ({
     name: category.name,
     parent_id: category.parentId,
-    description: category.description,
-    is_active: category.isActive,
 });
 
 export const useCategories = () => {
@@ -140,6 +134,26 @@ export const useCategories = () => {
         }
     }, []);
 
+    const deleteCategory = useCallback(async (categoryId: number, replacementCategoryId: number) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            await axiosClient.delete(
+                ENDPOINTS.CATEGORIES.DETAILS(categoryId),
+                { params: { replacement_category_id: replacementCategoryId } },
+            );
+
+            return { success: true };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -148,6 +162,7 @@ export const useCategories = () => {
         listCategories,
         createCategory,
         updateCategory,
+        deleteCategory,
         isLoading,
         error,
         clearError,

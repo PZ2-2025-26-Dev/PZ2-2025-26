@@ -10,6 +10,7 @@ import {
     Plus,
     Search,
     Sun,
+    Tags,
     Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -183,7 +184,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     {pendingUserCount > 0 && <Badge variant="destructive" className="h-4 px-1.5 text-[9px]">{pendingUserCount}</Badge>}
                                 </TabsTrigger>
                                 <TabsTrigger value="locations"><MapPinned />{t('dashboard.tabLocations')}</TabsTrigger>
-                                <TabsTrigger value="categories">{t('dashboard.tabCategories')}</TabsTrigger>
+                                <TabsTrigger value="categories"><Tags />{t('dashboard.tabCategories')}</TabsTrigger>
                             </RoleGuard>
                         </TabsList>
 

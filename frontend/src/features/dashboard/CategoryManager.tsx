@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, ChevronDown, ChevronRight, Folder, FolderTree, Pencil, Plus, RefreshCw } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Pencil, Plus, RefreshCw, Tag, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -10,20 +10,19 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useCategories, type Category } from './useCategories';
 
 type CategoryNode = Category & { children: CategoryNode[] };
 
 const ROOT_CATEGORY = 'root';
-const CATEGORY_STATUSES = ['active', 'inactive'] as const;
 
 type CategoryFormState = {
     name: string;
     parentId: string;
-    description: string;
-    status: typeof CATEGORY_STATUSES[number];
 };
+
+const compareCategories = (first: Category, second: Category) =>
+    first.path.localeCompare(second.path, 'pl', { sensitivity: 'base' });
 
 const buildCategoryTree = (categories: Category[]) => {
     const lookup: Record<number, CategoryNode> = {};
@@ -41,10 +40,16 @@ const buildCategoryTree = (categories: Category[]) => {
         else roots.push(node);
     });
 
+    const sortNodes = (nodes: CategoryNode[]) => {
+        nodes.sort(compareCategories);
+        nodes.forEach((node) => sortNodes(node.children));
+    };
+    sortNodes(roots);
+
     return roots;
 };
 
-const flattenCategories = (categories: Category[]) => [...categories].sort((first, second) => first.path.localeCompare(second.path));
+const flattenCategories = (categories: Category[]) => [...categories].sort(compareCategories);
 
 const getParentOptions = (categories: Category[]) => {
     return flattenCategories(categories);
@@ -73,14 +78,15 @@ const collectDescendantIds = (categoryId: number, categories: Category[]) => {
 
 export default function CategoryManager() {
     const { t } = useTranslation();
-    const { listCategories, createCategory, updateCategory, isLoading, error, clearError } = useCategories();
+    const { listCategories, createCategory, updateCategory, deleteCategory, isLoading, error, clearError } = useCategories();
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [selectedParentId, setSelectedParentId] = useState(ROOT_CATEGORY);
-    const [newCategoryDescription, setNewCategoryDescription] = useState('');
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [editForm, setEditForm] = useState<CategoryFormState | null>(null);
+    const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+    const [replacementCategoryId, setReplacementCategoryId] = useState('');
     const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(() => new Set());
 
     const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
@@ -93,6 +99,14 @@ export default function CategoryManager() {
 
         return getParentOptions(categories).filter((category) => !blockedIds.has(category.id));
     }, [editForm, editingCategory, categories]);
+    const deleteReplacementOptions = useMemo(() => {
+        if (!deletingCategory) return [];
+
+        const blockedIds = collectDescendantIds(deletingCategory.id, categories);
+        blockedIds.add(deletingCategory.id);
+
+        return getParentOptions(categories).filter((category) => !blockedIds.has(category.id));
+    }, [deletingCategory, categories]);
 
     const refreshCategories = useCallback(async () => {
         const result = await listCategories();
@@ -123,6 +137,12 @@ export default function CategoryManager() {
         }
     }, [editForm, editParentOptions]);
 
+    useEffect(() => {
+        if (deletingCategory) {
+            setReplacementCategoryId(deleteReplacementOptions[0] ? String(deleteReplacementOptions[0].id) : '');
+        }
+    }, [deleteReplacementOptions, deletingCategory]);
+
     const handleCreateCategory = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const trimmedName = newCategoryName.trim();
@@ -132,13 +152,11 @@ export default function CategoryManager() {
         const result = await createCategory({
             name: trimmedName,
             parentId: selectedParentId === ROOT_CATEGORY ? null : Number(selectedParentId),
-            description: newCategoryDescription.trim() || null,
         });
 
         if (result.success) {
             setNewCategoryName('');
             setSelectedParentId(ROOT_CATEGORY);
-            setNewCategoryDescription('');
             await refreshCategories();
         }
     };
@@ -148,8 +166,6 @@ export default function CategoryManager() {
         setEditForm({
             name: category.name,
             parentId: category.parentId ? String(category.parentId) : ROOT_CATEGORY,
-            description: category.description ?? '',
-            status: category.isActive ? 'active' : 'inactive',
         });
         clearError();
     };
@@ -166,12 +182,27 @@ export default function CategoryManager() {
         const result = await updateCategory(editingCategory.id, {
             name: editForm.name.trim(),
             parentId: editForm.parentId === ROOT_CATEGORY ? null : Number(editForm.parentId),
-            description: editForm.description.trim() || null,
-            isActive: editForm.status === 'active',
         });
 
         if (result.success) {
             closeEditDialog();
+            await refreshCategories();
+        }
+    };
+
+    const openDeleteDialog = (category: Category) => {
+        setDeletingCategory(category);
+        clearError();
+    };
+
+    const handleDeleteCategory = async () => {
+        if (!deletingCategory || !replacementCategoryId) return;
+
+        const result = await deleteCategory(deletingCategory.id, Number(replacementCategoryId));
+
+        if (result.success) {
+            setDeletingCategory(null);
+            setReplacementCategoryId('');
             await refreshCategories();
         }
     };
@@ -191,7 +222,6 @@ export default function CategoryManager() {
         const hasChildren = node.children.length > 0;
         const isExpanded = expandedCategoryIds.has(node.id);
         const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
-        const CategoryIcon = hasChildren ? FolderTree : Folder;
 
         return (
             <Collapsible key={node.id} open={isExpanded} onOpenChange={() => toggleCategory(node.id)}>
@@ -210,7 +240,7 @@ export default function CategoryManager() {
                             ) : (
                                 <span className="block size-7 shrink-0" />
                             )}
-                            <CategoryIcon className={level === 0 ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'} />
+                            <Tag className={level === 0 ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'} />
                             <span className={level === 0 ? 'truncate text-sm font-semibold' : 'truncate text-sm text-slate-600 dark:text-slate-400'}>
                                 {node.name}
                             </span>
@@ -223,6 +253,9 @@ export default function CategoryManager() {
                     <div className="flex shrink-0 items-center gap-2">
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
                             <Pencil />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
+                            <Trash2 />
                         </Button>
                     </div>
                 </div>
@@ -275,16 +308,6 @@ export default function CategoryManager() {
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="new-category-description">{t('categoryManager.descriptionLabel')}</Label>
-                            <Textarea
-                                id="new-category-description"
-                                value={newCategoryDescription}
-                                onChange={(event) => setNewCategoryDescription(event.target.value)}
-                                placeholder={t('categoryManager.descriptionPlaceholder')}
-                            />
-                        </div>
-
                         <Button type="submit" className="w-full" disabled={isLoading || !newCategoryName.trim()}>
                             <Plus />
                             {isLoading ? t('categoryManager.saving') : t('categoryManager.addBtn')}
@@ -312,7 +335,7 @@ export default function CategoryManager() {
                 </CardContent>
             </Card>
 
-            <Dialog open={Boolean(editingLocation && editForm)} onOpenChange={(open) => !open && closeEditDialog()}>
+            <Dialog open={Boolean(editingCategory && editForm)} onOpenChange={(open) => !open && closeEditDialog()}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('categoryManager.editTitle')}</DialogTitle>
@@ -330,18 +353,6 @@ export default function CategoryManager() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>{t('categoryManager.statusLabel')}</Label>
-                                <Select value={editForm.status} onValueChange={(status) => setEditForm({ ...editForm, status: status as CategoryFormState['status'] })}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {CATEGORY_STATUSES.map((status) => (
-                                            <SelectItem key={status} value={status}>{t(`categoryManager.statuses.${status}`)}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
                                 <Label>{t('categoryManager.parentLabel')}</Label>
                                 <Select value={editForm.parentId} onValueChange={(parentId) => setEditForm({ ...editForm, parentId })}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -353,21 +364,42 @@ export default function CategoryManager() {
                                     </SelectContent>
                                 </Select>
                             </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-category-description">{t('categoryManager.descriptionLabel')}</Label>
-                                <Textarea
-                                    id="edit-category-description"
-                                    value={editForm.description}
-                                    onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
-                                />
-                            </div>
                         </form>
                     )}
                     <DialogFooter>
                         <Button variant="outline" onClick={closeEditDialog}>{t('categoryManager.cancel')}</Button>
                         <Button type="submit" form="edit-category-form" disabled={isLoading || !editForm?.name.trim()}>
                             {isLoading ? t('categoryManager.saving') : t('categoryManager.save')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={Boolean(deletingCategory)} onOpenChange={(open) => !open && setDeletingCategory(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('categoryManager.deleteTitle')}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            {t('categoryManager.deleteDesc', { name: deletingCategory?.name })}
+                        </p>
+                        <div className="space-y-2">
+                            <Label>{t('categoryManager.replacementLabel')}</Label>
+                            <Select value={replacementCategoryId} onValueChange={setReplacementCategoryId}>
+                                <SelectTrigger><SelectValue placeholder={t('categoryManager.replacementPlaceholder')} /></SelectTrigger>
+                                <SelectContent>
+                                    {deleteReplacementOptions.map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>{category.path}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeletingCategory(null)}>{t('categoryManager.cancel')}</Button>
+                        <Button variant="destructive" onClick={() => void handleDeleteCategory()} disabled={isLoading || !replacementCategoryId}>
+                            {isLoading ? t('categoryManager.deleting') : t('categoryManager.confirmDelete')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
