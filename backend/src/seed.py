@@ -1,5 +1,6 @@
 import argparse
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -14,14 +15,24 @@ from src.config import config
 from src.constants import Environment
 from src.database import Base, SessionLocal, engine
 from src.guests import models as guest_models  # noqa: F401
-from src.items.constants import ItemStatus
-from src.items.models import Item
+from src.items.constants import ItemChangeLogType, ItemStatus
+from src.items.models import Item, ItemHistory
 from src.loans import models as loan_models  # noqa: F401
 from src.locations.constants import LocationType
 from src.locations.models import Location
 from src.users.models import User
 
 SEED_PASSWORD = "SeedPassword123!"
+SEED_ITEM_HISTORY_AT = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+
+SEED_LAPTOP_OLD_ID = "LEG-LAP-001"
+SEED_LAPTOP_PARAMETERS = {"cpu": "Intel i7", "ram_gb": 16, "os": "Linux"}
+
+SEED_PROJECTOR_OLD_ID = "LEG-PROJ-001"
+SEED_PROJECTOR_PARAMETERS = {"lumens": 3500, "resolution": "1920x1080"}
+
+SEED_ADAPTER_OLD_ID = "LEG-ADP-001"
+SEED_ADAPTER_PARAMETERS = {"ports": ["USB-C", "HDMI"], "watt": 65}
 
 
 @dataclass(frozen=True)
@@ -39,8 +50,15 @@ class SeedIds:
     accessories: int = 30_003
 
     laptop: int = 40_001
+    laptop_uuid: UUID = UUID("00000000-0000-0000-0000-000000040001")
     projector: int = 40_002
+    projector_uuid: UUID = UUID("00000000-0000-0000-0000-000000040002")
     adapter: int = 40_003
+    adapter_uuid: UUID = UUID("00000000-0000-0000-0000-000000040003")
+
+    laptop_history: int = 50_001
+    projector_history: int = 50_002
+    adapter_history: int = 50_003
 
 
 SEED_IDS = SeedIds()
@@ -231,7 +249,7 @@ def seed_database(session: Session) -> SeedIds:
     items = (
         (
             SEED_IDS.laptop,
-            UUID("00000000-0000-0000-0000-000000040001"),
+            SEED_IDS.laptop_uuid,
             {
                 "name": "Laptop developerski",
                 "location_id": SEED_IDS.cabinet,
@@ -239,11 +257,13 @@ def seed_database(session: Session) -> SeedIds:
                 "owner_id": SEED_IDS.regular_user,
                 "status": ItemStatus.AVAILABLE,
                 "description": "Przykładowy przedmiot dostępny do wypożyczenia",
+                "oldID": SEED_LAPTOP_OLD_ID,
+                "parameters": SEED_LAPTOP_PARAMETERS,
             },
         ),
         (
             SEED_IDS.projector,
-            UUID("00000000-0000-0000-0000-000000040002"),
+            SEED_IDS.projector_uuid,
             {
                 "name": "Projektor",
                 "location_id": SEED_IDS.room,
@@ -251,11 +271,13 @@ def seed_database(session: Session) -> SeedIds:
                 "owner_id": SEED_IDS.admin_user,
                 "status": ItemStatus.AVAILABLE,
                 "description": "Przykładowy projektor",
+                "oldID": SEED_PROJECTOR_OLD_ID,
+                "parameters": SEED_PROJECTOR_PARAMETERS,
             },
         ),
         (
             SEED_IDS.adapter,
-            UUID("00000000-0000-0000-0000-000000040003"),
+            SEED_IDS.adapter_uuid,
             {
                 "name": "Adapter USB-C",
                 "location_id": SEED_IDS.cabinet,
@@ -263,17 +285,57 @@ def seed_database(session: Session) -> SeedIds:
                 "owner_id": SEED_IDS.regular_user,
                 "status": ItemStatus.BROKEN,
                 "description": "Przykładowy uszkodzony przedmiot",
+                "oldID": SEED_ADAPTER_OLD_ID,
+                "parameters": SEED_ADAPTER_PARAMETERS,
             },
         ),
     )
-    for item_id, inventory_number, values in items:
+    for item_id, item_uuid, values in items:
         _upsert(
             session,
             Item,
             item_id,
-            select(Item).where(Item.inventory_number == inventory_number),
-            inventory_number=inventory_number,
+            select(Item).where(Item.uuid == item_uuid),
+            uuid=item_uuid,
             **values,
+        )
+
+    session.flush()
+
+    item_histories = (
+        (
+            SEED_IDS.laptop_history,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            "Laptop developerski utworzony w seedzie",
+        ),
+        (
+            SEED_IDS.projector_history,
+            SEED_IDS.projector,
+            SEED_IDS.admin_user,
+            "Projektor utworzony w seedzie",
+        ),
+        (
+            SEED_IDS.adapter_history,
+            SEED_IDS.adapter,
+            SEED_IDS.regular_user,
+            "Adapter USB-C utworzony w seedzie",
+        ),
+    )
+    for history_id, item_id, updated_by, description in item_histories:
+        _upsert(
+            session,
+            ItemHistory,
+            history_id,
+            select(ItemHistory).where(
+                ItemHistory.item_id == item_id,
+                ItemHistory.change_type == ItemChangeLogType.CREATED,
+            ),
+            item_id=item_id,
+            updated_at=SEED_ITEM_HISTORY_AT,
+            updated_by=updated_by,
+            change_type=ItemChangeLogType.CREATED,
+            description=description,
         )
 
     session.flush()

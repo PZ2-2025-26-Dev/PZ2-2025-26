@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
 from src.categories.schemas import CategoryID, CategoryName
-from src.items.constants import ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
+from src.items.constants import BASIC_LENGTH, ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
 from src.locations.schemas import LocationID, LocationPath
 
-type ItemID = int
+type ItemID = UUID
 type ItemName = Annotated[str, Field(min_length=1, max_length=ITEM_NAME_LENGTH)]
 type ItemDescription = Annotated[str, Field(min_length=1, max_length=ITEM_DESC_LENGTH)]
-
+type StringBasic = Annotated[str, Field(min_length=1, max_length=BASIC_LENGTH)]
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
 
 
@@ -23,14 +23,13 @@ class ItemCreate(BaseModel):
     location_id: LocationID
     owner_id: UserID
     description: ItemDescription | None = None
+    parameters: dict | None = None
+    oldID: StringBasic | None = None
 
 
-class ItemCreateResponse(BaseModel):
+class ItemCreateResponse(ItemCreate):
     id: ItemID
-    name: ItemName
-    inventory_number: UUID
     status: ItemStatus
-    description: ItemDescription | None
 
 
 class ItemCategory(BaseModel):
@@ -48,24 +47,38 @@ class ItemOwner(BaseModel):
     name: UserName
 
 
-class ItemResponse(BaseModel):
+class ItemSearch(BaseModel):
+    name: SearchStr | None = None
+    description: SearchStr | None = None
+    category_id: CategoryID | None = None
+    location_id: LocationID | None = None
+    owner_id: UserID | None = None
+    status: ItemStatus | None = None
+    page: Annotated[int, Field(ge=1)] = 1
+    limit: Annotated[int, Field(ge=1, le=100)] = 20
+
+
+class ItemSearchResponse(BaseModel):
     name: ItemName
     id: ItemID
+    status: ItemStatus = ItemStatus.AVAILABLE
+    oldID: StringBasic | None = None
     category: ItemCategory
     location: ItemLocation
     owner: ItemOwner
     description: ItemDescription | None
-    status: ItemStatus = ItemStatus.AVAILABLE
 
 
-class ItemDetails(BaseModel):
+class ItemGetResponse(BaseModel):
     id: ItemID
     name: ItemName
+    status: ItemStatus = ItemStatus.AVAILABLE
+    oldID: StringBasic | None = None
     category: ItemCategory
     location: ItemLocation
     owner: ItemOwner
     description: ItemDescription | None
-    status: ItemStatus = ItemStatus.AVAILABLE
+    parameters: dict | None = None
 
 
 class ItemPagination(BaseModel):
@@ -75,7 +88,7 @@ class ItemPagination(BaseModel):
 
 
 class ItemsPaged(BaseModel):
-    items: list[ItemResponse]
+    items: list[ItemSearchResponse]
     pagination: ItemPagination
 
 
@@ -85,16 +98,32 @@ class ItemUpdate(BaseModel):
     category_id: CategoryID | None = None
     location_id: LocationID | None = None
     owner_id: UserID | None = None
-    status: ItemStatus | None = None
+    parameters: dict | None = None
 
 
-class ItemHistoryEntry(BaseModel):
+class ItemUpdateResponse(BaseModel):
+    id: ItemID
+    name: ItemName
+    description: ItemDescription | None
+    category_id: CategoryID
+    location_id: LocationID
+    owner_id: UserID
+    status: ItemStatus
+    parameters: dict | None = None
+    updated_at: datetime
+
+
+class ItemDeleteResponse(BaseModel):
+    deleted: bool
+
+
+class ItemHistoryGet(BaseModel):
     id: int
     updated_at: datetime
-    updated_by: int
+    updated_by: UserID
     change_type: ItemChangeLogType
     description: str | None
 
 
-class ItemHistoryResponse(BaseModel):
-    entries: list[ItemHistoryEntry]
+class ItemHistoryGetResponse(BaseModel):
+    entries: list[ItemHistoryGet]

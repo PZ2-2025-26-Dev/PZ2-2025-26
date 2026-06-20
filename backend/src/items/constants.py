@@ -2,6 +2,7 @@ from enum import Enum
 
 ITEM_NAME_LENGTH = 128
 ITEM_DESC_LENGTH = 256
+BASIC_LENGTH = 100
 
 
 class ItemStatus(Enum):

@@ -1,26 +1,18 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from src.auth.schemas import UserID
 from src.dependencies import DBDep
-from src.items.constants import ItemStatus
-from src.items.helpers import build_location_path
 from src.items.schemas import (
-    CategoryID,
-    ItemCategory,
     ItemCreate,
     ItemCreateResponse,
-    ItemHistoryEntry,
+    ItemGetResponse,
+    ItemHistoryGetResponse,
     ItemID,
-    ItemLocation,
-    ItemOwner,
-    ItemPagination,
-    ItemResponse,
+    ItemSearch,
     ItemsPaged,
     ItemUpdate,
-    LocationID,
-    SearchStr,
+    ItemUpdateResponse,
 )
 from src.items.service import ItemService
 
@@ -41,56 +33,9 @@ router = APIRouter(prefix="/items")
 )
 def read_items(
     db: DBDep,
-    name: SearchStr | None = None,
-    description: SearchStr | None = None,
-    category_id: CategoryID | None = None,
-    location_id: LocationID | None = None,
-    owner_id: UserID | None = None,
-    status: ItemStatus | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    data: Annotated[ItemSearch, Depends()],
 ) -> ItemsPaged:
-    service = ItemService(db)
-
-    items, total = service.search_items(
-        name=name,
-        description=description,
-        category_id=category_id,
-        location_id=location_id,
-        owner_id=owner_id,
-        status=status,
-        page=page,
-        limit=limit,
-    )
-
-    return ItemsPaged(
-        items=[
-            ItemResponse(
-                id=item.id,
-                name=item.name,
-                category=ItemCategory(
-                    id=item.category.id,
-                    name=item.category.name,
-                ),
-                location=ItemLocation(
-                    id=item.location.id,
-                    path=build_location_path(item.location),
-                ),
-                owner=ItemOwner(
-                    id=item.owner.id,
-                    name=item.owner.first_name,
-                ),
-                description=item.description,
-                status=item.status,
-            )
-            for item in items
-        ],
-        pagination=ItemPagination(
-            page=page,
-            limit=limit,
-            total=total,
-        ),
-    )
+    return ItemService(db).search_items(data)
 
 
 @router.post(
@@ -112,31 +57,22 @@ def create_item(
     data: ItemCreate,
     db: DBDep,
 ) -> ItemCreateResponse:
-
     service = ItemService(db)
 
     try:
-        new_item = service.add_item(data)
+        return service.add_item(data)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
-
-    return ItemCreateResponse(
-        id=new_item.id,
-        name=new_item.name,
-        inventory_number=new_item.inventory_number,
-        status=new_item.status,
-        description=new_item.description,
-    )
 
 
 @router.get(
     "/{item_id}",
-    response_model=ItemResponse,
+    response_model=ItemGetResponse,
     status_code=status.HTTP_200_OK,
     summary="Pobierz szczegóły przedmiotu",
     responses={
         status.HTTP_200_OK: {
-            "model": ItemResponse,
+            "model": ItemGetResponse,
             "description": "Pomyślnie zwrócono szczegóły przedmiotu",
         },
         status.HTTP_404_NOT_FOUND: {
@@ -147,45 +83,26 @@ def create_item(
 def read_item(
     item_id: ItemID,
     db: DBDep,
-) -> ItemResponse:
+) -> ItemGetResponse:
     service = ItemService(db)
 
     try:
-        item = service.get_item(item_id)
+        return service.get_item(item_id)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
         ) from err
-
-    return ItemResponse(
-        id=item.id,
-        name=item.name,
-        category=ItemCategory(
-            id=item.category.id,
-            name=item.category.name,
-        ),
-        owner=ItemOwner(
-            id=item.owner.id,
-            name=item.owner.first_name,
-        ),
-        location=ItemLocation(
-            id=item.location.id,
-            path=build_location_path(item.location),
-        ),
-        description=item.description,
-        status=item.status,
-    )
 
 
 @router.patch(
     "/{item_id}",
-    response_model=ItemUpdate,
+    response_model=ItemUpdateResponse,
     status_code=status.HTTP_200_OK,
     summary="Aktualizuj dane przedmiotu",
     responses={
         status.HTTP_200_OK: {
-            "model": ItemUpdate,
+            "model": ItemUpdateResponse,
             "description": "Dane przedmiotu zostały zaktualizowane.",
         },
         status.HTTP_404_NOT_FOUND: {
@@ -197,25 +114,16 @@ def update_item(
     item_id: ItemID,
     data: ItemUpdate,
     db: DBDep,
-) -> ItemUpdate:
+) -> ItemUpdateResponse:
     service = ItemService(db)
 
     try:
-        item = service.update_item(item_id, data)
+        return service.update_item(item_id, data)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
         ) from err
-
-    return ItemUpdate(
-        name=item.name,
-        description=item.description,
-        category_id=item.category_id,
-        location_id=item.location_id,
-        owner_id=item.owner_id,
-        status=item.status,
-    )
 
 
 @router.delete(
@@ -248,36 +156,25 @@ def delete_item(
 
 @router.get(
     "/{item_id}/history",
-    summary="Get item history",
+    summary="Pobierz historię przedmiotu",
     status_code=status.HTTP_200_OK,
-    response_model=list[ItemHistoryEntry],
+    response_model=ItemHistoryGetResponse,
     responses={
         status.HTTP_404_NOT_FOUND: {
-            "description": "Item not found",
+            "description": "Nie znaleziono przedmiotu",
         },
     },
 )
 def read_item_history(
     item_id: ItemID,
     db: DBDep,
-) -> list[ItemHistoryEntry]:
+) -> ItemHistoryGetResponse:
     service = ItemService(db)
 
     try:
-        history = service.get_item_history(item_id)
+        return service.get_item_history(item_id)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
         ) from err
-
-    return [
-        ItemHistoryEntry(
-            id=entry.id,
-            updated_at=entry.updated_at,
-            updated_by=entry.updated_by,
-            change_type=entry.change_type,
-            description=entry.description,
-        )
-        for entry in history
-    ]
