@@ -13,6 +13,14 @@ const axiosClient = axios.create({
 
 axiosClient.interceptors.request.use(
     (config) => {
+        if (config.data instanceof FormData) {
+            if (config.headers?.set) {
+                config.headers.set('Content-Type', undefined);
+            } else if (config.headers) {
+                delete config.headers['Content-Type'];
+            }
+        }
+
         const token = localStorage.getItem('token');
 
         if (token) {

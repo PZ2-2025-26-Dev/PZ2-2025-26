@@ -18,6 +18,9 @@ export const ENDPOINTS = {
         BORROW: (id) => `/items/${id}/borrow`,
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,
+        ATTACHMENTS: (id) => `/items/${id}/attachments`,
+        ATTACHMENT_DOWNLOAD: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}/download`,
+        ATTACHMENT_DELETE: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}`,
     },
     CATEGORIES: {
         BASE: '/categories',

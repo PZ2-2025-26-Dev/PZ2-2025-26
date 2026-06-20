@@ -7,7 +7,15 @@ from pydantic import BaseModel, Field
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
 from src.categories.schemas import CategoryID, CategoryName
-from src.items.constants import BASIC_LENGTH, ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
+from src.items.constants import (
+    ATTACHMENT_FILENAME_MAX_LENGTH,
+    ATTACHMENT_MIME_TYPE_MAX_LENGTH,
+    BASIC_LENGTH,
+    ITEM_DESC_LENGTH,
+    ITEM_NAME_LENGTH,
+    ItemChangeLogType,
+    ItemStatus,
+)
 from src.locations.schemas import LocationID, LocationPath
 
 type ItemID = UUID
@@ -127,3 +135,26 @@ class ItemHistoryGet(BaseModel):
 
 class ItemHistoryGetResponse(BaseModel):
     entries: list[ItemHistoryGet]
+
+
+type AttachmentID = int
+type AttachmentFilename = Annotated[str, Field(min_length=1, max_length=ATTACHMENT_FILENAME_MAX_LENGTH)]
+type AttachmentMimeType = Annotated[str, Field(min_length=1, max_length=ATTACHMENT_MIME_TYPE_MAX_LENGTH)]
+
+
+class ItemAttachmentAuthor(BaseModel):
+    id: UserID
+    name: UserName
+
+
+class ItemAttachmentResponse(BaseModel):
+    id: AttachmentID
+    original_filename: AttachmentFilename
+    mime_type: AttachmentMimeType
+    size_bytes: Annotated[int, Field(ge=0)]
+    uploaded_at: datetime
+    uploaded_by: ItemAttachmentAuthor
+
+
+class ItemAttachmentsListResponse(BaseModel):
+    attachments: list[ItemAttachmentResponse]
