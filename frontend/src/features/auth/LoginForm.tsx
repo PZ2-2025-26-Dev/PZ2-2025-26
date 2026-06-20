@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { AlertCircle, ArrowLeft, LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { googleLogin, login } from './authService';
 
 import {
     Alert,
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { googleLogin, login } from './authService';
+
 
 // wiem że całość jest w JS-ie, ale ja mam to gdzieś i robię w TypeScripcie
 
@@ -33,11 +34,14 @@ type FieldErrors = {
     password?: string;
 };
 
-type LoginError = {
+type ApiError = {
     response?: {
         status?: number;
         data?: {
-            detail?: string;
+            detail?: {
+                code?: string;
+                message?: string;
+            };
         };
     };
 };
@@ -63,10 +67,6 @@ export default function LoginForm({
             newErrors.email = t('auth.invalidEmail');
         }
 
-        if (password.length < 8) {
-            newErrors.password = t('auth.passwordTooShort');
-        }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -75,9 +75,7 @@ export default function LoginForm({
         event.preventDefault();
         setLoginError('');
 
-        if (!validate()) {
-            return;
-        }
+        if (!validate()) return;
 
         setLoading(true);
 
@@ -95,25 +93,34 @@ export default function LoginForm({
                 response.data.access_token,
             );
         } catch (error) {
-            const loginFailure = error as LoginError;
-            const status = loginFailure.response?.status;
-            const detail = loginFailure.response?.data?.detail;
+            const err = error as ApiError;
 
-            if (status === 403 && detail === 'PENDING_APPROVAL') {
-                setLoginError(t('auth.pendingApprovalError'));
-            } else if (status === 401) {
-                setLoginError(t('auth.invalidCredentials'));
-            } else {
-                setLoginError(t('auth.serverError'));
+            const status = err.response?.status;
+            const code = err.response?.data?.detail?.code;
+            const message = err.response?.data?.detail?.message;
+
+            const errorMap: Record<string, string> = {
+                PENDING_APPROVAL: t('auth.pendingApprovalError'),
+                INVALID_CREDENTIALS: t('auth.invalidCredentials'),
+                FORBIDDEN: t('auth.forbidden'),
+            };
+            if (status === 403 && code && errorMap[code]) {
+                setLoginError(errorMap[code]);
+                return;
             }
+
+            if (status === 401 && code === 'INVALID_CREDENTIALS') {
+                setLoginError(errorMap.INVALID_CREDENTIALS);
+                return;
+            }
+            if (status === 422) {
+                setLoginError(errorMap.INVALID_CREDENTIALS);
+                return;
+            }
+
+            setLoginError(message || t('auth.serverError'));
         } finally {
             setLoading(false);
-        }
-    };
-
-    const clearLoginError = () => {
-        if (loginError) {
-            setLoginError('');
         }
     };
 
@@ -146,11 +153,12 @@ export default function LoginForm({
                     aria-describedby={errors.email ? 'login-email-error' : undefined}
                     placeholder={t('auth.email')}
                     value={email}
-                    onChange={(event) => {
-                        setEmail(event.target.value);
-                        clearLoginError();
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    onChange={(e) => {
+                        setEmail(e.target.value);
+                        setLoginError('');
                         if (errors.email) {
-                            setErrors((previous) => ({ ...previous, email: undefined }));
+                            setErrors((p) => ({ ...p, email: undefined }));
                         }
                     }}
                 />
@@ -172,11 +180,12 @@ export default function LoginForm({
                     aria-describedby={errors.password ? 'login-password-error' : undefined}
                     placeholder={t('auth.password')}
                     value={password}
-                    onChange={(event) => {
-                        setPassword(event.target.value);
-                        clearLoginError();
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        setLoginError('');
                         if (errors.password) {
-                            setErrors((previous) => ({ ...previous, password: undefined }));
+                            setErrors((p) => ({ ...p, password: undefined }));
                         }
                     }}
                 />

@@ -59,7 +59,7 @@ def test_register_user_existing_email(db):
             last_name="Doe",
         )
 
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 409
 
 
 def test_login_user_success(db):
