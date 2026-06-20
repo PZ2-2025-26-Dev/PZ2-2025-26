@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from src.dependencies import DBDep
 from src.items.schemas import ItemsPaged
+from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.schemas import (
     LocationCreate,
     LocationDeleteRequest,
@@ -70,7 +71,7 @@ def read_locations(
     db: DBDep,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
 ) -> LocationsPaged:
     items, total = LocationService(db).list_locations(page=page, limit=limit, parent_id=parent_id)
 
@@ -221,7 +222,7 @@ def read_location_items(
     location_id: LocationID,
     db: DBDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
 ) -> ItemsPaged:
     try:
         return LocationService(db).list_location_items(location_id=location_id, page=page, limit=limit)

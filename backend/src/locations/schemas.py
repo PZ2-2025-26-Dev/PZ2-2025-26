@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from src.locations.constants import (
     LOCATION_HISTORY_DESC_LENGTH,
     LOCATION_NAME_LENGTH,
+    LOCATION_PAGE_LIMIT_MAX,
     LocationHistoryChangeType,
     LocationType,
 )
@@ -45,7 +46,7 @@ class LocationDetails(BaseModel):
 
 class LocationPagination(BaseModel):
     page: Annotated[int, Field(ge=1)]
-    limit: Annotated[int, Field(ge=1, le=100)]
+    limit: Annotated[int, Field(ge=1, le=LOCATION_PAGE_LIMIT_MAX)]
     total: Annotated[int, Field(ge=0)]
 
 

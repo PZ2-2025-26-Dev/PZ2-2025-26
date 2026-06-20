@@ -2,6 +2,7 @@ from enum import Enum
 
 LOCATION_HISTORY_DESC_LENGTH = 512
 LOCATION_NAME_LENGTH = 100
+LOCATION_PAGE_LIMIT_MAX = 100
 
 
 class LocationType(Enum):
