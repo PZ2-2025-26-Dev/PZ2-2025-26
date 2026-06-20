@@ -7,6 +7,7 @@ import {
     Moon,
     PackageCheck,
     Plus,
+    ScanQrCode,
     Search,
     Sun,
     Users,
@@ -26,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { AppUser, InventoryItem } from '@/types';
+import QrScannerDialog from '@/components/QrScannerDialog';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from '../categories/useCategories';
@@ -57,6 +59,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [categoryFilter, setCategoryFilter] = useState('all');
     const [activeTab, setActiveTab] = useState('inventory');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
@@ -132,6 +135,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     };
 
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`, { defaultValue: status });
+
+    const handleQrScan = (decodedText: string) => {
+        setIsQrScannerOpen(false);
+        setSearchQuery(decodedText);
+    };
 
     return (
         <div className="flex min-h-screen flex-col bg-slate-50 font-sans dark:bg-slate-900">
@@ -211,6 +219,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
                                         </div>
                                         <div className="flex gap-2">
+                                            <Button variant="secondary" size="sm" onClick={() => setIsQrScannerOpen(true)}>
+                                                <ScanQrCode />{t('qrScanner.button')}
+                                            </Button>
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
                                                 <Button variant="secondary" size="sm"><Download />{t('dashboard.exportXlsx')}</Button>
                                             </RoleGuard>
@@ -311,6 +322,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onClose={() => setIsAddModalOpen(false)}
                 onSave={() => refreshItems()}
                 user={user}
+            />
+            <QrScannerDialog
+                isOpen={isQrScannerOpen}
+                onClose={() => setIsQrScannerOpen(false)}
+                onScan={handleQrScan}
             />
             <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
         </div>
