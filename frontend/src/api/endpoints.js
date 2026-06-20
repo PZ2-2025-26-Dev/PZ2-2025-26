@@ -31,5 +31,14 @@ export const ENDPOINTS = {
     USERS: {
         BASE: '/users',
         DETAILS: (id) => `/users/${id}`,
+    },
+    GUESTS: {
+        BASE: '/guests',
+        DETAILS: (id) => `/guests/${id}`,
+    },
+    LOANS: {
+        BASE: '/loans',
+        DETAILS: (id) => `/loans/${id}`,
+        RETURN: (id) => `/loans/${id}/return`,
     }
 };

@@ -13,7 +13,6 @@ from src.categories.models import Category
 from src.config import config
 from src.constants import Environment
 from src.database import Base, SessionLocal, engine
-from src.guests import models as guest_models  # noqa: F401
 from src.items.constants import ItemStatus
 from src.items.models import Item
 from src.loans import models as loan_models  # noqa: F401
@@ -29,6 +28,7 @@ class SeedIds:
     admin_user: int = 10_001
     regular_user: int = 10_002
     observer_user: int = 10_003
+    guest_user: int = 10_004
 
     building: int = 20_001
     room: int = 20_002
@@ -117,6 +117,16 @@ def seed_database(session: Session) -> SeedIds:
                 "first_name": "Olga",
                 "last_name": "Observer",
                 "role": UserRole.OBSERVER,
+                "status": UserStatus.ACTIVE,
+            },
+        ),
+        (
+            SEED_IDS.guest_user,
+            "guest.seed@example.com",
+            {
+                "first_name": "Gabriel",
+                "last_name": "Guest",
+                "role": UserRole.GUEST,
                 "status": UserStatus.ACTIVE,
             },
         ),

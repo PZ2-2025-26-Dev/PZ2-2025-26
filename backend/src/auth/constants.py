@@ -13,6 +13,9 @@ class UserRole(Enum):
     ADMIN = "admin"
     USER = "user"
     OBSERVER = "observer"
+    # Gość jest pełnoprawną encją User, ale nie ma własnego konta (UserAccount)
+    # i nie może się logować. Służy wyłącznie jako podmiot wypożyczeń.
+    GUEST = "guest"
 
 
 class AuthProvider(Enum):

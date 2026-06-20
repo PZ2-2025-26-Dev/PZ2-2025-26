@@ -19,7 +19,10 @@ class User(Base):
 
     last_name: Mapped[str | None] = mapped_column(String(LAST_NAME_MAX_LENGTH))
 
-    email: Mapped[str] = mapped_column(
+    # Nullable, bo Goście (rola GUEST) mogą nie mieć adresu email.
+    # UNIQUE w MySQL dopuszcza wiele wartości NULL, więc logowanie zwykłych
+    # użytkowników (po unikalnym, niepustym mailu) działa bez zmian.
+    email: Mapped[str | None] = mapped_column(
         String(EMAIL_MAX_LENGTH),
         unique=True,
     )

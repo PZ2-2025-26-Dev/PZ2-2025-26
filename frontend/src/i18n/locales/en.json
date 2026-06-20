@@ -202,5 +202,40 @@
     "googleCallbackLoading": "Signing in with Google...",
     "invalidEmail": "Invalid email address.",
     "passwordTooShort": "Password must be at least 8 characters long."
+  },
+  "guests": {
+    "title": "Guests",
+    "desc": "Profiles of external entities that equipment can be loaned to.",
+    "addTitle": "Add Guest",
+    "firstName": "First name",
+    "lastName": "Last name (optional)",
+    "email": "Email address (optional)",
+    "save": "Save Guest",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete guest {{name}}?",
+    "search": "Search guest...",
+    "noResults": "No guests match the criteria.",
+    "emailTaken": "This email address is already taken.",
+    "hasLoanHistory": "The guest has loan history and cannot be removed."
+  },
+  "rentals": {
+    "panelTitle": "Register external loan",
+    "panelDesc": "Select a guest and declared return date to reserve the asset.",
+    "guestLabel": "Guest (external entity)",
+    "dueDateLabel": "Declared return date",
+    "purposeLabel": "Loan purpose (optional)",
+    "submitBtn": "Register loan",
+    "returnBtn": "Register return",
+    "historyTitle": "Loan history",
+    "statusActive": "Active",
+    "statusReturned": "Returned",
+    "noLoans": "No loans for this asset.",
+    "itemUnavailable": "The asset is not available for loan.",
+    "borrowerNotGuest": "A loan can only be assigned to a guest.",
+    "registerSuccess": "The loan has been registered.",
+    "returnSuccess": "The return has been registered."
   }
 }

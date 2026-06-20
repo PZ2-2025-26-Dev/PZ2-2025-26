@@ -13,7 +13,8 @@ def test_seed_database_is_idempotent(db: Session):
     seed_database(db)
     seed_database(db)
 
-    assert db.scalar(select(func.count(User.id))) == 3
+    # 3 użytkowników z kontami logowania + 1 Gość (rola GUEST, bez konta).
+    assert db.scalar(select(func.count(User.id))) == 4
     assert db.scalar(select(func.count(Item.id))) == 3
     assert db.get(User, SEED_IDS.admin_user).email == "admin.seed@example.com"
 

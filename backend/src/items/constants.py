@@ -15,6 +15,7 @@ class ItemStatus(Enum):
 class ItemChangeLogType(Enum):
     CREATED = "created"
     LOANED = "loaned"
+    RETURNED = "returned"
     OWNER_CHANGED = "owner_changed"
     LOCATION_CHANGED = "location_changed"
     CATEGORY_CHANGED = "category_changed"

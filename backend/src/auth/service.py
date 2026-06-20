@@ -40,6 +40,12 @@ def get_or_create_google_user(
 
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
+    if user and user.role == UserRole.GUEST:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Konta gości nie mogą się logować.",
+        )
+
     if not user:
         user = User(
             email=email,
@@ -115,6 +121,14 @@ def login_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nieprawidłowy email lub hasło.",
+        )
+
+    # Goście są encjami bez prawa logowania – odrzucamy jeszcze przed
+    # weryfikacją hasła (i tak nie mają konta lokalnego).
+    if user.role == UserRole.GUEST:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Konta gości nie mogą się logować.",
         )
 
     account = db.execute(

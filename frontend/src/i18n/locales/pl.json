@@ -202,5 +202,40 @@
     "googleCallbackLoading": "Logowanie przez Google...",
     "invalidEmail": "Podaj poprawny adres e-mail",
     "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków"
+  },
+  "guests": {
+    "title": "Goście",
+    "desc": "Profile podmiotów zewnętrznych, którym można wypożyczać sprzęt.",
+    "addTitle": "Dodaj Gościa",
+    "firstName": "Imię",
+    "lastName": "Nazwisko (opcjonalnie)",
+    "email": "Adres e-mail (opcjonalnie)",
+    "save": "Zapisz Gościa",
+    "saving": "Zapisywanie...",
+    "cancel": "Anuluj",
+    "edit": "Edytuj",
+    "delete": "Usuń",
+    "deleteConfirm": "Czy na pewno usunąć Gościa {{name}}?",
+    "search": "Szukaj Gościa...",
+    "noResults": "Brak Gości spełniających kryteria.",
+    "emailTaken": "Podany adres e-mail jest już zajęty.",
+    "hasLoanHistory": "Gość posiada historię wypożyczeń – nie można go usunąć."
+  },
+  "rentals": {
+    "panelTitle": "Zarejestruj wypożyczenie zewnętrzne",
+    "panelDesc": "Wskaż Gościa oraz deklarowany termin zwrotu, aby zarezerwować obiekt.",
+    "guestLabel": "Gość (podmiot zewnętrzny)",
+    "dueDateLabel": "Deklarowany termin zwrotu",
+    "purposeLabel": "Cel wypożyczenia (opcjonalnie)",
+    "submitBtn": "Zarejestruj wypożyczenie",
+    "returnBtn": "Zarejestruj zwrot",
+    "historyTitle": "Historia wypożyczeń",
+    "statusActive": "Aktywne",
+    "statusReturned": "Zwrócone",
+    "noLoans": "Brak wypożyczeń dla tego obiektu.",
+    "itemUnavailable": "Obiekt nie jest dostępny do wypożyczenia.",
+    "borrowerNotGuest": "Wypożyczenie można przypisać wyłącznie do Gościa.",
+    "registerSuccess": "Wypożyczenie zostało zarejestrowane.",
+    "returnSuccess": "Zwrot został zarejestrowany."
   }
 }

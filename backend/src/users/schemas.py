@@ -18,6 +18,10 @@ class BaseUserDetails(BaseModel):
 
 class UserDetails(BaseUserDetails):
     id: UserID
+    # Poluzowane względem BaseUserDetails, bo encje typu Gość mogą nie mieć
+    # adresu email ani nazwiska.
+    email: EmailStr | None = None
+    last_name: str | None = None
     provider: AuthProvider | None = None
     provider_user_id: str | None = None
 

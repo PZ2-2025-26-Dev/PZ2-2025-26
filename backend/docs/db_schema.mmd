@@ -16,9 +16,9 @@ erDiagram
 
         string(100) last_name "Nullable"
 
-        string(512) email "Unique"
+        string(512) email "Unique,</br>Nullable"
 
-        ENUM role "ADMIN,</br>USER,</br>OBSERVER"
+        ENUM role "ADMIN,</br>USER,</br>OBSERVER,</br>GUEST"
 
         ENUM status "ACTIVE,</br>PENDING_APPROVAL,</br>DEACTIVATED"
 
@@ -45,22 +45,6 @@ erDiagram
         string(100) name
 
         int parent_id FK "Nullable"
-
-    }
-
-    Guest {
-
-        int id PK
-
-        string(100) first_name
-
-        string(100) last_name "Nullable"
-
-        string(512) email "Nullable"
-
-        int registered_by FK
-
-        string description "Nullable"
 
     }
 
@@ -93,7 +77,7 @@ erDiagram
 
         int updated_by FK
 
-        ENUM change_type "CREATED,</br>LOANED,</br>OWNER_CHANGED,</br>LOCATION_CHANGED,</br>CATEGORY_CHANGED"
+        ENUM change_type "CREATED,</br>LOANED,</br>RETURNED,</br>OWNER_CHANGED,</br>LOCATION_CHANGED,</br>CATEGORY_CHANGED"
 
         string(512) description "Nullable"
     }
@@ -132,27 +116,19 @@ erDiagram
 
         int item_id FK
 
-        int user_id FK "Nullable"
+        int borrower_id FK "User z rolą GUEST"
 
-        int guest_id FK "Nullable"
+        int registered_by FK "Właściciel/Admin"
 
         datetime created_at
 
         datetime declared_return_date
 
-        string loan_purpose
-
-        datetime borrowed_at "Nullable"
+        string(512) loan_purpose "Nullable"
 
         datetime returned_at "Nullable"
 
-        ENUM status "PENDING,</br>APPROVED,</br>DENIED,</br>LOANED,</br>RETURNED"
-
-        int decision_by FK "Nullable"
-
-        datetime decision_at "Nullable"
-
-        string decision_comment "Nullable"
+        ENUM status "ACTIVE,</br>RETURNED"
     }
 
 
@@ -185,6 +161,10 @@ erDiagram
 
     Item ||--o{ ItemHistory : emits
 
+    Item ||--o{ Loan : loaned_in
+
+    User ||--o{ Loan : borrows
+
     Category }o--o| Category : subcategory_of 
 
     LegacyIdentifier }o--|| Item : has 
@@ -203,7 +183,7 @@ erDiagram
     classDef operations stroke:green,fill:honeydew 
 
  
-    class User,UserAccount,Guest,ItemACL iam 
+    class User,UserAccount,ItemACL iam 
 
     class Item,ItemHistory,ItemImage,Category,LegacyIdentifier,inventory 
 

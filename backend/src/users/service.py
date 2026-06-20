@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole, UserStatus
 from src.auth.models import UserAccount
-from src.guests.models import Guest
 from src.items.models import Item, ItemACL, ItemHistory
 from src.loans.models import Loan
 from src.users.models import User
@@ -40,7 +39,9 @@ class UserService:
         status: UserStatus | None = None,
         search: str | None = None,
     ) -> tuple[list[User], int]:
-        filters = []
+        # Goście są zarządzani osobnym endpointem (/guests) i nie pojawiają się
+        # na liście "zwykłych" użytkowników.
+        filters = [User.role != UserRole.GUEST]
 
         if role is not None:
             filters.append(User.role == role)
@@ -116,10 +117,8 @@ class UserService:
             raise UserHasHistoricalReferencesError() from err
 
     def _has_historical_references(self, user_id: int) -> bool:
-        return (
-            self._has_records(ItemHistory, ItemHistory.updated_by == user_id)
-            or self._has_records(Loan, or_(Loan.user_id == user_id, Loan.decision_by == user_id))
-            or self._has_records(Guest, Guest.registered_by == user_id)
+        return self._has_records(ItemHistory, ItemHistory.updated_by == user_id) or self._has_records(
+            Loan, or_(Loan.borrower_id == user_id, Loan.registered_by == user_id)
         )
 
     def _has_records(self, model: type, condition) -> bool:

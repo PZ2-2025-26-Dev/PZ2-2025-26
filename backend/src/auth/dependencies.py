@@ -65,3 +65,21 @@ def require_admin(
 
 
 RequireAdmin = Annotated[User, Depends(require_admin)]
+
+
+def require_user_or_admin(
+    user: CurrentUser,
+) -> User:
+    """Pozwala na operacje tylko zwykłym użytkownikom i administratorom.
+
+    Obserwatorzy (tylko odczyt) oraz Goście (brak dostępu) są odrzucani.
+    """
+    if user.role not in (UserRole.USER, UserRole.ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Wymagana rola użytkownika lub administratora.",
+        )
+    return user
+
+
+RequireUserOrAdmin = Annotated[User, Depends(require_user_or_admin)]

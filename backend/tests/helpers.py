@@ -49,3 +49,36 @@ def assert_item_created_with_history(db: Session, item_id: int) -> Item:
     assert history.description == "Item created"
 
     return item
+
+
+# Deterministyczna, przyszła data zwrotu używana w testach wypożyczeń.
+DEFAULT_DECLARED_RETURN_DATE = "2099-12-31T12:00:00"
+
+
+def make_guest_payload(**overrides: Any) -> dict[str, Any]:
+    """Return a valid guest creation payload with optional field overrides."""
+    payload: dict[str, Any] = {
+        "first_name": "Gość",
+        "last_name": "Testowy",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def create_guest_via_api(client: TestClient, **overrides: Any) -> dict[str, Any]:
+    """Create a guest through the API and fail the test if the request is rejected."""
+    response = client.post("/guests", json=make_guest_payload(**overrides))
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def make_loan_payload(item_id: int, borrower_id: int, **overrides: Any) -> dict[str, Any]:
+    """Return a valid loan registration payload with optional field overrides."""
+    payload: dict[str, Any] = {
+        "item_id": item_id,
+        "borrower_id": borrower_id,
+        "declared_return_date": DEFAULT_DECLARED_RETURN_DATE,
+        "loan_purpose": "Prezentacja u podmiotu zewnętrznego",
+    }
+    payload.update(overrides)
+    return payload
