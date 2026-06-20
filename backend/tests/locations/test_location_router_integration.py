@@ -47,7 +47,7 @@ def test_list_locations_endpoint_returns_paged_locations(api_client: TestClient,
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body["items"]) == 2
+    assert len(body["locations"]) == 2
     assert body["pagination"] == {
         "page": 1,
         "limit": 2,
@@ -62,22 +62,6 @@ def test_location_details_endpoint_returns_full_path(api_client: TestClient, see
 
     assert response.status_code == 200
     assert response.json()["path"] == "Budynek D / Sala D10 / Szafa A"
-
-
-def test_locations_tree_endpoint_returns_nested_locations(api_client: TestClient, seeded_db: Session):
-    assert seeded_db.get(Location, SEED_IDS.building) is not None
-
-    response = api_client.get("/locations/tree")
-
-    assert response.status_code == 200
-    tree = response.json()["items"]
-    building = next(node for node in tree if node["id"] == SEED_IDS.building)
-    room = building["children"][0]
-    cabinet = room["children"][0]
-
-    assert building["name"] == "Budynek D"
-    assert room["id"] == SEED_IDS.room
-    assert cabinet["id"] == SEED_IDS.cabinet
 
 
 def test_update_location_endpoint_updates_database_and_history(api_client: TestClient, seeded_db: Session):

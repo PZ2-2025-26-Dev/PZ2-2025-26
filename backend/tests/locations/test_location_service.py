@@ -83,17 +83,3 @@ def test_list_location_items_includes_descendants(seeded_db):
 
     assert result.pagination.total == 3
     assert {item.id for item in result.items} == {SEED_IDS.laptop, SEED_IDS.projector, SEED_IDS.adapter}
-
-
-def test_list_location_tree_builds_nested_structure(seeded_db):
-    service = LocationService(seeded_db)
-
-    tree = service.list_location_tree()
-
-    building = next(node for node in tree if node.id == SEED_IDS.building)
-    room = building.children[0]
-    cabinet = room.children[0]
-
-    assert building.name == "Budynek D"
-    assert room.id == SEED_IDS.room
-    assert cabinet.id == SEED_IDS.cabinet
