@@ -123,6 +123,38 @@ def test_scan_item_endpoint_returns_404_for_missing_item(
     assert response.json() == {"code": 404, "detail": "Item not found"}
 
 
+def test_scan_item_endpoint_returns_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Skaner terenowy")).json()
+
+    response = api_client.get(f"/items/scan/{created['inventory_number']}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == created["id"]
+    assert body["name"] == created["name"]
+
+
+def test_scan_item_endpoint_returns_400_for_invalid_code(
+    api_client: TestClient,
+):
+    response = api_client.get("/items/scan/not-a-uuid")
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Invalid QR code"}
+
+
+def test_scan_item_endpoint_returns_404_for_missing_item(
+    api_client: TestClient,
+):
+    response = api_client.get("/items/scan/018f6f23-5b56-7b88-9ac1-5a02c63c5c11")
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
 def test_download_item_qr_png_endpoint_returns_png(
     api_client: TestClient,
     seeded_db: Session,

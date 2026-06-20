@@ -44,7 +44,7 @@ from src.items.service import ItemService
 from src.schemas import ErrorResponse
 from src.users.models import User
 
-router = APIRouter(prefix="/items")
+router = APIRouter(prefix="/items", tags=["items"])
 
 
 def _ensure_item_owner(item_id: UUID, user: User, db: DBDep) -> None:
