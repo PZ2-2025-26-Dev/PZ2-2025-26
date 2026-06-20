@@ -184,38 +184,6 @@ def delete_location(location_id: LocationID, data: LocationDeleteRequest, db: DB
         migrated_items_count=migrated_items_count,
     )
 
-
-@router.get(
-    "/{location_id}/items",
-    response_model=ItemsPaged,
-    status_code=status.HTTP_200_OK,
-    summary="Wylistuj przedmioty w lokalizacji",
-    responses={
-        status.HTTP_200_OK: {
-            "model": ItemsPaged,
-            "description": "Zwrócono stronicowaną listę przedmiotów przypisanych do lokalizacji.",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "model": ErrorResponse,
-            "description": "Nie znaleziono lokalizacji.",
-        },
-    },
-)
-def read_location_items(
-    location_id: LocationID,
-    db: DBDep,
-    page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
-) -> ItemsPaged:
-    try:
-        return LocationService(db).list_location_items(location_id=location_id, page=page, limit=limit)
-    except LocationNotFoundError as err:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=ErrorResponse(code=status.HTTP_404_NOT_FOUND, detail="Location not found.").model_dump(),
-        ) from err
-
-
 @router.get(
     "/{location_id}/history",
     response_model=list[LocationHistoryEntry],
