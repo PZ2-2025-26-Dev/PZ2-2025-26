@@ -3,6 +3,7 @@ import {
     AlertTriangle,
     Box,
     Download,
+    MapPinned,
     LogOut,
     Moon,
     PackageCheck,
@@ -31,6 +32,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from '../categories/useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
 import UserManager from '../users/UserManager';
+import LocationManager from '../locations/LocationManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
@@ -180,6 +182,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     <Users />{t('dashboard.tabUsers')}
                                     {pendingUserCount > 0 && <Badge variant="destructive" className="h-4 px-1.5 text-[9px]">{pendingUserCount}</Badge>}
                                 </TabsTrigger>
+                                <TabsTrigger value="locations"><MapPinned />{t('dashboard.tabLocations')}</TabsTrigger>
                                 <TabsTrigger value="categories">{t('dashboard.tabCategories')}</TabsTrigger>
                             </RoleGuard>
                         </TabsList>
@@ -300,6 +303,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <TabsContent value="categories">
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <CategoryManager />
+                            </RoleGuard>
+                        </TabsContent>
+                        <TabsContent value="locations">
+                            <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
+                                <LocationManager />
                             </RoleGuard>
                         </TabsContent>
                     </Tabs>
