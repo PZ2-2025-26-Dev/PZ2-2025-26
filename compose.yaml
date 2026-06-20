@@ -64,8 +64,6 @@ services:
         condition: service_healthy
 
   adminer:
-    profiles:
-      - tools
     image: adminer:5.4.0
     restart: unless-stopped
     ports:
