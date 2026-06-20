@@ -1,6 +1,7 @@
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.categories.constants import CATEGORY_NAME_LENGTH
 from src.database import Base
 
 
@@ -8,7 +9,7 @@ class Category(Base):
     __tablename__ = "category"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(CATEGORY_NAME_LENGTH))
 
     # "RESTRICT" żeby nie usunąć przypadkowo rodzica
     # najpierw trzeba przenieść dzieci do innego rodzica, potem dopiero można usunąć

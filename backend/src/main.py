@@ -12,6 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from src.auth import models as auth_models  # noqa: F401
 from src.auth.router import router as auth_router
 from src.categories import models as categories_models  # noqa: F401
+from src.categories.router import router as categories_router
 from src.config import config
 from src.database import Base, engine
 from src.guests import models as guests_models  # noqa: F401
@@ -52,6 +53,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(items_router)
 app.include_router(locations_router)
+app.include_router(categories_router)
 
 
 @app.get("/ready")
