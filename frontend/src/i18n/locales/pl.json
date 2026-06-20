@@ -82,7 +82,6 @@
   },
   "locationManager": {
     "treeTitle": "Struktura lokalizacji",
-    "treeDesc": "Hierarchia jest budowana na froncie z płaskiej listy zwróconej przez API.",
     "emptyTree": "Brak lokalizacji zwróconych przez API.",
     "loading": "Ładowanie lokalizacji...",
     "refresh": "Odśwież",
@@ -97,6 +96,11 @@
     "descriptionPlaceholder": "Opcjonalny opis lokalizacji",
     "addBtn": "Zapisz lokalizację",
     "saving": "Zapisywanie...",
+    "edit": "Edytuj",
+    "editTitle": "Edytuj lokalizację",
+    "statusLabel": "Status",
+    "cancel": "Anuluj",
+    "save": "Zapisz zmiany",
     "errorTitle": "Nie udało się wykonać operacji",
     "types": {
       "building": "Budynek",
@@ -104,6 +108,10 @@
       "cabinet": "Szafa",
       "shelf": "Półka",
       "other": "Inne"
+    },
+    "statuses": {
+      "active": "Aktywna",
+      "inactive": "Nieaktywna"
     }
   },
   "addAssetModal": {

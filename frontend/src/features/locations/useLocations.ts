@@ -45,6 +45,10 @@ export type LocationCreateInput = {
     description: string | null;
 };
 
+export type LocationUpdateInput = LocationCreateInput & {
+    isActive: boolean;
+};
+
 const normalizeLocation = (location: LocationApiResponse): Location => ({
     id: location.id,
     name: location.name,
@@ -60,6 +64,14 @@ const toCreatePayload = (location: LocationCreateInput) => ({
     type: location.type,
     parent_id: location.parentId,
     description: location.description,
+});
+
+const toUpdatePayload = (location: LocationUpdateInput) => ({
+    name: location.name,
+    type: location.type,
+    parent_id: location.parentId,
+    description: location.description,
+    is_active: location.isActive,
 });
 
 export const useLocations = () => {
@@ -113,6 +125,29 @@ export const useLocations = () => {
         }
     }, []);
 
+    const updateLocation = useCallback(async (locationId: number, location: LocationUpdateInput) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.put<LocationApiResponse>(
+                ENDPOINTS.LOCATIONS.DETAILS(locationId),
+                toUpdatePayload(location),
+            );
+
+            return {
+                success: true,
+                location: normalizeLocation(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -120,6 +155,7 @@ export const useLocations = () => {
     return {
         listLocations,
         createLocation,
+        updateLocation,
         isLoading,
         error,
         clearError,

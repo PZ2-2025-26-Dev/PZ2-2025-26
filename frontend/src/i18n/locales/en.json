@@ -82,7 +82,6 @@
   },
   "locationManager": {
     "treeTitle": "Location Structure",
-    "treeDesc": "The hierarchy is built in the frontend from the flat list returned by the API.",
     "emptyTree": "No locations returned by the API.",
     "loading": "Loading locations...",
     "refresh": "Refresh",
@@ -97,6 +96,11 @@
     "descriptionPlaceholder": "Optional location description",
     "addBtn": "Save Location",
     "saving": "Saving...",
+    "edit": "Edit",
+    "editTitle": "Edit Location",
+    "statusLabel": "Status",
+    "cancel": "Cancel",
+    "save": "Save changes",
     "errorTitle": "Operation failed",
     "types": {
       "building": "Building",
@@ -104,6 +108,10 @@
       "cabinet": "Cabinet",
       "shelf": "Shelf",
       "other": "Other"
+    },
+    "statuses": {
+      "active": "Active",
+      "inactive": "Inactive"
     }
   },
   "addAssetModal": {
