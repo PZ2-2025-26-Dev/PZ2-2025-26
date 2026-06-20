@@ -1,409 +1,377 @@
-import { useState, useMemo, useEffect, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { AlertCircle, ChevronDown, ChevronRight, Folder, FolderTree, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Plus, Trash2, Loader2, FolderTree, Search, Eye, EyeOff } from 'lucide-react';
 
-// Importy komponentów shadcn/ui
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
+import { useCategories, type Category } from './useCategories';
 
-// Konfiguracja API
-const API_BASE_URL = ''; 
+type CategoryNode = Category & { children: CategoryNode[] };
 
-const ENDPOINTS = {
-    CATEGORIES_BASE: `${API_BASE_URL}/categories`,
-};
+const ROOT_CATEGORY = 'root';
+const CATEGORY_STATUSES = ['active', 'inactive'] as const;
 
-// Definicje typów dla TypeScript
-type Category = {
-    id: string | number;
+type CategoryFormState = {
     name: string;
-    parent_id: number | null;
+    parentId: string;
+    description: string;
+    status: typeof CATEGORY_STATUSES[number];
 };
 
-type TreeCategory = Category & { children: TreeCategory[] };
+const buildCategoryTree = (categories: Category[]) => {
+    const lookup: Record<number, CategoryNode> = {};
+    const roots: CategoryNode[] = [];
+
+    categories.forEach((category) => {
+        lookup[category.id] = { ...category, children: [] };
+    });
+
+    categories.forEach((category) => {
+        const node = lookup[category.id];
+        const parent = category.parentId ? lookup[category.parentId] : null;
+
+        if (parent) parent.children.push(node);
+        else roots.push(node);
+    });
+
+    return roots;
+};
+
+const flattenCategories = (categories: Category[]) => [...categories].sort((first, second) => first.path.localeCompare(second.path));
+
+const getParentOptions = (categories: Category[]) => {
+    return flattenCategories(categories);
+};
+
+const getValidParentId = (currentParentId: string, options: Category[]) => {
+    if (currentParentId === ROOT_CATEGORY) return ROOT_CATEGORY;
+    if (options.some((category) => String(category.id) === currentParentId)) return currentParentId;
+    return ROOT_CATEGORY;
+};
+
+const collectDescendantIds = (categoryId: number, categories: Category[]) => {
+    const descendants = new Set<number>();
+    const collect = (parentId: number) => {
+        categories
+            .filter((category) => category.parentId === parentId)
+            .forEach((category) => {
+                descendants.add(category.id);
+                collect(category.id);
+            });
+    };
+
+    collect(categoryId);
+    return descendants;
+};
 
 export default function CategoryManager() {
-    const { t, i18n } = useTranslation();
-    const { toast } = useToast();
+    const { t } = useTranslation();
+    const { listCategories, createCategory, updateCategory, isLoading, error, clearError } = useCategories();
 
-    // Stan z surową płaską listą z bazy
     const [categories, setCategories] = useState<Category[]>([]);
-    
-    // Stany formularza i filtrów
     const [newCategoryName, setNewCategoryName] = useState('');
-    const [selectedParentId, setSelectedParentId] = useState<string>('root');
-    const [searchQuery, setSearchQuery] = useState('');
-    
-    // Globalny stan kontrolek drzewa (wymuszenie otwarcia/zamknięcia)
-    const [globalExpandTrigger, setGlobalExpandTrigger] = useState<boolean | null>(null);
-    
-    // Stany ładowania i błędów
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [selectedParentId, setSelectedParentId] = useState(ROOT_CATEGORY);
+    const [newCategoryDescription, setNewCategoryDescription] = useState('');
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [editForm, setEditForm] = useState<CategoryFormState | null>(null);
+    const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(() => new Set());
 
-    // Pobieranie danych z backendu
-    const fetchCategories = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(ENDPOINTS.CATEGORIES_BASE);
-            if (!response.ok) {
-                throw new Error(t('categoryManager.errors.fetch', 'Błąd podczas pobierania kategorii z serwera'));
-            }
-            const data: Category[] = await response.json();
-            setCategories(data);
-        } catch (err: any) {
-            setError(err.message);
-            toast({
-                variant: "destructive",
-                title: t('categoryManager.toast.errorTitle', 'Błąd'),
-                description: err.message,
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
+    const parentOptions = useMemo(() => getParentOptions(categories), [categories]);
+    const editParentOptions = useMemo(() => {
+        if (!editingCategory || !editForm) return [];
+
+        const blockedIds = collectDescendantIds(editingCategory.id, categories);
+        blockedIds.add(editingCategory.id);
+
+        return getParentOptions(categories).filter((category) => !blockedIds.has(category.id));
+    }, [editForm, editingCategory, categories]);
+
+    const refreshCategories = useCallback(async () => {
+        const result = await listCategories();
+        if (result.success) setCategories(result.categories);
+    }, [listCategories]);
 
     useEffect(() => {
-        fetchCategories();
-    }, []);
+        void refreshCategories();
+    }, [refreshCategories]);
 
-    // Aktualny skrót językowy (np. 'pl', 'en') do poprawnego sortowania alfabetycznego
-    const currentLanguage = i18n.language || 'pl';
-
-    // 1. Sortowanie i budowanie pełnego drzewa alfabetycznego
-    const fullCategoryTree = useMemo<TreeCategory[]>(() => {
-        const tree: TreeCategory[] = [];
-        const lookup: Record<string | number, TreeCategory> = {};
-
-        const sorted = [...categories].sort((a, b) => 
-            a.name.localeCompare(b.name, currentLanguage, { sensitivity: 'base' })
-        );
-
-        sorted.forEach(cat => {
-            lookup[cat.id] = { ...cat, children: [] };
+    useEffect(() => {
+        setExpandedCategoryIds((current) => {
+            const categoryIds = new Set(categories.map((category) => category.id));
+            return new Set([...current].filter((categoryId) => categoryIds.has(categoryId)));
         });
+    }, [categories]);
 
-        sorted.forEach(cat => {
-            const parentId = cat.parent_id; 
-            if (parentId && lookup[parentId]) {
-                lookup[parentId].children.push(lookup[cat.id]);
-            } else {
-                tree.push(lookup[cat.id]);
+    useEffect(() => {
+        setSelectedParentId((current) => getValidParentId(current, parentOptions));
+    }, [parentOptions]);
+
+    useEffect(() => {
+        if (editForm) {
+            const validParentId = getValidParentId(editForm.parentId, editParentOptions);
+            if (validParentId !== editForm.parentId) {
+                setEditForm((current) => current ? { ...current, parentId: validParentId } : current);
             }
-        });
+        }
+    }, [editForm, editParentOptions]);
 
-        return tree;
-    }, [categories, currentLanguage]);
-
-    // 2. Filtrowanie drzewa na podstawie frazy z wyszukiwarki (rekurencyjne)
-    const filteredCategoryTree = useMemo<TreeCategory[]>(() => {
-        if (!searchQuery.trim()) return fullCategoryTree;
-
-        const query = searchQuery.toLowerCase().trim();
-
-        const filterNodes = (nodes: TreeCategory[]): TreeCategory[] => {
-            return nodes
-                .map(node => ({ ...node, children: filterNodes(node.children) }))
-                .filter(node => node.name.toLowerCase().includes(query) || node.children.length > 0);
-        };
-
-        return filterNodes(fullCategoryTree);
-    }, [fullCategoryTree, searchQuery]);
-
-    // Posortowana lista do formularza Select
-    const sortedCategoriesForSelect = useMemo(() => {
-        return [...categories].sort((a, b) => 
-            a.name.localeCompare(b.name, currentLanguage, { sensitivity: 'base' })
-        );
-    }, [categories, currentLanguage]);
-
-    // Dodawanie nowej kategorii do bazy
-    const handleAddCategory = async (event: FormEvent<HTMLFormElement>) => {
+    const handleCreateCategory = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (!newCategoryName.trim()) return;
+        const trimmedName = newCategoryName.trim();
 
-        setIsSubmitting(true);
-        try {
-            const response = await fetch(ENDPOINTS.CATEGORIES_BASE, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: newCategoryName.trim(),
-                    parent_id: selectedParentId !== 'root' ? parseInt(selectedParentId, 10) : null
-                }),
-            });
+        if (!trimmedName) return;
 
-            if (!response.ok) {
-                throw new Error(t('categoryManager.errors.save', 'Nie udało się zapisać nowej kategorii'));
-            }
+        const result = await createCategory({
+            name: trimmedName,
+            parentId: selectedParentId === ROOT_CATEGORY ? null : Number(selectedParentId),
+            description: newCategoryDescription.trim() || null,
+        });
 
+        if (result.success) {
             setNewCategoryName('');
-            setSelectedParentId('root');
-            await fetchCategories();
-            
-            toast({
-                title: t('categoryManager.toast.successTitle', 'Sukces'),
-                description: t('categoryManager.toast.successAdd', 'Kategoria została poprawnie dodana.'),
-            });
-        } catch (err: any) {
-            toast({
-                variant: "destructive",
-                title: t('categoryManager.toast.errorTitle', 'Błąd'),
-                description: err.message,
-            });
-        } finally {
-            setIsSubmitting(false);
+            setSelectedParentId(ROOT_CATEGORY);
+            setNewCategoryDescription('');
+            await refreshCategories();
         }
     };
 
-    // Usuwanie kategorii z bazy
-    const handleDelete = async (id: number | string) => {
-        if (!window.confirm(t('categoryManager.confirmDelete', 'Czy na pewno chcesz usunąć tę kategorię?'))) {
-            return;
-        }
+    const openEditDialog = (category: Category) => {
+        setEditingCategory(category);
+        setEditForm({
+            name: category.name,
+            parentId: category.parentId ? String(category.parentId) : ROOT_CATEGORY,
+            description: category.description ?? '',
+            status: category.isActive ? 'active' : 'inactive',
+        });
+        clearError();
+    };
 
-        try {
-            const response = await fetch(`${ENDPOINTS.CATEGORIES_BASE}/${id}`, {
-                method: 'DELETE',
-            });
+    const closeEditDialog = () => {
+        setEditingCategory(null);
+        setEditForm(null);
+    };
 
-            if (!response.ok) {
-                throw new Error(t('categoryManager.errors.delete', 'Serwer odrzucił żądanie usunięcia'));
-            }
+    const handleUpdateCategory = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!editingCategory || !editForm?.name.trim()) return;
 
-            await fetchCategories();
-            toast({
-                title: t('categoryManager.toast.successTitle', 'Sukces'),
-                description: t('categoryManager.toast.successDelete', 'Kategoria została pomyślnie usunięta.'),
-            });
-        } catch (err: any) {
-            toast({
-                variant: "destructive",
-                title: t('categoryManager.toast.errorTitle', 'Błąd'),
-                description: err.message,
-            });
+        const result = await updateCategory(editingCategory.id, {
+            name: editForm.name.trim(),
+            parentId: editForm.parentId === ROOT_CATEGORY ? null : Number(editForm.parentId),
+            description: editForm.description.trim() || null,
+            isActive: editForm.status === 'active',
+        });
+
+        if (result.success) {
+            closeEditDialog();
+            await refreshCategories();
         }
     };
 
-    // Obsługa przycisków globalnego rozwijania/zwijania
-    const handleGlobalExpand = (expand: boolean) => {
-        setGlobalExpandTrigger(expand);
-        setTimeout(() => setGlobalExpandTrigger(null), 100);
+    const toggleCategory = (categoryId: number) => {
+        setExpandedCategoryIds((current) => {
+            const next = new Set(current);
+
+            if (next.has(categoryId)) next.delete(categoryId);
+            else next.add(categoryId);
+
+            return next;
+        });
     };
 
-    // Rekurencyjny komponent pojedynczego węzła drzewa (shadcn Collapsible)
-    const CategoryNode = ({ node, level = 0 }: { node: TreeCategory; level?: number }) => {
-        const [isOpen, setIsOpen] = useState(true);
-        const hasChildren = node.children && node.children.length > 0;
-
-        useEffect(() => {
-            if (globalExpandTrigger !== null) {
-                setIsOpen(globalExpandTrigger);
-            }
-        }, [globalExpandTrigger]);
-
-        useEffect(() => {
-            if (searchQuery.trim()) {
-                setIsOpen(true);
-            }
-        }, [searchQuery]);
+    const renderCategoryNode = (node: CategoryNode, level = 0) => {
+        const hasChildren = node.children.length > 0;
+        const isExpanded = expandedCategoryIds.has(node.id);
+        const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
+        const CategoryIcon = hasChildren ? FolderTree : Folder;
 
         return (
-            <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
-                <div className={`flex items-center justify-between py-1.5 px-3 hover:bg-muted/50 rounded-lg group transition border border-transparent ${level > 0 ? 'ml-6 border-l border-border/60' : ''}`}>
-                    <div className="flex items-center space-x-2">
-                        <CollapsibleTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                disabled={!hasChildren}
-                                className={`h-7 w-7 text-muted-foreground p-0 transition-transform duration-200 ${isOpen && hasChildren ? 'transform rotate-90' : ''} ${!hasChildren ? 'opacity-20 cursor-default hover:bg-transparent' : ''}`}
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </CollapsibleTrigger>
-                        
-                        <span className={`text-sm ${level === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
-                            {node.name}
-                        </span>
-                    </div>
-                    
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(node.id)}
-                        className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition h-7 px-2"
-                    >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        {t('categoryManager.delete')}
-                    </Button>
-                </div>
-
-                {hasChildren && (
-                    <CollapsibleContent>
-                        <div className="mt-0.5 space-y-0.5">
-                            {node.children.map(child => (
-                                <CategoryNode key={child.id} node={child} level={level + 1} />
-                            ))}
+            <Collapsible key={node.id} open={isExpanded} onOpenChange={() => toggleCategory(node.id)}>
+                <div
+                    className="group flex items-center justify-between rounded-lg border border-transparent px-3 py-2 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900"
+                    style={{ marginLeft: level * 20 }}
+                >
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                            {hasChildren ? (
+                                <CollapsibleTrigger asChild>
+                                    <Button variant="ghost" size="icon-sm" className="-ml-1" aria-label={node.name}>
+                                        <ChevronIcon />
+                                    </Button>
+                                </CollapsibleTrigger>
+                            ) : (
+                                <span className="block size-7 shrink-0" />
+                            )}
+                            <CategoryIcon className={level === 0 ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'} />
+                            <span className={level === 0 ? 'truncate text-sm font-semibold' : 'truncate text-sm text-slate-600 dark:text-slate-400'}>
+                                {node.name}
+                            </span>
                         </div>
-                    </CollapsibleContent>
-                )}
+                        <div className="ml-12 mt-0.5 truncate text-[10px] text-slate-400">{node.path}</div>
+                        {node.description && (
+                            <div className="ml-12 mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{node.description}</div>
+                        )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
+                            <Pencil />
+                        </Button>
+                    </div>
+                </div>
+                <CollapsibleContent>
+                    {node.children.map((child) => renderCategoryNode(child, level + 1))}
+                </CollapsibleContent>
             </Collapsible>
         );
     };
 
-    if (isLoading && categories.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center py-24 space-y-2 text-sm text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span>{t('categoryManager.loading', 'Pobieranie danych bazy...')}</span>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="text-center py-12 text-sm text-destructive font-medium">
-                {t('categoryManager.criticalError', 'Błąd połączenia z backendem')}: {error}
-            </div>
-        );
-    }
-
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
-            {/* Formularz Zarządzania */}
-            <div className="lg:col-span-1">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">{t('categoryManager.addTitle')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleAddCategory} className="space-y-4">
-                            <div className="space-y-1.5">
-                                <Label htmlFor="new-category-name">
-                                    {t('categoryManager.nameLabel')}
-                                </Label>
+        <div className="grid gap-6 lg:grid-cols-3">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-sm">{t('categoryManager.addTitle')}</CardTitle>
+                    <CardDescription className="text-xs">{t('categoryManager.addDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertCircle />
+                            <AlertTitle>{t('categoryManager.errorTitle')}</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
+                            <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError}>×</Button>
+                        </Alert>
+                    )}
+
+                    <form onSubmit={(event) => void handleCreateCategory(event)} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="new-category-name">{t('categoryManager.nameLabel')}</Label>
+                            <Input
+                                id="new-category-name"
+                                value={newCategoryName}
+                                onChange={(event) => setNewCategoryName(event.target.value)}
+                                placeholder={t('categoryManager.namePlaceholder')}
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>{t('categoryManager.parentLabel')}</Label>
+                            <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={ROOT_CATEGORY}>{t('categoryManager.rootLevel')}</SelectItem>
+                                    {parentOptions.map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>{category.path}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="new-category-description">{t('categoryManager.descriptionLabel')}</Label>
+                            <Textarea
+                                id="new-category-description"
+                                value={newCategoryDescription}
+                                onChange={(event) => setNewCategoryDescription(event.target.value)}
+                                placeholder={t('categoryManager.descriptionPlaceholder')}
+                            />
+                        </div>
+
+                        <Button type="submit" className="w-full" disabled={isLoading || !newCategoryName.trim()}>
+                            <Plus />
+                            {isLoading ? t('categoryManager.saving') : t('categoryManager.addBtn')}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+                <CardHeader className="flex-row items-start justify-between gap-4">
+                    <div>
+                        <CardTitle className="text-sm">{t('categoryManager.treeTitle')}</CardTitle>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => void refreshCategories()} disabled={isLoading}>
+                        <RefreshCw className={isLoading ? 'animate-spin' : ''} />
+                        {t('categoryManager.refresh')}
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
+                        {categoryTree.length > 0
+                            ? categoryTree.map((node) => renderCategoryNode(node))
+                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('categoryManager.loading') : t('categoryManager.emptyTree')}</p>}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Dialog open={Boolean(editingLocation && editForm)} onOpenChange={(open) => !open && closeEditDialog()}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>{t('categoryManager.editTitle')}</DialogTitle>
+                    </DialogHeader>
+                    {editForm && (
+                        <form id="edit-category-form" onSubmit={(event) => void handleUpdateCategory(event)} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-category-name">{t('categoryManager.nameLabel')}</Label>
                                 <Input
-                                    id="new-category-name"
-                                    type="text"
+                                    id="edit-category-name"
+                                    value={editForm.name}
+                                    onChange={(event) => setEditForm({ ...editForm, name: event.target.value })}
                                     required
-                                    value={newCategoryName}
-                                    onChange={(e) => setNewCategoryName(e.target.value)}
-                                    placeholder={t('categoryManager.namePlaceholder', 'np. Zasilacze laboratoryjne')}
                                 />
                             </div>
 
-                            <div className="space-y-1.5">
-                                <Label>
-                                    {t('categoryManager.parentLabel')}
-                                </Label>
-                                <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-                                    <SelectTrigger className="w-full">
-                                        <SelectValue placeholder={t('categoryManager.rootLevel')} />
-                                    </SelectTrigger>
+                            <div className="space-y-2">
+                                <Label>{t('categoryManager.statusLabel')}</Label>
+                                <Select value={editForm.status} onValueChange={(status) => setEditForm({ ...editForm, status: status as CategoryFormState['status'] })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="root">{t('categoryManager.rootLevel')}</SelectItem>
-                                        {sortedCategoriesForSelect.map(cat => (
-                                            <SelectItem key={cat.id} value={cat.id.toString()}>
-                                                {cat.name}
-                                            </SelectItem>
+                                        {CATEGORY_STATUSES.map((status) => (
+                                            <SelectItem key={status} value={status}>{t(`categoryManager.statuses.${status}`)}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting}>
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        {t('categoryManager.adding')}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        {t('categoryManager.addBtn')}
-                                    </>
-                                )}
-                            </Button>
+                            <div className="space-y-2">
+                                <Label>{t('categoryManager.parentLabel')}</Label>
+                                <Select value={editForm.parentId} onValueChange={(parentId) => setEditForm({ ...editForm, parentId })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value={ROOT_CATEGORY}>{t('categoryManager.rootLevel')}</SelectItem>
+                                        {editParentOptions.map((category) => (
+                                            <SelectItem key={category.id} value={String(category.id)}>{category.path}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-category-description">{t('categoryManager.descriptionLabel')}</Label>
+                                <Textarea
+                                    id="edit-category-description"
+                                    value={editForm.description}
+                                    onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
+                                />
+                            </div>
                         </form>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Drzewo Kategorii */}
-            <div className="lg:col-span-2">
-                <Card className="flex flex-col h-full">
-                    <CardHeader className="pb-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <div>
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <FolderTree className="h-4 w-4 text-muted-foreground" />
-                                    {t('categoryManager.treeTitle')}
-                                </CardTitle>
-                                <CardDescription>{t('categoryManager.desc')}</CardDescription>
-                            </div>
-                            
-                            <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="h-8 text-xs px-2.5"
-                                    onClick={() => handleGlobalExpand(true)}
-                                >
-                                    <Eye className="h-3.5 w-3.5 mr-1" />
-                                    {t('categoryManager.controls.expandAll', 'Rozwiń')}
-                                </Button>
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="h-8 text-xs px-2.5"
-                                    onClick={() => handleGlobalExpand(false)}
-                                >
-                                    <EyeOff className="h-3.5 w-3.5 mr-1" />
-                                    {t('categoryManager.controls.collapseAll', 'Zwiń')}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="relative mt-3">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder={t('categoryManager.searchPlaceholder', 'Filtruj drzewo kategorii...')}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-9 h-9"
-                            />
-                        </div>
-                    </CardHeader>
-                    
-                    <CardContent className="flex-1">
-                        <div className="bg-muted/30 rounded-lg border p-4 min-h-[250px] h-full">
-                            {filteredCategoryTree.length > 0 ? (
-                                <div className="space-y-0.5">
-                                    {filteredCategoryTree.map(rootNode => (
-                                        <CategoryNode key={rootNode.id} node={rootNode} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-12 text-sm text-muted-foreground">
-                                    {searchQuery 
-                                        ? t('categoryManager.noMatches', 'Brak kategorii pasujących do filtra') 
-                                        : t('categoryManager.emptyTree')}
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={closeEditDialog}>{t('categoryManager.cancel')}</Button>
+                        <Button type="submit" form="edit-category-form" disabled={isLoading || !editForm?.name.trim()}>
+                            {isLoading ? t('categoryManager.saving') : t('categoryManager.save')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
