@@ -33,16 +33,6 @@ class ItemCreateResponse(BaseModel):
     description: ItemDescription | None
 
 
-class Item(BaseModel):
-    name: ItemName
-    category_id: CategoryID
-    location_id: LocationID
-    owner_id: UserID
-    description: ItemDescription | None
-    status: ItemStatus = ItemStatus.AVAILABLE
-    legacy_id: int | None
-
-
 class ItemCategory(BaseModel):
     id: CategoryID
     name: CategoryName
@@ -58,6 +48,16 @@ class ItemOwner(BaseModel):
     name: UserName
 
 
+class ItemResponse(BaseModel):
+    name: ItemName
+    id: ItemID
+    category: ItemCategory
+    location: ItemLocation
+    owner: ItemOwner
+    description: ItemDescription | None
+    status: ItemStatus = ItemStatus.AVAILABLE
+
+
 class ItemDetails(BaseModel):
     id: ItemID
     name: ItemName
@@ -66,7 +66,6 @@ class ItemDetails(BaseModel):
     owner: ItemOwner
     description: ItemDescription | None
     status: ItemStatus = ItemStatus.AVAILABLE
-    legacy_id: int | None
 
 
 class ItemPagination(BaseModel):
@@ -76,17 +75,17 @@ class ItemPagination(BaseModel):
 
 
 class ItemsPaged(BaseModel):
-    items: list[ItemDetails]
+    items: list[ItemResponse]
     pagination: ItemPagination
 
 
 class ItemUpdate(BaseModel):
+    name: ItemName | None = None
     description: ItemDescription | None = None
-
-
-class ItemUpdateResponse(BaseModel):
-    id: ItemID
-    description: ItemDescription | None
+    category_id: CategoryID | None = None
+    location_id: LocationID | None = None
+    owner_id: UserID | None = None
+    status: ItemStatus | None = None
 
 
 class ItemHistoryEntry(BaseModel):

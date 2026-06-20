@@ -31,11 +31,12 @@ def test_update_item_endpoint_updates_live_database(api_client: TestClient, seed
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "id": SEED_IDS.laptop,
-        "description": "Opis zmieniony przez API",
-    }
-    assert seeded_db.get(Item, SEED_IDS.laptop).description == "Opis zmieniony przez API"
+    body = response.json()
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert body["description"] == item.description
+    assert body["owner_id"] == item.owner_id
+    assert body["category_id"] == item.category_id
+    assert body["location_id"] == item.location_id
 
 
 def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seeded_db: Session):
@@ -48,3 +49,119 @@ def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seede
     assert len(history) == 1
     assert history[0]["updated_by"] == SEED_IDS.regular_user
     assert seeded_db.get(Item, created["id"]) is not None
+
+
+def test_get_item_endpoint_returns_item_details(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/{SEED_IDS.laptop}")
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["name"]
+
+    assert body["owner"]["id"]
+    assert body["owner"]["name"]
+
+    assert body["category"]["id"]
+    assert body["category"]["name"]
+
+    assert body["location"]["id"]
+    assert body["location"]["path"]
+
+
+def test_get_item_endpoint_returns_404_for_missing_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get("/items/999999")
+
+    assert response.status_code == 404
+
+
+def test_delete_item_endpoint_removes_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.delete(f"/items/{SEED_IDS.laptop}")
+
+    assert response.status_code == 204
+
+    assert seeded_db.get(Item, SEED_IDS.laptop) is None
+
+
+def test_read_items_filters_by_owner(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(
+        "/items",
+        params={"owner_id": SEED_IDS.regular_user},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert "items" in body
+    assert len(body["items"]) > 0
+
+    item = body["items"][0]
+
+    assert item["owner"]["id"] == SEED_IDS.regular_user
+
+
+def test_read_items_filters_by_name(
+    api_client: TestClient,
+):
+    response = api_client.get(
+        "/items",
+        params={"name": "Laptop"},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    if body["items"]:
+        assert body["items"][0]["name"]
+        assert body["items"][0]["owner"]
+        assert body["items"][0]["category"]
+        assert body["items"][0]["location"]
+
+
+def test_read_items_supports_pagination(
+    api_client: TestClient,
+):
+    response = api_client.get(
+        "/items",
+        params={
+            "page": 1,
+            "limit": 2,
+        },
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["pagination"]["page"] == 1
+    assert body["pagination"]["limit"] == 2
+
+
+def test_get_item_returns_nested_objects(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/{SEED_IDS.laptop}")
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert isinstance(body["owner"], dict)
+    assert isinstance(body["category"], dict)
+    assert isinstance(body["location"], dict)
