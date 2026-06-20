@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from src.auth.jwt import create_access_token
 from src.categories.models import Category
 from src.items.models import Item
 from src.seed import SEED_IDS
@@ -9,10 +10,19 @@ from src.seed import SEED_IDS
 pytestmark = pytest.mark.integration
 
 
+def auth_headers(user_id: int) -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token(user_id)}"}
+
+
+def admin_headers() -> dict[str, str]:
+    return auth_headers(SEED_IDS.admin_user)
+
+
 def test_create_category_endpoint_persists_category(api_client: TestClient, seeded_db: Session):
     response = api_client.post(
         "/categories",
         json={"name": "Telefony", "parent_id": SEED_IDS.electronics},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 201
@@ -24,21 +34,36 @@ def test_create_category_endpoint_persists_category(api_client: TestClient, seed
 
 
 def test_create_category_endpoint_rejects_duplicate_sibling_name(api_client: TestClient, seeded_db: Session):
-    response = api_client.post("/categories", json={"name": "Elektronika"})
+    response = api_client.post("/categories", json={"name": "Elektronika"}, headers=admin_headers())
 
     assert response.status_code == 409
 
 
 def test_create_category_endpoint_rejects_missing_parent(api_client: TestClient, seeded_db: Session):
-    response = api_client.post("/categories", json={"name": "Telefony", "parent_id": 999999})
+    response = api_client.post(
+        "/categories",
+        json={"name": "Telefony", "parent_id": 999999},
+        headers=admin_headers(),
+    )
 
     assert response.status_code == 404
+
+
+def test_create_category_endpoint_requires_admin_role(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        "/categories",
+        json={"name": "Telefony"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
 
 
 def test_update_category_endpoint_updates_live_database(api_client: TestClient, seeded_db: Session):
     response = api_client.put(
         f"/categories/{SEED_IDS.accessories}",
         json={"name": "Akcesoria IT", "parent_id": None},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -53,6 +78,7 @@ def test_update_category_endpoint_rejects_parent_cycle(api_client: TestClient, s
     response = api_client.put(
         f"/categories/{SEED_IDS.electronics}",
         json={"name": "Elektronika", "parent_id": SEED_IDS.computers},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 400
@@ -62,15 +88,27 @@ def test_update_category_endpoint_rejects_duplicate_name(api_client: TestClient,
     response = api_client.put(
         f"/categories/{SEED_IDS.accessories}",
         json={"name": "Komputery", "parent_id": SEED_IDS.electronics},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 409
+
+
+def test_update_category_endpoint_requires_admin_role(api_client: TestClient, seeded_db: Session):
+    response = api_client.put(
+        f"/categories/{SEED_IDS.accessories}",
+        json={"name": "Akcesoria IT", "parent_id": None},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
 
 
 def test_delete_category_endpoint_reassigns_items(api_client: TestClient, seeded_db: Session):
     response = api_client.delete(
         f"/categories/{SEED_IDS.accessories}",
         params={"replacement_category_id": SEED_IDS.electronics},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -87,6 +125,7 @@ def test_delete_category_endpoint_blocks_category_with_children(api_client: Test
     response = api_client.delete(
         f"/categories/{SEED_IDS.electronics}",
         params={"replacement_category_id": SEED_IDS.computers},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 409
@@ -96,9 +135,20 @@ def test_delete_category_endpoint_rejects_same_replacement(api_client: TestClien
     response = api_client.delete(
         f"/categories/{SEED_IDS.accessories}",
         params={"replacement_category_id": SEED_IDS.accessories},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 400
+
+
+def test_delete_category_endpoint_requires_admin_role(api_client: TestClient, seeded_db: Session):
+    response = api_client.delete(
+        f"/categories/{SEED_IDS.accessories}",
+        params={"replacement_category_id": SEED_IDS.electronics},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
 
 
 def test_read_categories_endpoint_returns_paged_categories(api_client: TestClient, seeded_db: Session):

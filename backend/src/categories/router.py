@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from src.auth.dependencies import RequireAdmin
 from src.categories.constants import CATEGORY_PAGE_DEFAULT, CATEGORY_PAGE_LIMIT_DEFAULT, CATEGORY_PAGE_LIMIT_MAX
 from src.categories.exceptions import (
     CategoryDuplicateNameError,
@@ -67,13 +68,21 @@ def read_categories(
             "model": ErrorResponse,
             "description": "Nie znaleziono kategorii nadrzędnej.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": "Kategoria o tej nazwie istnieje już w tym samym rodzicu.",
         },
     },
 )
-def create_category(data: CategoryCreate, db: DBDep) -> CategoryResponse:
+def create_category(data: CategoryCreate, db: DBDep, _admin: RequireAdmin) -> CategoryResponse:
     service = CategoryService(db)
     try:
         category = service.create_category(data)
@@ -103,13 +112,21 @@ def create_category(data: CategoryCreate, db: DBDep) -> CategoryResponse:
             "model": ErrorResponse,
             "description": "Nie znaleziono kategorii lub kategorii nadrzędnej.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": "Kategoria o tej nazwie istnieje już w docelowym rodzicu.",
         },
     },
 )
-def update_category(category_id: CategoryID, data: CategoryUpdate, db: DBDep) -> CategoryResponse:
+def update_category(category_id: CategoryID, data: CategoryUpdate, db: DBDep, _admin: RequireAdmin) -> CategoryResponse:
     service = CategoryService(db)
     try:
         category = service.update_category(category_id, data)
@@ -141,6 +158,14 @@ def update_category(category_id: CategoryID, data: CategoryUpdate, db: DBDep) ->
             "model": ErrorResponse,
             "description": "Nie znaleziono usuwanej lub zastępczej kategorii.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
         status.HTTP_409_CONFLICT: {
             "model": ErrorResponse,
             "description": "Kategoria ma podkategorie i nie może zostać usunięta przed ich przeniesieniem.",
@@ -150,6 +175,7 @@ def update_category(category_id: CategoryID, data: CategoryUpdate, db: DBDep) ->
 def delete_category(
     category_id: CategoryID,
     db: DBDep,
+    _admin: RequireAdmin,
     replacement_category_id: Annotated[
         int,
         Query(
