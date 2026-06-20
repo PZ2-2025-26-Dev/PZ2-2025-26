@@ -57,7 +57,10 @@ def _field_value(item: Item, field: str) -> tuple[str, str]:
     parameter_prefix = "parameters."
     if field.startswith(parameter_prefix):
         parameter_name = field.removeprefix(parameter_prefix)
-        value = None if item.parameters is None else item.parameters.get(parameter_name)
+        if item.parameters is None or parameter_name not in item.parameters:
+            raise ValueError(f"Unsupported label parameter: {parameter_name}")
+
+        value = item.parameters[parameter_name]
         return parameter_name, "" if value is None else str(value)
 
     raise ValueError(f"Unsupported label field: {field}")

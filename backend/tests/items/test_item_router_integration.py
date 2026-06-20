@@ -248,6 +248,39 @@ def test_download_item_label_endpoint_supports_parameters_fields(
     assert response.headers["content-type"] == "image/png"
 
 
+def test_download_item_label_endpoint_returns_400_for_missing_parameter_key(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Router", parameters={"serial_number": "SN-123"}),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.asset_tag"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Unsupported label parameter: asset_tag"}
+
+
+def test_download_item_label_endpoint_returns_400_for_parameter_field_without_parameters(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Router bez parametrów")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.serial_number"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Unsupported label parameter: serial_number"}
+
+
 def test_download_item_label_pdf_endpoint_uses_requested_size(
     api_client: TestClient,
     seeded_db: Session,
