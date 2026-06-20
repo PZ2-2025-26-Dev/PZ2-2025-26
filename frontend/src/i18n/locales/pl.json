@@ -209,6 +209,12 @@
     "googleLoginError": "Logowanie przez Google nie powiodło się. Spróbuj ponownie.",
     "googleCallbackLoading": "Logowanie przez Google...",
     "invalidEmail": "Podaj poprawny adres e-mail",
-    "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków"
+    "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków",
+    "firstNameRequired": "Imię jest wymagane",
+    "lastNameRequired": "Nazwisko jest wymagane",
+    "registerErrorTitle": "Rejestracja nie powiodła się",
+    "registerSuccessTitle": "Rejestracja zakończona sukcesem",
+    "registering": "Tworzenie konta...",
+    "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
   }
 }
