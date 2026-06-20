@@ -29,7 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { AppUser, InventoryItem } from '@/types';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
-import { useCategories } from '../categories/useCategories';
+import { useCategories } from './useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
 import UserManager from '../users/UserManager';
 import LocationManager from '../locations/LocationManager';
