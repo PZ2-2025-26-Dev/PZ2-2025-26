@@ -3,6 +3,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from src.auth.constants import UserRole, UserStatus
 from src.database import Base
+from src.users.constants import (
+    EMAIL_MAX_LENGTH,
+    FIRST_NAME_MAX_LENGTH,
+    LAST_NAME_MAX_LENGTH,
+)
 
 
 class User(Base):
@@ -10,10 +15,14 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    first_name: Mapped[str] = mapped_column(String(100))
-    last_name: Mapped[str | None] = mapped_column(String(100))
+    first_name: Mapped[str] = mapped_column(String(FIRST_NAME_MAX_LENGTH))
 
-    email: Mapped[str] = mapped_column(String(512), unique=True)
+    last_name: Mapped[str | None] = mapped_column(String(LAST_NAME_MAX_LENGTH))
+
+    email: Mapped[str] = mapped_column(
+        String(EMAIL_MAX_LENGTH),
+        unique=True,
+    )
 
     role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     status: Mapped[UserStatus] = mapped_column(Enum(UserStatus))

@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
 # WORKAROUND:
 # W trakcie projektu przerzucimy się na alembic
@@ -41,8 +42,13 @@ app.add_middleware(
     allow_headers=config.cors_headers,
 )
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=config.jwt_secret_key,
+)
+
 app.include_router(auth_router)
-app.include_router(users_router, prefix="/api/v1")
+app.include_router(users_router)
 app.include_router(items_router)
 
 

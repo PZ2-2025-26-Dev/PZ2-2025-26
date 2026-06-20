@@ -1,8 +1,7 @@
-import  { useEffect, useState } from 'react';
+import  { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function WelcomePage({ onSSOLogin, isDarkMode, setIsDarkMode }) {
-    const [showRoleSelector, setShowRoleSelector] = useState(false);
+export default function WelcomePage({ onLocalLogin, onRegister, isDarkMode, setIsDarkMode }) {
     const { t, i18n } = useTranslation();
 
     useEffect(() => {
@@ -43,35 +42,40 @@ export default function WelcomePage({ onSSOLogin, isDarkMode, setIsDarkMode }) {
                     <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">
                         Wydział Fizyki i Informatyki Stosowanej / WFiIS
                     </div>
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-                        {t('welcome.title')}
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight flex items-center justify-center">
+                        <span className="mr-3 text-3xl" role="img" aria-label="plug">🔌</span>
+                        <span>{t('welcome.title')}</span>
                     </h1>
                     <p className="text-sm sm:text-base font-medium text-emerald-700 dark:text-emerald-400">{t('welcome.subtitle')}</p>
                     <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl mx-auto">{t('welcome.description')}</p>
 
                     <div className="pt-4 pb-8 min-h-[140px] flex flex-col items-center justify-center">
-                        {!showRoleSelector ? (
-                            <div className="flex flex-col items-center space-y-3 animate-fadeIn">
-                                <button onClick={() => setShowRoleSelector(true)} className="w-full sm:w-auto px-8 py-3 bg-emerald-700 dark:bg-emerald-600 hover:bg-emerald-800 dark:hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl shadow-md transform hover:-translate-y-0.5 transition flex items-center justify-center space-x-2">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                                    <span>{t('welcome.ssoButton')}</span>
-                                </button>
-                                <div className="flex items-center space-x-3 text-xs text-slate-400 dark:text-slate-500 pt-2">
-                                    <button className="underline hover:text-slate-600 dark:hover:text-slate-300">{t('welcome.registerLink')}</button>
-                                </div>
+                        <div className="flex flex-col items-center space-y-3 animate-fadeIn w-full max-w-md">
+                            <button
+                                onClick={onLocalLogin}
+                                className="w-full sm:w-auto px-8 py-3 bg-emerald-700 dark:bg-emerald-600 hover:bg-emerald-800 dark:hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl shadow-md transform hover:-translate-y-0.5 transition flex items-center justify-center gap-2"
+                            >
+                                <svg
+                                    className="w-4 h-4 flex-shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                                    />
+                                </svg>
+
+                                <span>{t('auth.loginButton')}</span>
+                            </button>
+
+                            <div className="flex items-center space-x-3 text-xs text-slate-400 dark:text-slate-500 pt-2">
+                                <button onClick={onRegister} className="underline hover:text-slate-600 dark:hover:text-slate-300">{t('welcome.registerLink')}</button>
                             </div>
-                        ) : (
-                            <div className="flex flex-col items-center space-y-4 animate-fadeIn w-full max-w-md bg-white dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">{t('welcome.selectRoleTitle')}</h3>
-                                <div className="grid grid-cols-2 gap-3 w-full">
-                                    <button onClick={() => onSSOLogin('admin')} className="py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium text-sm rounded-lg transition border border-slate-200 dark:border-slate-700">Admin</button>
-                                    <button onClick={() => onSSOLogin('regular')} className="py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium text-sm rounded-lg transition border border-slate-200 dark:border-slate-700">Regular</button>
-                                    <button onClick={() => onSSOLogin('read-only')} className="py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium text-sm rounded-lg transition border border-slate-200 dark:border-slate-700">Read-Only</button>
-                                    <button onClick={() => onSSOLogin('zero-access')} className="py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium text-sm rounded-lg transition border border-slate-200 dark:border-slate-700">Zero-Access</button>
-                                </div>
-                                <button onClick={() => setShowRoleSelector(false)} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline mt-2 transition">{t('welcome.backBtn')}</button>
-                            </div>
-                        )}
+                        </div>
                     </div>
                 </div>
 

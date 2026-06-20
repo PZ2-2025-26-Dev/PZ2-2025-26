@@ -28,6 +28,9 @@ class Item(Base):
 
     description: Mapped[str | None] = mapped_column(String(ITEM_DESC_LENGTH))
 
+    # TODO:
+    # public_id: Mapped[UUID]
+
 
 class ItemHistory(Base):
     __tablename__ = "item_history"

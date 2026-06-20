@@ -3,11 +3,11 @@
     "title": "Zintegrowany System Zarządzania Aparaturą Pomiarową",
     "subtitle": "Akademia Górniczo-Hutnicza im. Stanisława Staszica w Krakowie",
     "description": "Wszechstronna platforma logistyczno-ewidencyjna dedykowana dla pracowników oraz studentów wydziału. Zapewnia pełną kontrolę nad bazą sprzętową, lokalizacją oraz procesem rezerwacji.",
-    "ssoButton": "Zaloguj się przez AGH SSO",
+    "ssoButton": "Zaloguj się przez Google",
     "localLogin": "Logowanie lokalne",
     "registerLink": "Zarejestruj nowe konto (Wymaga zatwierdzenia)",
     "selectRoleTitle": "Wybierz rolę systemową (Symulacja MVP):",
-    "backBtn": "Anuluj",
+    "backBtn": "Przejdź do strony głównej",
     "card1Title": "Ewidencja i Statusy",
     "card1Desc": "Błyskawiczny wgląd w parametry urządzeń, daty kalibracji oraz przypisanych opiekunów.",
     "card2Title": "Kody QR i Szybkie Akcje",
@@ -170,6 +170,31 @@
       "pending_approval": "Oczekuje akceptacji",
       "inactive": "Nieaktywny",
       "deactivated": "Nieaktywny"
-    }
+    },
+    "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie."
+  },
+  "auth": {
+    "login": "Logowanie",
+    "register": "Rejestracja",
+    "email": "Email",
+    "password": "Hasło",
+    "firstName": "Imię",
+    "lastName": "Nazwisko",
+
+    "loginButton": "Zaloguj",
+    "registerButton": "Zarejestruj",
+
+    "googleLogin": "Zaloguj przez Google",
+    "googleRegister": "Zarejestruj przez Google",
+
+    "dontHaveAccount": "Nie masz konta?",
+    "alreadyHaveAccount": "Masz konto?",
+    "loginError": "Błąd logowania. Sprawdź swoje dane.",
+    "registerError": "Błąd rejestracji. Sprawdź formularz.",
+    "registerSuccess": "Konto utworzone. Oczekuje na zatwierdzenie.",
+    "googleLoginError": "Logowanie przez Google nie powiodło się. Spróbuj ponownie.",
+    "googleCallbackLoading": "Logowanie przez Google...",
+    "invalidEmail": "Podaj poprawny adres e-mail",
+    "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków"
   }
 }
