@@ -9,6 +9,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from '../categories/useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
 import UserManager from '../users/UserManager';
+import LocationManager from '../locations/LocationManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
@@ -187,6 +188,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 >
                                     {t('dashboard.tabCategories')}
                                 </button>
+                                <button
+                                    onClick={() => setActiveTab('locations')}
+                                    className={`whitespace-nowrap border-b-2 py-3 text-xs font-semibold transition-colors ${activeTab === 'locations' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                >
+                                    {t('dashboard.tabLocations')}
+                                </button>
                             </RoleGuard>
                         </div>
                     </div>
@@ -358,6 +365,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         {activeTab === 'categories' && (
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <CategoryManager />
+                            </RoleGuard>
+                        )}
+
+                        {activeTab === 'locations' && (
+                            <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
+                                <LocationManager />
                             </RoleGuard>
                         )}
                     </div>

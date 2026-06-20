@@ -35,6 +35,9 @@ services:
       PZ_GOOGLE_CLIENT_ID: ${PZ_GOOGLE_CLIENT_ID:?Variable not set}
       PZ_GOOGLE_CLIENT_SECRET: ${PZ_GOOGLE_CLIENT_SECRET:?Variable not set}
       PZ_GOOGLE_REDIRECT_URI: ${PZ_GOOGLE_REDIRECT_URI:?Variable not set}
+      PZ_UPLOAD_DIR: /app/uploads
+    volumes:
+      - upload_data:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -73,3 +76,4 @@ services:
 
 volumes:
   mysql_data:
+  upload_data:

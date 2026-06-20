@@ -24,6 +24,8 @@ class Config(BaseSettings):
     access_token_expire_minutes: int = 30
     jwt_algorithm: str = "HS256"
 
+    upload_dir: str = "uploads"
+
     model_config = SettingsConfigDict(env_prefix="pz_", extra="ignore")
 
 

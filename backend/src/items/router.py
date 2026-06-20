@@ -1,30 +1,53 @@
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
+from sqlalchemy import select
 
-from src.auth.schemas import UserID
+from src.auth.constants import UserRole
+from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.dependencies import DBDep
-from src.items.constants import ItemStatus
-from src.items.helpers import build_location_path
+from src.items.attachment_service import (
+    AttachmentNotFoundError,
+    AttachmentStorageError,
+    AttachmentTooLargeError,
+    ItemAttachmentService,
+    ItemNotFoundError,
+)
+from src.items.dependencies import (
+    ItemByUuid,
+    RequireItemReader,
+    RequireItemWriter,
+    assert_can_assign_owner_on_create,
+    assert_can_update_item,
+)
+from src.items.models import Item
 from src.items.schemas import (
-    CategoryID,
-    ItemCategory,
+    ItemAttachmentsListResponse,
     ItemCreate,
     ItemCreateResponse,
-    ItemHistoryEntry,
+    ItemGetResponse,
+    ItemHistoryGetResponse,
     ItemID,
-    ItemLocation,
-    ItemOwner,
-    ItemPagination,
-    ItemResponse,
+    ItemSearch,
     ItemsPaged,
     ItemUpdate,
-    LocationID,
-    SearchStr,
+    ItemUpdateResponse,
 )
 from src.items.service import ItemService
+from src.schemas import ErrorResponse
+from src.users.models import User
 
 router = APIRouter(prefix="/items")
+
+
+def _ensure_item_owner(item_id: UUID, user: User, db: DBDep) -> None:
+    item = db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if item.owner_id != user.id and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only item owner can manage attachments")
 
 
 @router.get(
@@ -36,61 +59,21 @@ router = APIRouter(prefix="/items")
         status.HTTP_200_OK: {
             "model": ItemsPaged,
             "description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
-        }
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
     },
 )
 def read_items(
     db: DBDep,
-    name: SearchStr | None = None,
-    description: SearchStr | None = None,
-    category_id: CategoryID | None = None,
-    location_id: LocationID | None = None,
-    owner_id: UserID | None = None,
-    status: ItemStatus | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    data: Annotated[ItemSearch, Depends()],
+    _reader: RequireItemReader,
 ) -> ItemsPaged:
-    service = ItemService(db)
-
-    items, total = service.search_items(
-        name=name,
-        description=description,
-        category_id=category_id,
-        location_id=location_id,
-        owner_id=owner_id,
-        status=status,
-        page=page,
-        limit=limit,
-    )
-
-    return ItemsPaged(
-        items=[
-            ItemResponse(
-                id=item.id,
-                name=item.name,
-                category=ItemCategory(
-                    id=item.category.id,
-                    name=item.category.name,
-                ),
-                location=ItemLocation(
-                    id=item.location.id,
-                    path=build_location_path(item.location),
-                ),
-                owner=ItemOwner(
-                    id=item.owner.id,
-                    name=item.owner.first_name,
-                ),
-                description=item.description,
-                status=item.status,
-            )
-            for item in items
-        ],
-        pagination=ItemPagination(
-            page=page,
-            limit=limit,
-            total=total,
-        ),
-    )
+    return ItemService(db).search_items(data)
 
 
 @router.post(
@@ -106,38 +89,43 @@ def read_items(
         status.HTTP_400_BAD_REQUEST: {
             "description": "Błędne dane lub nieistniejące powiązania",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do tworzenia przedmiotów.",
+        },
     },
 )
 def create_item(
     data: ItemCreate,
     db: DBDep,
+    user: RequireItemWriter,
 ) -> ItemCreateResponse:
-
+    assert_can_assign_owner_on_create(user, data.owner_id)
     service = ItemService(db)
 
     try:
-        new_item = service.add_item(data)
+        return service.add_item(data)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
-
-    return ItemCreateResponse(
-        id=new_item.id,
-        name=new_item.name,
-        inventory_number=new_item.inventory_number,
-        status=new_item.status,
-        description=new_item.description,
-    )
 
 
 @router.get(
     "/{item_id}",
-    response_model=ItemResponse,
+    response_model=ItemGetResponse,
     status_code=status.HTTP_200_OK,
     summary="Pobierz szczegóły przedmiotu",
     responses={
         status.HTTP_200_OK: {
-            "model": ItemResponse,
+            "model": ItemGetResponse,
             "description": "Pomyślnie zwrócono szczegóły przedmiotu",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
@@ -147,49 +135,37 @@ def create_item(
 def read_item(
     item_id: ItemID,
     db: DBDep,
-) -> ItemResponse:
+    _reader: RequireItemReader,
+) -> ItemGetResponse:
     service = ItemService(db)
 
     try:
-        item = service.get_item(item_id)
+        return service.get_item(item_id)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
         ) from err
-
-    return ItemResponse(
-        id=item.id,
-        name=item.name,
-        category=ItemCategory(
-            id=item.category.id,
-            name=item.category.name,
-        ),
-        owner=ItemOwner(
-            id=item.owner.id,
-            name=item.owner.first_name,
-        ),
-        location=ItemLocation(
-            id=item.location.id,
-            path=build_location_path(item.location),
-        ),
-        description=item.description,
-        status=item.status,
-    )
 
 
 @router.patch(
     "/{item_id}",
-    response_model=ItemUpdate,
+    response_model=ItemUpdateResponse,
     status_code=status.HTTP_200_OK,
     summary="Aktualizuj dane przedmiotu",
     responses={
         status.HTTP_200_OK: {
-            "model": ItemUpdate,
+            "model": ItemUpdateResponse,
             "description": "Dane przedmiotu zostały zaktualizowane.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do modyfikacji przedmiotu.",
+        },
         status.HTTP_404_NOT_FOUND: {
-            "description": "Nie znaleziono przedmiotu.",
+            "description": "Nie znaleziono przedmiotu",
         },
     },
 )
@@ -197,25 +173,19 @@ def update_item(
     item_id: ItemID,
     data: ItemUpdate,
     db: DBDep,
-) -> ItemUpdate:
+    user: RequireItemWriter,
+    item: ItemByUuid,
+) -> ItemUpdateResponse:
+    assert_can_update_item(user, item, data, db)
     service = ItemService(db)
 
     try:
-        item = service.update_item(item_id, data)
+        return service.update_item(item_id, data)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
         ) from err
-
-    return ItemUpdate(
-        name=item.name,
-        description=item.description,
-        category_id=item.category_id,
-        location_id=item.location_id,
-        owner_id=item.owner_id,
-        status=item.status,
-    )
 
 
 @router.delete(
@@ -226,6 +196,12 @@ def update_item(
         status.HTTP_204_NO_CONTENT: {
             "description": "Przedmiot został usunięty",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
         },
@@ -234,6 +210,7 @@ def update_item(
 def delete_item(
     item_id: ItemID,
     db: DBDep,
+    _admin: RequireAdmin,
 ) -> None:
     service = ItemService(db)
 
@@ -248,36 +225,200 @@ def delete_item(
 
 @router.get(
     "/{item_id}/history",
-    summary="Get item history",
+    summary="Pobierz historię przedmiotu",
     status_code=status.HTTP_200_OK,
-    response_model=list[ItemHistoryEntry],
+    response_model=ItemHistoryGetResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
         status.HTTP_404_NOT_FOUND: {
-            "description": "Item not found",
+            "description": "Nie znaleziono przedmiotu",
         },
     },
 )
 def read_item_history(
     item_id: ItemID,
     db: DBDep,
-) -> list[ItemHistoryEntry]:
+    _reader: RequireItemReader,
+) -> ItemHistoryGetResponse:
     service = ItemService(db)
 
     try:
-        history = service.get_item_history(item_id)
+        return service.get_item_history(item_id)
     except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono przedmiotu",
+        ) from err
+
+
+@router.get(
+    "/{item_id}/attachments",
+    response_model=ItemAttachmentsListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Wylistuj załączniki przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemAttachmentsListResponse,
+            "description": "Pomyślnie zwrócono listę załączników przedmiotu.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu.",
+        },
+    },
+)
+def read_item_attachments(
+    item_id: ItemID,
+    db: DBDep,
+) -> ItemAttachmentsListResponse:
+    service = ItemAttachmentService(db)
+
+    try:
+        attachments = service.list_attachments(item_id)
+    except ItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
         ) from err
 
-    return [
-        ItemHistoryEntry(
-            id=entry.id,
-            updated_at=entry.updated_at,
-            updated_by=entry.updated_by,
-            change_type=entry.change_type,
-            description=entry.description,
-        )
-        for entry in history
-    ]
+    return ItemAttachmentsListResponse(attachments=attachments)
+
+
+@router.post(
+    "/{item_id}/attachments",
+    response_model=ItemAttachmentsListResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dodaj załączniki do przedmiotu",
+    responses={
+        status.HTTP_201_CREATED: {
+            "model": ItemAttachmentsListResponse,
+            "description": "Pliki zostały pomyślnie dodane do przedmiotu.",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Plik przekracza dozwolony rozmiar.",
+        },
+        status.HTTP_507_INSUFFICIENT_STORAGE: {
+            "model": ErrorResponse,
+            "description": "Brak miejsca na dysku lub błąd zapisu pliku.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Tylko właściciel przedmiotu może dodawać pliki.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu.",
+        },
+    },
+)
+def upload_item_attachments(
+    item_id: ItemID,
+    db: DBDep,
+    user: CurrentUser,
+    files: Annotated[list[UploadFile], File()],
+) -> ItemAttachmentsListResponse:
+    _ensure_item_owner(item_id, user, db)
+    service = ItemAttachmentService(db)
+
+    try:
+        attachments = service.upload_attachments(item_id, user.id, files)
+    except ItemNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        ) from err
+    except AttachmentTooLargeError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Attachment exceeds maximum allowed size",
+        ) from err
+    except AttachmentStorageError as err:
+        raise HTTPException(
+            status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
+            detail="Unable to store attachment",
+        ) from err
+
+    return ItemAttachmentsListResponse(attachments=attachments)
+
+
+@router.get(
+    "/{item_id}/attachments/{attachment_id}/download",
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz załącznik przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Zwraca plik załącznika.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu lub załącznika.",
+        },
+    },
+)
+def download_item_attachment(
+    item_id: ItemID,
+    attachment_id: int,
+    db: DBDep,
+) -> FileResponse:
+    service = ItemAttachmentService(db)
+
+    try:
+        file_path, original_filename, mime_type = service.get_attachment_file(item_id, attachment_id)
+    except (ItemNotFoundError, AttachmentNotFoundError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attachment not found",
+        ) from err
+
+    return FileResponse(
+        path=file_path,
+        filename=original_filename,
+        media_type=mime_type,
+    )
+
+
+@router.delete(
+    "/{item_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Usuń załącznik przedmiotu",
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Załącznik został usunięty.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Tylko właściciel przedmiotu może usuwać pliki.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu lub załącznika.",
+        },
+    },
+)
+def delete_item_attachment(
+    item_id: ItemID,
+    attachment_id: int,
+    db: DBDep,
+    user: CurrentUser,
+) -> None:
+    _ensure_item_owner(item_id, user, db)
+    service = ItemAttachmentService(db)
+
+    try:
+        service.delete_attachment(item_id, attachment_id, user.id)
+    except ItemNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        ) from err
+    except AttachmentNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attachment not found",
+        ) from err

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
 from src.locations.constants import (
+    LOCATION_ADDRESS_LENGTH,
     LOCATION_HISTORY_DESC_LENGTH,
     LOCATION_NAME_LENGTH,
     LocationHistoryChangeType,
@@ -19,6 +20,7 @@ class Location(Base):
     name: Mapped[str] = mapped_column(String(LOCATION_NAME_LENGTH))
     type: Mapped[LocationType] = mapped_column(Enum(LocationType), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    address: Mapped[str | None] = mapped_column(String(LOCATION_ADDRESS_LENGTH))
 
     # "RESTRICT" żeby nie usunąć przypadkowo rodzica
     # najpierw trzeba przenieść dzieci do innego rodzica, potem dopiero można usunąć

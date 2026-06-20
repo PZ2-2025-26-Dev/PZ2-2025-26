@@ -71,7 +71,7 @@ def add_item(db: Session, owner_id: int) -> Item:
 
     item = Item(
         name=f"Item {owner_id}",
-        inventory_number=uuid4(),
+        uuid=uuid4(),
         location_id=location.id,
         category_id=category.id,
         owner_id=owner_id,
