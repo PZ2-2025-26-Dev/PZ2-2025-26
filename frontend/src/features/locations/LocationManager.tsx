@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, Building2, FolderTree, Plus, RefreshCw } from 'lucide-react';
+import { AlertCircle, Archive, Building2, DoorOpen, Layers3, MapPin, Plus, RefreshCw, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -15,6 +15,13 @@ type LocationNode = Location & { children: LocationNode[] };
 
 const ROOT_LOCATION = 'root';
 const LOCATION_TYPES: LocationType[] = ['building', 'room', 'cabinet', 'shelf', 'other'];
+const LOCATION_TYPE_ICONS: Record<LocationType, LucideIcon> = {
+    building: Building2,
+    room: DoorOpen,
+    cabinet: Archive,
+    shelf: Layers3,
+    other: MapPin,
+};
 
 const buildLocationTree = (locations: Location[]) => {
     const lookup: Record<number, LocationNode> = {};
@@ -49,6 +56,7 @@ export default function LocationManager() {
 
     const locationTree = useMemo(() => buildLocationTree(locations), [locations]);
     const parentOptions = useMemo(() => flattenLocations(locations), [locations]);
+    const isBuildingType = newLocationType === 'building';
 
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
@@ -59,6 +67,10 @@ export default function LocationManager() {
         void refreshLocations();
     }, [refreshLocations]);
 
+    useEffect(() => {
+        if (isBuildingType) setSelectedParentId(ROOT_LOCATION);
+    }, [isBuildingType]);
+
     const handleCreateLocation = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const trimmedName = newLocationName.trim();
@@ -68,7 +80,7 @@ export default function LocationManager() {
         const result = await createLocation({
             name: trimmedName,
             type: newLocationType,
-            parentId: selectedParentId === ROOT_LOCATION ? null : Number(selectedParentId),
+            parentId: isBuildingType || selectedParentId === ROOT_LOCATION ? null : Number(selectedParentId),
             description: newLocationDescription.trim() || null,
         });
 
@@ -81,15 +93,18 @@ export default function LocationManager() {
         }
     };
 
-    const renderLocationNode = (node: LocationNode, level = 0) => (
-        <div key={node.id}>
+    const renderLocationNode = (node: LocationNode, level = 0) => {
+        const LocationIcon = LOCATION_TYPE_ICONS[node.type] ?? MapPin;
+
+        return (
+            <div key={node.id}>
             <div
                 className="group flex items-center justify-between rounded-lg border border-transparent px-3 py-2 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900"
                 style={{ marginLeft: level * 20 }}
             >
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                        {node.children.length > 0 ? <FolderTree className="size-4 text-emerald-500" /> : <Building2 className="size-4 text-slate-400" />}
+                        <LocationIcon className={level === 0 ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'} />
                         <span className={level === 0 ? 'truncate text-sm font-semibold' : 'truncate text-sm text-slate-600 dark:text-slate-400'}>
                             {node.name}
                         </span>
@@ -102,30 +117,11 @@ export default function LocationManager() {
             </div>
             {node.children.map((child) => renderLocationNode(child, level + 1))}
         </div>
-    );
+        );
+    };
 
     return (
         <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-                <CardHeader className="flex-row items-start justify-between gap-4">
-                    <div>
-                        <CardTitle className="text-sm">{t('locationManager.treeTitle')}</CardTitle>
-                        <CardDescription className="text-xs">{t('locationManager.treeDesc')}</CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => void refreshLocations()} disabled={isLoading}>
-                        <RefreshCw className={isLoading ? 'animate-spin' : ''} />
-                        {t('locationManager.refresh')}
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
-                        {locationTree.length > 0
-                            ? locationTree.map((node) => renderLocationNode(node))
-                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('locationManager.loading') : t('locationManager.emptyTree')}</p>}
-                    </div>
-                </CardContent>
-            </Card>
-
             <Card>
                 <CardHeader>
                     <CardTitle className="text-sm">{t('locationManager.addTitle')}</CardTitle>
@@ -167,7 +163,7 @@ export default function LocationManager() {
 
                         <div className="space-y-2">
                             <Label>{t('locationManager.parentLabel')}</Label>
-                            <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                            <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={isBuildingType}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>
@@ -193,6 +189,26 @@ export default function LocationManager() {
                             {isLoading ? t('locationManager.saving') : t('locationManager.addBtn')}
                         </Button>
                     </form>
+                </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+                <CardHeader className="flex-row items-start justify-between gap-4">
+                    <div>
+                        <CardTitle className="text-sm">{t('locationManager.treeTitle')}</CardTitle>
+                        <CardDescription className="text-xs">{t('locationManager.treeDesc')}</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => void refreshLocations()} disabled={isLoading}>
+                        <RefreshCw className={isLoading ? 'animate-spin' : ''} />
+                        {t('locationManager.refresh')}
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
+                        {locationTree.length > 0
+                            ? locationTree.map((node) => renderLocationNode(node))
+                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('locationManager.loading') : t('locationManager.emptyTree')}</p>}
+                    </div>
                 </CardContent>
             </Card>
         </div>
