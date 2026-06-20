@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from src.auth.constants import UserRole, UserStatus
-from src.auth.dependencies import CurrentUser
+from src.auth.dependencies import RequireAdmin
 from src.auth.models import UserAccount
 from src.dependencies import DBDep
 
@@ -47,7 +47,7 @@ def to_user_details(user, account: UserAccount | None = None) -> UserDetails:
 )
 def read_users(
     db: DBDep,
-    admin: CurrentUser,
+    admin: RequireAdmin,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     role: UserRole | None = None,
@@ -78,7 +78,7 @@ def read_users(
 
 
 @router.get("/{user_id}")
-def read_user(user_id: int, db: DBDep, admin: CurrentUser):
+def read_user(user_id: int, db: DBDep, admin: RequireAdmin):
 
     service = UserService(db)
 
@@ -102,7 +102,7 @@ def update_user(
     user_id: int,
     data: BaseUserDetails,
     db: DBDep,
-    admin: CurrentUser,
+    admin: RequireAdmin,
 ) -> UserDetails:
     service = UserService(db)
 
@@ -132,7 +132,7 @@ def update_user_approval(
     user_id: int,
     data: UserStatusUpdate,
     db: DBDep,
-    admin: CurrentUser,
+    admin: RequireAdmin,
 ) -> UserDetails:
     service = UserService(db)
     try:
@@ -154,7 +154,7 @@ def update_user_approval(
 def delete_user(
     user_id: int,
     db: DBDep,
-    admin: CurrentUser,
+    admin: RequireAdmin,
 ) -> None:
     service = UserService(db)
 

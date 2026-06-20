@@ -13,22 +13,18 @@ class Config(BaseSettings):
     env: Environment = Environment.DEV
 
     # JWT
-    jwt_secret_key: str
+    jwt_secret_key: str = "secret"
     jwt_refresh_secret_key: str | None = None
 
     # Google OAuth
-    google_client_id: str
-    google_client_secret: str
-    google_redirect_uri: str
+    google_client_id: str = "id"
+    google_client_secret: str = "secret"
+    google_redirect_uri: str = "does.not.resolve"
 
     access_token_expire_minutes: int = 30
     jwt_algorithm: str = "HS256"
 
-    model_config = SettingsConfigDict(
-        env_prefix="pz_",
-        env_file=(".env", "../.env", "backend/.env", "../.env.example", "backend/.env.example", ".env.example"),
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(env_prefix="pz_", extra="ignore")
 
 
 config = Config()

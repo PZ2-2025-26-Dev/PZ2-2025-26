@@ -2,24 +2,20 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole
 from src.auth.jwt import decode_token
-from src.database import get_db
+from src.dependencies import DBDep
 from src.users.models import User
-
-# --- FastAPI dependencies (Annotated style) ---
 
 bearer_scheme = HTTPBearer()
 
-DBSession = Annotated[Session, Depends(get_db)]
 BearerCreds = Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)]
 
 
 def get_current_user(
     credentials: BearerCreds,
-    db: DBSession,
+    db: DBDep,
 ) -> User:
     token = credentials.credentials
 
@@ -66,3 +62,6 @@ def require_admin(
             detail="Admin only",
         )
     return user
+
+
+RequireAdmin = Annotated[User, Depends(require_admin)]
