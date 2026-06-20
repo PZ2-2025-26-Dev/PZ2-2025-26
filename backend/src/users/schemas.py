@@ -20,7 +20,7 @@ class GuestUserUpdate(BaseModel):
     email: EmailStr | None = None
 
 
-class UserSelectOption(BaseModel):
+class UserSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UserID
@@ -28,8 +28,8 @@ class UserSelectOption(BaseModel):
     last_name: str | None = None
 
 
-class UsersSelectPaged(BaseModel):
-    users: list[UserSelectOption]
+class UsersSummaryPaged(BaseModel):
+    users: list[UserSummary]
     total_count: int
 
 

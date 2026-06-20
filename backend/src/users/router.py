@@ -16,9 +16,9 @@ from .schemas import (
     GuestUserUpdate,
     SearchStr,
     UserDetails,
-    UserSelectOption,
+    UserSummary,
     UsersPaged,
-    UsersSelectPaged,
+    UsersSummaryPaged,
     UserStatusUpdate,
 )
 from .service import (
@@ -86,7 +86,7 @@ def read_users(
 
 
 @router.post(
-    "",
+    "/guest",
     response_model=UserDetails,
     status_code=status.HTTP_201_CREATED,
     summary="Dodaj Gościa",
@@ -124,36 +124,36 @@ def create_guest_user(
 
 
 @router.get(
-    "/select",
-    response_model=UsersSelectPaged,
+    "/names",
+    response_model=UsersSummaryPaged,
     status_code=status.HTTP_200_OK,
     summary="Wylistuj użytkowników do wyboru",
     responses={
         status.HTTP_200_OK: {
-            "model": UsersSelectPaged,
+            "model": UsersSummaryPaged,
             "description": "Pomyślnie zwrócono skróconą listę użytkowników.",
         },
     },
 )
-def list_selectable_users(
+def list_users_names(
     db: DBDep,
     current_user: CurrentUser,
     search: SearchStr | None = None,
     role: UserRole | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=MAX_USER_SELECT_PAGE_SIZE)] = DEFAULT_USER_SELECT_PAGE_SIZE,
-) -> UsersSelectPaged:
+) -> UsersSummaryPaged:
     service = UserService(db)
 
-    users, total_count = service.list_selectable_users(
+    users, total_count = service.list_users_names(
         page=page,
         limit=limit,
         role=role,
         search=search,
     )
 
-    return UsersSelectPaged(
-        users=[UserSelectOption.model_validate(user) for user in users],
+    return UsersSummaryPaged(
+        users=[UserSummary.model_validate(user) for user in users],
         total_count=total_count,
     )
 

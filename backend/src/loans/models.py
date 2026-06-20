@@ -30,7 +30,7 @@ class Loan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
 
     declared_return_date: Mapped[datetime] = mapped_column(DateTime)
-    loan_purpose: Mapped[str | None] = mapped_column(String(LOAN_PURPOSE_MAX_LENGTH))
+    loan_purpose: Mapped[str] = mapped_column(Text)
 
     returned_at: Mapped[datetime | None] = mapped_column(DateTime)
 
