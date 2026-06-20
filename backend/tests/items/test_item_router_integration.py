@@ -1,5 +1,9 @@
+import re
+from io import BytesIO
+
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -85,6 +89,211 @@ def test_get_item_endpoint_returns_item_details(
 
     assert body["location"]["id"]
     assert body["location"]["path"]
+
+
+def test_scan_item_endpoint_returns_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Czytnik QR")).json()
+
+    response = api_client.get(f"/items/scan/{created['id']}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == created["id"]
+    assert body["name"] == created["name"]
+
+
+def test_scan_item_endpoint_returns_400_for_invalid_code(
+    api_client: TestClient,
+):
+    response = api_client.get("/items/scan/not-a-uuid")
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Invalid QR code"}
+
+
+def test_scan_item_endpoint_returns_404_for_missing_item(
+    api_client: TestClient,
+):
+    response = api_client.get("/items/scan/018f6f23-5b56-7b88-9ac1-5a02c63c5c11")
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_download_item_qr_png_endpoint_returns_png(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Drukarka etykiet")).json()
+
+    response = api_client.get(f"/items/{created['id']}/qr.png")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+
+
+def test_download_item_label_pdf_endpoint_returns_pdf(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Projektor mobilny")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.pdf",
+        json={"fields": ["name", "category", "location"]},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_download_item_label_png_endpoint_returns_png(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Adapter HDMI")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["status", "description"]},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+
+
+def test_download_item_label_endpoint_accepts_empty_fields(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Statyw")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": []},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_endpoint_supports_parameters_fields(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Router", parameters={"serial_number": "SN-123"}),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.serial_number"]},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_pdf_endpoint_uses_requested_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Etykieta PDF")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.pdf",
+        json={"fields": ["name"], "width_mm": 50, "height_mm": 25},
+    )
+
+    assert response.status_code == 200
+    pdf_text = response.content.decode("latin-1")
+    media_box = re.search(r"/MediaBox \[ 0 0 ([0-9.]+) ([0-9.]+) \]", pdf_text)
+    assert media_box is not None
+    assert round(float(media_box.group(1)), 1) == 141.7
+    assert round(float(media_box.group(2)), 1) == 70.9
+
+
+def test_download_item_label_png_endpoint_uses_requested_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Etykieta PNG")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["name"], "width_mm": 50, "height_mm": 25},
+    )
+
+    assert response.status_code == 200
+    image = Image.open(BytesIO(response.content))
+    assert image.size == (591, 295)
+
+
+def test_download_item_label_png_endpoint_handles_minimum_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Minimalna etykieta")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": [], "width_mm": 20, "height_mm": 10},
+    )
+
+    assert response.status_code == 200
+    image = Image.open(BytesIO(response.content))
+    assert image.size == (236, 118)
+
+
+def test_download_item_label_png_endpoint_handles_maximum_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Maksymalna etykieta")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["name", "category", "location", "owner"], "width_mm": 200, "height_mm": 150},
+    )
+
+    assert response.status_code == 200
+    image = Image.open(BytesIO(response.content))
+    assert image.size == (2362, 1772)
+
+
+def test_download_item_label_endpoint_returns_error_response_for_missing_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/00000000-0000-0000-0000-000099999999/label.pdf",
+        json={"fields": ["name"]},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_download_item_label_endpoint_returns_error_response_for_unknown_field(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post("/items", json=make_item_payload(name="Nieznane pole")).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["unknown"]},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Unsupported label field: unknown"}
 
 
 def test_get_item_endpoint_returns_404_for_missing_item(

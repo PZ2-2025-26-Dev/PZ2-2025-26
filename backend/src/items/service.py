@@ -35,6 +35,17 @@ class ItemService:
     def _get_item_by_uuid(self, item_id: UUID) -> Item | None:
         return self.db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
 
+    def _get_item_by_uuid_with_relations(self, item_id: UUID) -> Item | None:
+        return self.db.execute(
+            select(Item)
+            .where(Item.uuid == item_id)
+            .options(
+                selectinload(Item.category),
+                selectinload(Item.location),
+                selectinload(Item.owner),
+            )
+        ).scalar_one_or_none()
+
     def _owner_display_name(self, owner) -> str:
         if owner.last_name:
             return f"{owner.first_name} {owner.last_name}"
@@ -151,40 +162,28 @@ class ItemService:
         )
 
     def get_item(self, item_id: UUID) -> ItemGetResponse:
-        item = self.db.execute(
-            select(Item)
-            .where(Item.uuid == item_id)
-            .options(
-                selectinload(Item.category),
-                selectinload(Item.location),
-                selectinload(Item.owner),
-            )
-        ).scalar_one_or_none()
+        item = self._get_item_by_uuid_with_relations(item_id)
 
         if item is None:
             raise ValueError("Item not found")
 
-        return ItemGetResponse(
-            id=item.uuid,
-            name=item.name,
-            description=item.description,
-            status=item.status,
-            oldID=item.oldID,
-            category=ItemCategory(
-                id=item.category.id,
-                name=item.category.name,
-                path=build_category_path(item.category),
-            ),
-            location=ItemLocation(
-                id=item.location.id,
-                path=build_location_path(item.location),
-            ),
-            owner=ItemOwner(
-                id=item.owner.id,
-                name=self._owner_display_name(item.owner),
-            ),
-            parameters=item.parameters,
-        )
+        return self.to_get_response(item)
+
+    def get_item_for_label(self, item_id: UUID) -> Item:
+        item = self._get_item_by_uuid_with_relations(item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        return item
+
+    def get_item_by_qr_code(self, code: UUID) -> ItemGetResponse:
+        item = self._get_item_by_uuid_with_relations(code)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        return self.to_get_response(item)
 
     def delete_item(self, item_id: UUID) -> ItemDeleteResponse:
         item = self._get_item_by_uuid(item_id)
@@ -288,4 +287,27 @@ class ItemService:
                 for entry in results
             ],
             pagination=ItemPagination(page=data.page, limit=data.limit, total=total),
+        )
+
+    def to_get_response(self, item: Item) -> ItemGetResponse:
+        return ItemGetResponse(
+            id=item.uuid,
+            name=item.name,
+            description=item.description,
+            status=item.status,
+            oldID=item.oldID,
+            category=ItemCategory(
+                id=item.category.id,
+                name=item.category.name,
+                path=build_category_path(item.category),
+            ),
+            location=ItemLocation(
+                id=item.location.id,
+                path=build_location_path(item.location),
+            ),
+            owner=ItemOwner(
+                id=item.owner.id,
+                name=self._owner_display_name(item.owner),
+            ),
+            parameters=item.parameters,
         )
