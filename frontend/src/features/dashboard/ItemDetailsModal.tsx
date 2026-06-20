@@ -222,14 +222,23 @@ export default function ItemDetailsModal({
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs text-slate-400">{editedDescription.length}/256</span>
                                             <div className="flex gap-2">
-                                                <Button variant="outline" size="sm" onClick={() => setIsEditingDescription(false)}>{t('itemDetailsModal.cancel')}</Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setEditedDescription(item.description ?? '');
+                                                        setIsEditingDescription(false);
+                                                    }}
+                                                >
+                                                    {t('itemDetailsModal.cancel')}
+                                                </Button>
                                                 <Button size="sm" onClick={() => setIsEditingDescription(false)}>{t('itemDetailsModal.save')}</Button>
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{renderDescription(item.description || '-')}</p>
-                                ))}
+                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{renderDescription(editedDescription || '-')}</p>
+                                ))
                                 <Separator />
                                 <Button variant="ghost" size="sm" onClick={toggleHistory}>
                                     <History />{t('itemDetailsModal.history')}{isHistoryOpen ? <ChevronUp /> : <ChevronDown />}
