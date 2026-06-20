@@ -1,5 +1,13 @@
 {
   "welcome": {
+    "faculty": "Faculty of Physics and Applied Computer Science",
+    "language": "Language",
+    "systemLabel": "Internal system",
+    "productName": "WFiIS Equipment",
+    "conciseDescription": "Equipment, location and loan records in one place.",
+    "enterSystem": "Continue to sign in",
+    "noAccount": "Don't have an account?",
+    "createAccount": "Create account",
     "title": "Integrated Measuring Apparatus Management System",
     "subtitle": "AGH University of Science and Technology in Kraków",
     "description": "A comprehensive logistical and inventory platform dedicated to faculty staff and students. Provides full control over hardware database, precise location, and booking workflows.",
@@ -172,6 +180,16 @@
       "deactivated": "Inactive"
     },
     "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset."
+  },
+  "qrScanner": {
+    "button": "Scan QR",
+    "title": "QR code scanner",
+    "description": "Point the camera at the QR code assigned to the item.",
+    "starting": "Starting camera...",
+    "cameraError": "Unable to start the camera.",
+    "permissionHint": "Check camera permissions in your browser settings.",
+    "hint": "The code will be read automatically.",
+    "close": "Close scanner"
   },
   "auth": {
     "login": "Login",

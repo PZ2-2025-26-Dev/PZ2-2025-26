@@ -7,6 +7,7 @@ import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import UserManager from '../users/UserManager';
+import QrScannerDialog from '../../components/QrScannerDialog';
 // import { useInventory } from './useInventory';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
@@ -28,6 +29,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const [activeTab, setActiveTab] = useState('inventory');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
     const [selectedItem, setSelectedItem] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -53,6 +55,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setItems([newAsset, ...items]);
     };
 
+    const handleQrScan = (decodedText) => {
+        console.log('QR code scan result:', decodedText);
+    };
+
     const handleUpdateItemStatus = (itemId, newStatus, clearBorrower = false, newBorrower = null, newDueDate = null) => {
         setItems(prevItems => prevItems.map(item => {
             if (item.id === itemId) {
@@ -75,40 +81,55 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 flex flex-col font-sans">
             <nav className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 bg-emerald-700 dark:bg-emerald-600 text-white rounded-xl flex items-center justify-center font-bold text-xs tracking-wider">AGH</div>
-                        <div>
-                            <h1 className="font-bold text-xs tracking-tight text-slate-900 dark:text-white uppercase">{t('dashboard.dashboard')}</h1>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-0 lg:px-8">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-[10px] font-bold tracking-wider text-white dark:bg-emerald-600 sm:text-xs">AGH</div>
+                        <div className="min-w-0">
+                            <h1 className="text-[11px] font-bold uppercase leading-tight tracking-tight text-slate-900 dark:text-white sm:text-xs">{t('dashboard.dashboard')}</h1>
+                            <p className="mt-0.5 truncate text-[9px] text-slate-500 dark:text-slate-400 sm:text-[10px]">
                                 {t('dashboard.welcome')}, <span className="font-semibold text-slate-700 dark:text-slate-200">{user.name}</span>
                                 {' '}({t('dashboard.role')}: <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-600 dark:text-slate-400 text-[9px] font-bold">{user.role}</span>)
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-4">
-                        <SystemClock lang={i18n.language} />
-                        <div className="flex items-center space-x-2 border-l border-slate-200 dark:border-slate-800 pl-4">
-                            <button onClick={toggleLanguage} className="px-2 py-1 text-xs font-bold rounded text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">{i18n.language === 'PL' ? 'EN' : 'PL'}</button>
-                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+                        <div className="hidden md:block">
+                            <SystemClock lang={i18n.language} />
+                        </div>
+                        <div className="flex items-center gap-1 border-slate-200 dark:border-slate-800 sm:gap-2 sm:border-l sm:pl-3">
+                            <button onClick={toggleLanguage} className="rounded px-1.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 sm:px-2 sm:text-xs">{i18n.language === 'PL' ? 'EN' : 'PL'}</button>
+                            <button
+                                onClick={() => setIsDarkMode(!isDarkMode)}
+                                className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                aria-label={isDarkMode ? 'Włącz jasny motyw' : 'Włącz ciemny motyw'}
+                            >
                                 {isDarkMode ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3" /></svg> : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646" /></svg>}
                             </button>
-                            <button onClick={onLogout} className="ml-2 px-2.5 py-1.5 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 text-xs font-medium rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/60 transition">{t('dashboard.logout')}</button>
+                            <button
+                                onClick={onLogout}
+                                className="flex items-center justify-center rounded-lg bg-rose-50 p-2 text-rose-700 transition hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-950/60 sm:px-2.5 sm:py-1.5 sm:text-xs sm:font-medium"
+                                aria-label={t('dashboard.logout')}
+                            >
+                                <svg className="h-3.5 w-3.5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                <span className="hidden sm:inline">{t('dashboard.logout')}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 {canViewList && (
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100 dark:border-slate-800/50">
-                        <div className="flex space-x-6">
-                            <button onClick={() => setActiveTab('inventory')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabInventory')}</button>
+                    <div className="mx-auto max-w-7xl overflow-x-auto border-t border-slate-100 px-3 dark:border-slate-800/50 sm:px-6 lg:px-8">
+                        <div className="flex min-w-max gap-4 sm:gap-6">
+                            <button onClick={() => setActiveTab('inventory')} className={`whitespace-nowrap py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabInventory')}</button>
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
-                                <button onClick={() => setActiveTab('users')} className={`py-3 text-xs font-semibold border-b-2 transition-colors flex items-center space-x-1.5 ${activeTab === 'users' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+                                <button onClick={() => setActiveTab('users')} className={`whitespace-nowrap py-3 text-xs font-semibold border-b-2 transition-colors flex items-center space-x-1.5 ${activeTab === 'users' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                                     <span>{t('dashboard.tabUsers')}</span>
                                     {pendingUserCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{pendingUserCount}</span>}
                                 </button>
-                                <button onClick={() => setActiveTab('categories')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'categories' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabCategories')}</button>
+                                <button onClick={() => setActiveTab('categories')} className={`whitespace-nowrap py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'categories' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabCategories')}</button>
                             </RoleGuard>
                         </div>
                     </div>
@@ -142,27 +163,37 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 </div>
 
                                 <section className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-sm space-y-4">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div className="relative flex-grow max-w-md">
+                                    <div className="flex flex-col items-center gap-4 md:flex-row md:items-center md:justify-between">
+                                        <div className="relative w-full max-w-md">
                                             <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                             </span>
                                             <input type="text" placeholder={t('dashboard.searchPlaceholder')} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 transition text-slate-800 dark:text-slate-100" />
                                         </div>
-                                        <div className="flex items-center space-x-2">
+                                        <div className="flex w-full flex-wrap items-center justify-center gap-2 md:w-auto md:justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsQrScannerOpen(true)}
+                                                className="flex min-w-[7.5rem] flex-1 items-center justify-center space-x-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:flex-none sm:py-1.5"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3M16 3h3a2 2 0 012 2v3M21 16v3a2 2 0 01-2 2h-3M8 21H5a2 2 0 01-2-2v-3M7 8h3v3H7V8zm7 0h3v3h-3V8zM7 14h3v3H7v-3zm7 0h1m2 0v3h-3v-1" />
+                                                </svg>
+                                                <span>{t('qrScanner.button')}</span>
+                                            </button>
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                                                <button className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>⬇</span><span>{t('dashboard.exportXlsx')}</span></button>
+                                                <button className="flex min-w-[7.5rem] flex-1 items-center justify-center space-x-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:flex-none sm:py-1.5"><span>⬇</span><span>{t('dashboard.exportXlsx')}</span></button>
                                             </RoleGuard>
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
-                                                <button onClick={() => setIsAddModalOpen(true)} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1"><span>+</span><span>{t('dashboard.addAsset')}</span></button>
+                                                <button onClick={() => setIsAddModalOpen(true)} className="flex min-w-[7.5rem] flex-1 items-center justify-center space-x-1 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-medium text-white transition hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 sm:flex-none sm:py-1.5"><span>+</span><span>{t('dashboard.addAsset')}</span></button>
                                             </RoleGuard>
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-4 pt-3 border-t border-slate-100 dark:border-slate-900 text-xs">
-                                        <div className="flex items-center space-x-1.5">
-                                            <span className="text-slate-400 font-medium">{t('dashboard.filterStatus')}:</span>
-                                            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs">
+                                    <div className="flex flex-col items-center gap-3 border-t border-slate-100 pt-3 text-xs dark:border-slate-900 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
+                                        <div className="flex w-full max-w-md items-center gap-2 sm:w-auto">
+                                            <span className="shrink-0 text-slate-400 font-medium">{t('dashboard.filterStatus')}:</span>
+                                            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-0 flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs sm:flex-none">
                                                 <option value="all">{t('dashboard.all')}</option>
                                                 <option value="dostępny">dostępny</option>
                                                 <option value="wypożyczony">wypożyczony</option>
@@ -171,9 +202,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                 <option value="zarezerwowany">zarezerwowany</option>
                                             </select>
                                         </div>
-                                        <div className="flex items-center space-x-1.5">
-                                            <span className="text-slate-400 font-medium">{t('dashboard.filterCategory')}:</span>
-                                            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs">
+                                        <div className="flex w-full max-w-md items-center gap-2 sm:w-auto">
+                                            <span className="shrink-0 text-slate-400 font-medium">{t('dashboard.filterCategory')}:</span>
+                                            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="min-w-0 flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs sm:flex-none">
                                                 <option value="all">{t('dashboard.all')}</option>
                                                 <option value="Aparatura pomiarowa">Aparatura pomiarowa</option>
                                                 <option value="Oscyloskopy">Oscyloskopy</option>
@@ -261,6 +292,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onSave={handleSaveAsset}
+            />
+
+            <QrScannerDialog
+                isOpen={isQrScannerOpen}
+                onClose={() => setIsQrScannerOpen(false)}
+                onScan={handleQrScan}
             />
 
             <ItemDetailsModal
