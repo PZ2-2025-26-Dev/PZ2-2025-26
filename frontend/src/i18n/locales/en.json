@@ -49,7 +49,14 @@
     "userReqTitle": "Local Registration Management",
     "userReqDesc": "Accounts created outside of AGH SSO require your verification and manual role assignment.",
     "approveBtn": "Approve",
-    "rejectBtn": "Reject"
+    "rejectBtn": "Reject",
+    "itemStatuses": {
+      "available": "Available",
+      "pending_approval": "Pending approval",
+      "reserved": "Reserved",
+      "loaned": "Loaned",
+      "broken": "Broken"
+    }
   },
   "categoryManager": {
     "title": "Category Hierarchy Management",

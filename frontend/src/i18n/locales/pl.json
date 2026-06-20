@@ -49,7 +49,14 @@
     "userReqTitle": "Zarządzanie rejestracjami lokalnymi",
     "userReqDesc": "Konta utworzone poza AGH SSO wymagają Twojej weryfikacji i ręcznego nadania uprawnień.",
     "approveBtn": "Zatwierdź",
-    "rejectBtn": "Odrzuć"
+    "rejectBtn": "Odrzuć",
+    "itemStatuses": {
+      "available": "Dostępny",
+      "pending_approval": "Oczekuje akceptacji",
+      "reserved": "Zarezerwowany",
+      "loaned": "Wypożyczony",
+      "broken": "Uszkodzony"
+    }
   },
   "categoryManager": {
     "title": "Zarządzanie Hierarchią Kategorii",
