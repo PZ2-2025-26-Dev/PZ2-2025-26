@@ -201,6 +201,12 @@
     "googleLoginError": "Google login failed. Please try again.",
     "googleCallbackLoading": "Signing in with Google...",
     "invalidEmail": "Invalid email address.",
-    "passwordTooShort": "Password must be at least 8 characters long."
+    "passwordTooShort": "Password must be at least 8 characters long.",
+    "firstNameRequired": "First name is required",
+    "lastNameRequired": "Last name is required",
+    "registerErrorTitle": "Registration failed",
+    "registerSuccessTitle": "Registration successful",
+    "registering": "Creating account...",
+    "emailAlreadyExists": "An account with this email already exists"
   }
 }

@@ -12,6 +12,8 @@ from src.auth.constants import (
 from src.auth.models import UserAccount
 from src.users.models import User
 
+from src.auth.errors import ErrorCode
+
 password_hasher = PasswordHasher()
 
 
@@ -34,11 +36,16 @@ def get_or_create_google_user(
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="UserAccount exists but User is missing",
+                detail={
+                    "code": ErrorCode.INTERNAL_ERROR,
+                    "message": "UserAccount exists but User is missing",
+                },
             )
         return user
 
-    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    user = db.execute(
+        select(User).where(User.email == email)
+    ).scalar_one_or_none()
 
     if not user:
         user = User(
@@ -72,12 +79,18 @@ def register_user(
     first_name: str,
     last_name: str,
 ) -> User:
-    existing_user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+    existing_user = db.execute(
+        select(User).where(User.email == email)
+    ).scalar_one_or_none()
 
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Użytkownik o podanym adresie email już istnieje.",
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": ErrorCode.USER_ALREADY_EXISTS,
+                "message": "Użytkownik o podanym adresie email już istnieje.",
+            },
         )
 
     user = User(
@@ -101,7 +114,9 @@ def register_user(
 
     db.commit()
     db.refresh(user)
+
     return user
+
 
 
 def login_user(
@@ -109,12 +124,18 @@ def login_user(
     email: str,
     password: str,
 ) -> User:
-    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+
+    user = db.execute(
+        select(User).where(User.email == email)
+    ).scalar_one_or_none()
 
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nieprawidłowy email lub hasło.",
+            detail={
+                "code": ErrorCode.INVALID_CREDENTIALS,
+                "message": "Nieprawidłowy email lub hasło.",
+            },
         )
 
     account = db.execute(
@@ -127,7 +148,10 @@ def login_user(
     if account is None or account.pwd_hash is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nieprawidłowy email lub hasło.",
+            detail={
+                "code": ErrorCode.INVALID_CREDENTIALS,
+                "message": "Nieprawidłowy email lub hasło.",
+            },
         )
 
     try:
@@ -135,18 +159,31 @@ def login_user(
             account.pwd_hash,
             password,
         )
-    except VerifyMismatchError as exc:
+    except VerifyMismatchError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Nieprawidłowy email lub hasło.",
-        ) from exc
+            detail={
+                "code": ErrorCode.INVALID_CREDENTIALS,
+                "message": "Nieprawidłowy email lub hasło.",
+            },
+        )
+
     if user.status == UserStatus.PENDING_APPROVAL:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="PENDING_APPROVAL")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": ErrorCode.PENDING_APPROVAL,
+                "message": "Konto oczekuje na akceptację.",
+            },
+        )
 
     if user.status != UserStatus.ACTIVE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Brak uprawnień.",
+            detail={
+                "code": ErrorCode.FORBIDDEN,
+                "message": "Brak uprawnień.",
+            },
         )
 
     return user
