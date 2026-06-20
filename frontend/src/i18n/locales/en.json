@@ -34,6 +34,7 @@
     "logout": "Sign Out",
     "tabInventory": "Inventory",
     "tabUsers": "Users",
+    "tabLocations": "Locations",
     "tabCategories": "Categories",
     "totalAssets": "Total Assets",
     "borrowedAssets": "Borrowed",
@@ -78,6 +79,32 @@
     "treeTitle": "Category Tree",
     "emptyTree": "No categories defined yet.",
     "delete": "Delete"
+  },
+  "locationManager": {
+    "treeTitle": "Location Structure",
+    "treeDesc": "The hierarchy is built in the frontend from the flat list returned by the API.",
+    "emptyTree": "No locations returned by the API.",
+    "loading": "Loading locations...",
+    "refresh": "Refresh",
+    "addTitle": "Add Location",
+    "addDesc": "Create a building, room, cabinet, or shelf and optionally assign a parent location.",
+    "nameLabel": "Location Name",
+    "namePlaceholder": "e.g., D10, Room 204, Cabinet A",
+    "typeLabel": "Location Type",
+    "parentLabel": "Parent Location",
+    "rootLevel": "-- Root level --",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Optional location description",
+    "addBtn": "Save Location",
+    "saving": "Saving...",
+    "errorTitle": "Operation failed",
+    "types": {
+      "building": "Building",
+      "room": "Room",
+      "cabinet": "Cabinet",
+      "shelf": "Shelf",
+      "other": "Other"
+    }
   },
   "addAssetModal": {
     "modalTitle": "Add New Asset to System",

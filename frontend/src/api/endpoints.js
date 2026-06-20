@@ -26,7 +26,10 @@ export const ENDPOINTS = {
     LOCATIONS: {
         BASE: '/locations',
         DETAILS: (id) => `/locations/${id}`,
+<<<<<<< HEAD
         HISTORY: (id) => `/locations/${id}/history`,
+=======
+>>>>>>> 97b0ba2 (LocationManager view)
     },
     USERS: {
         BASE: '/users',

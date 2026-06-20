@@ -34,6 +34,7 @@
     "logout": "Wyloguj",
     "tabInventory": "Inwentarz",
     "tabUsers": "Użytkownicy",
+    "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
     "totalAssets": "Zasoby ogółem",
     "borrowedAssets": "Wypożyczone",
@@ -78,6 +79,32 @@
     "treeTitle": "Drzewo Kategorii",
     "emptyTree": "Brak zdefiniowanych kategorii.",
     "delete": "Usuń"
+  },
+  "locationManager": {
+    "treeTitle": "Struktura lokalizacji",
+    "treeDesc": "Hierarchia jest budowana na froncie z płaskiej listy zwróconej przez API.",
+    "emptyTree": "Brak lokalizacji zwróconych przez API.",
+    "loading": "Ładowanie lokalizacji...",
+    "refresh": "Odśwież",
+    "addTitle": "Dodaj lokalizację",
+    "addDesc": "Utwórz budynek, salę, szafę albo półkę i wskaż opcjonalnego rodzica.",
+    "nameLabel": "Nazwa lokalizacji",
+    "namePlaceholder": "np. D10, Sala 204, Szafa A",
+    "typeLabel": "Typ lokalizacji",
+    "parentLabel": "Lokalizacja nadrzędna",
+    "rootLevel": "-- Poziom główny --",
+    "descriptionLabel": "Opis",
+    "descriptionPlaceholder": "Opcjonalny opis lokalizacji",
+    "addBtn": "Zapisz lokalizację",
+    "saving": "Zapisywanie...",
+    "errorTitle": "Nie udało się wykonać operacji",
+    "types": {
+      "building": "Budynek",
+      "room": "Sala",
+      "cabinet": "Szafa",
+      "shelf": "Półka",
+      "other": "Inne"
+    }
   },
   "addAssetModal": {
     "modalTitle": "Dodaj Nowy Przedmiot do Systemu",
