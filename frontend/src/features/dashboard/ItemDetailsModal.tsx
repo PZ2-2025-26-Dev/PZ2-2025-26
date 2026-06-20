@@ -75,7 +75,7 @@ export default function ItemDetailsModal({
     if (!item) return null;
 
     const isOwner = user.name === item.owner || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
-    const canBorrow = user.role === 'regular' || user.role === 'admin';
+    const canBorrow = user.role === 'user' || user.role === 'admin';
 
     const toggleHistory = async () => {
         const shouldOpen = !isHistoryOpen;
