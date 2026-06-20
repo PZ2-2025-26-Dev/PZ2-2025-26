@@ -100,7 +100,7 @@ export const useLocations = () => {
                 totalCount: response.data.pagination?.total ?? locations.length,
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as Error);
             setError(errorMessage);
             return { success: false, locations: [], totalCount: 0, error: errorMessage };
         } finally {
@@ -123,7 +123,7 @@ export const useLocations = () => {
                 location: normalizeLocation(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as Error);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -146,7 +146,7 @@ export const useLocations = () => {
                 location: normalizeLocation(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as Error);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -163,7 +163,7 @@ export const useLocations = () => {
 
             return { success: true };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as Error);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
