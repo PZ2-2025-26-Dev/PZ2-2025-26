@@ -1,13 +1,10 @@
 from sqlalchemy import func, literal, select
 from sqlalchemy.orm import Session, aliased
 
-from src.categories.models import Category
 from src.items.models import Item
-from src.items.schemas import ItemCategory, ItemDetails, ItemLocation, ItemOwner, ItemPagination, ItemsPaged
 from src.locations.constants import LocationHistoryChangeType
 from src.locations.models import Location, LocationHistory
 from src.locations.schemas import LocationCreate, LocationDetails, LocationUpdate
-from src.users.models import User
 from src.utils import now
 
 
@@ -144,35 +141,6 @@ class LocationService:
 
         return migrated_items_count
 
-    def list_location_items(self, location_id: int, page: int, limit: int) -> ItemsPaged:
-        self._get_location(location_id)
-        location_ids = self._location_subtree_ids(location_id)
-        stmt = (
-            select(Item, Category, User)
-            .join(Category, Category.id == Item.category_id)
-            .join(User, User.id == Item.owner_id)
-            .where(Item.location_id.in_(location_ids))
-            .order_by(Item.id)
-            .offset((page - 1) * limit)
-            .limit(limit)
-        )
-        total = self.db.scalar(select(func.count(Item.id)).where(Item.location_id.in_(location_ids))) or 0
-        items = [
-            ItemDetails(
-                id=item.id,
-                name=item.name,
-                category=ItemCategory(id=category.id, name=category.name),
-                location=ItemLocation(id=item.location_id, path=self.build_location_path(item.location_id)),
-                owner=ItemOwner(id=owner.id, name=owner.first_name),
-                description=item.description,
-                status=item.status,
-                legacy_id=None,
-            ).model_dump()
-            for item, category, owner in self.db.execute(stmt).all()
-        ]
-
-        return ItemsPaged(items=items, pagination=ItemPagination(page=page, limit=limit, total=total))
-
     def list_history(self, location_id: int) -> list[LocationHistory]:
         self._get_location(location_id)
 
@@ -227,13 +195,6 @@ class LocationService:
             current = self._get_location_model(current.parent_id) if current.parent_id is not None else None
 
         return False
-
-    def _location_subtree_ids(self, location_id: int) -> list[int]:
-        location_tree = select(Location.id).where(Location.id == location_id).cte("location_tree", recursive=True)
-        child = aliased(Location)
-        location_tree = location_tree.union_all(select(child.id).where(child.parent_id == location_tree.c.id))
-
-        return list(self.db.scalars(select(location_tree.c.id)).all())
 
     def _add_history(
         self,

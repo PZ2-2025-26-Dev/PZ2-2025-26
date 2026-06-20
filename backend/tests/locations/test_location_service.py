@@ -74,12 +74,3 @@ def test_create_location_returns_path(seeded_db):
     )
 
     assert created.path == "Budynek D / Sala D10 / Szafa A / Półka 1"
-
-
-def test_list_location_items_includes_descendants(seeded_db):
-    service = LocationService(seeded_db)
-
-    result = service.list_location_items(SEED_IDS.building, page=1, limit=20)
-
-    assert result.pagination.total == 3
-    assert {item.id for item in result.items} == {SEED_IDS.laptop, SEED_IDS.projector, SEED_IDS.adapter}

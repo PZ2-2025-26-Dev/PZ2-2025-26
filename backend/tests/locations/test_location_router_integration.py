@@ -115,18 +115,3 @@ def test_delete_location_endpoint_moves_items_to_replacement(api_client: TestCli
 
     moved_items = seeded_db.scalars(select(Item).where(Item.location_id == replacement_id)).all()
     assert {item.id for item in moved_items} >= {SEED_IDS.laptop, SEED_IDS.adapter}
-
-
-def test_location_items_endpoint_includes_descendant_items(api_client: TestClient, seeded_db: Session):
-    assert seeded_db.get(Location, SEED_IDS.building) is not None
-
-    response = api_client.get(f"/locations/{SEED_IDS.building}/items")
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["pagination"]["total"] == 3
-    assert {item["id"] for item in body["items"]} == {
-        SEED_IDS.laptop,
-        SEED_IDS.projector,
-        SEED_IDS.adapter,
-    }

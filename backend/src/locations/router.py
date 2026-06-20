@@ -3,7 +3,6 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 
 from src.dependencies import DBDep
-from src.items.schemas import ItemsPaged
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.schemas import (
     LocationCreate,
@@ -183,6 +182,7 @@ def delete_location(location_id: LocationID, data: LocationDeleteRequest, db: DB
         replacement_location_id=data.replacement_location_id,
         migrated_items_count=migrated_items_count,
     )
+
 
 @router.get(
     "/{location_id}/history",
