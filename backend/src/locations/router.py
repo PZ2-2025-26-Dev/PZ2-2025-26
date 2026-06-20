@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from src.auth.dependencies import RequireAdmin
 from src.dependencies import DBDep
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.schemas import (
@@ -39,9 +40,15 @@ router = APIRouter(prefix="/locations", tags=["locations"])
             "model": ErrorResponse,
             "description": "Wskazana lokalizacja nadrzędna jest niepoprawna.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
     },
 )
-def create_location(data: LocationCreate, db: DBDep) -> LocationDetails:
+def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
     try:
         return LocationService(db).create_location(data)
     except InvalidLocationParentError as err:
@@ -61,10 +68,17 @@ def create_location(data: LocationCreate, db: DBDep) -> LocationDetails:
             "model": LocationsPaged,
             "description": "Zwrócono stronicowaną listę lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
     },
 )
 def read_locations(
     db: DBDep,
+    _admin: RequireAdmin,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
@@ -88,9 +102,15 @@ def read_locations(
             "model": ErrorResponse,
             "description": "Nie znaleziono lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
     },
 )
-def read_location(location_id: LocationID, db: DBDep) -> LocationDetails:
+def read_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
     try:
         return LocationService(db).get_location(location_id)
     except LocationNotFoundError as err:
@@ -118,9 +138,15 @@ def read_location(location_id: LocationID, db: DBDep) -> LocationDetails:
             "model": ErrorResponse,
             "description": "Nie znaleziono lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
     },
 )
-def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep) -> LocationDetails:
+def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
     try:
         return LocationService(db).update_location(location_id, data)
     except InvalidLocationParentError as err:
@@ -153,9 +179,15 @@ def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep) ->
             "model": ErrorResponse,
             "description": "Nie znaleziono lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
     },
 )
-def delete_location(location_id: LocationID, db: DBDep) -> LocationDeleteResponse:
+def delete_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> LocationDeleteResponse:
     try:
         deleted_locations_count = LocationService(db).delete_location(location_id)
     except LocationHasAssignedItemsError as err:
@@ -192,9 +224,15 @@ def delete_location(location_id: LocationID, db: DBDep) -> LocationDeleteRespons
             "model": ErrorResponse,
             "description": "Nie znaleziono lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
     },
 )
-def read_location_history(location_id: LocationID, db: DBDep) -> list[LocationHistoryEntry]:
+def read_location_history(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> list[LocationHistoryEntry]:
     try:
         history = LocationService(db).list_history(location_id)
     except LocationNotFoundError as err:

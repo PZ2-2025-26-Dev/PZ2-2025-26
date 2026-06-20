@@ -17,7 +17,6 @@ type LocationNode = Location & { children: LocationNode[] };
 
 const ROOT_LOCATION = 'root';
 const LOCATION_TYPES: LocationType[] = ['building', 'room', 'cabinet', 'shelf', 'remote', 'other'];
-const LOCATION_ADMIN_CREATE_TYPES: LocationType[] = ['building', 'room', 'cabinet', 'shelf', 'other'];
 const LOCATION_STATUSES = ['active', 'inactive'] as const;
 const LOCATION_TYPE_ICONS: Record<LocationType, LucideIcon> = {
     building: Building2,
@@ -116,6 +115,7 @@ export default function LocationManager() {
     const [newLocationType, setNewLocationType] = useState<LocationType>('building');
     const [selectedParentId, setSelectedParentId] = useState(ROOT_LOCATION);
     const [newLocationDescription, setNewLocationDescription] = useState('');
+    const [newLocationAddress, setNewLocationAddress] = useState('');
     const [editingLocation, setEditingLocation] = useState<Location | null>(null);
     const [editForm, setEditForm] = useState<LocationFormState | null>(null);
     const [deletingLocation, setDeletingLocation] = useState<Location | null>(null);
@@ -134,7 +134,6 @@ export default function LocationManager() {
     }, [editForm, editingLocation, locations]);
     const isRootLocationType = newLocationType === 'building' || newLocationType === 'remote';
     const isEditingRootLocationType = editForm?.type === 'building' || editForm?.type === 'remote';
-    const editLocationTypes = editingLocation?.type === 'remote' ? LOCATION_TYPES : LOCATION_ADMIN_CREATE_TYPES;
     const isParentRequired = !isRootLocationType;
     const isEditParentRequired = Boolean(editForm && !isEditingRootLocationType);
 
@@ -181,6 +180,7 @@ export default function LocationManager() {
             type: newLocationType,
             parentId: isRootLocationType || selectedParentId === ROOT_LOCATION ? null : Number(selectedParentId),
             description: newLocationDescription.trim() || null,
+            address: newLocationType === 'remote' ? newLocationAddress.trim() || null : null,
         });
 
         if (result.success) {
@@ -188,6 +188,7 @@ export default function LocationManager() {
             setNewLocationType('building');
             setSelectedParentId(ROOT_LOCATION);
             setNewLocationDescription('');
+            setNewLocationAddress('');
             await refreshLocations();
         }
     };
@@ -349,7 +350,7 @@ export default function LocationManager() {
                             <Select value={newLocationType} onValueChange={(type) => setNewLocationType(type as LocationType)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {LOCATION_ADMIN_CREATE_TYPES.map((type) => (
+                                    {LOCATION_TYPES.map((type) => (
                                         <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -378,6 +379,18 @@ export default function LocationManager() {
                                 placeholder={t('locationManager.descriptionPlaceholder')}
                             />
                         </div>
+
+                        {newLocationType === 'remote' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="new-location-address">{t('locationManager.addressLabel')}</Label>
+                                <Input
+                                    id="new-location-address"
+                                    value={newLocationAddress}
+                                    onChange={(event) => setNewLocationAddress(event.target.value)}
+                                    placeholder={t('locationManager.addressPlaceholder')}
+                                />
+                            </div>
+                        )}
 
                         <Button type="submit" className="w-full" disabled={isLoading || !newLocationName.trim() || (isParentRequired && selectedParentId === ROOT_LOCATION)}>
                             <Plus />
@@ -429,7 +442,7 @@ export default function LocationManager() {
                                     <Select value={editForm.type} onValueChange={(type) => setEditForm({ ...editForm, type: type as LocationType })}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            {editLocationTypes.map((type) => (
+                                            {LOCATION_TYPES.map((type) => (
                                                 <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
                                             ))}
                                         </SelectContent>
