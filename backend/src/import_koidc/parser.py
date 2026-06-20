@@ -43,7 +43,7 @@ def find_repo_root(start: Path) -> Path:
 
 
 def default_legacy_dir() -> Path:
-    docker_mount = Path("/backend/legacy")
+    docker_mount = Path("/app/legacy")
     if docker_mount.is_dir():
         return docker_mount
 
@@ -52,7 +52,7 @@ def default_legacy_dir() -> Path:
 
 
 def default_sql_file() -> Path:
-    docker_mount = Path("/backend/sample_dump.sql")
+    docker_mount = Path("/app/sample_dump.sql")
     if docker_mount.is_file():
         return docker_mount
 

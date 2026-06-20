@@ -95,14 +95,15 @@ class KoidcImporter:
         if clear_existing:
             self._clear_inventory_tables()
 
-        stats.users = self._ensure_legacy_owner()
+        self._ensure_legacy_owner()
         stats.users = self._import_users(dataset)
         self.session.flush()
+        known_user_ids = {int(row["id"]) for row in dataset.users}
         stats.categories = self._import_categories(dataset)
         self.session.flush()
         stats.locations = self._import_locations(dataset)
         self.session.flush()
-        imported, skipped = self._import_items(dataset)
+        imported, skipped = self._import_items(dataset, known_user_ids)
         stats.items = imported
         stats.skipped_items = skipped
 
@@ -186,7 +187,7 @@ class KoidcImporter:
 
         return imported
 
-    def _import_items(self, dataset: LegacyDataset) -> tuple[int, int]:
+    def _import_items(self, dataset: LegacyDataset, known_user_ids: set[int]) -> tuple[int, int]:
         producers = {int(row["id"]): row["nazwa"].strip() for row in dataset.producers}
         models = {int(row["id"]): row for row in dataset.models}
         category_ids = {int(row["id"]) for row in dataset.device_types}
@@ -228,6 +229,7 @@ class KoidcImporter:
                 notes=row.get("opis", ""),
                 model_notes=model.get("opis", ""),
             )
+            owner_id = _resolve_owner_id(row.get("id_pracownika", "0"), known_user_ids)
 
             self._upsert_item(
                 item_id=device_id,
@@ -235,7 +237,7 @@ class KoidcImporter:
                 inventory_number=_legacy_inventory_uuid(device_id),
                 location_id=room_id,
                 category_id=category_id,
-                owner_id=LEGACY_OWNER_ID,
+                owner_id=owner_id,
                 status=status,
                 description=description,
             )
@@ -324,6 +326,13 @@ class KoidcImporter:
         item.owner_id = owner_id
         item.status = status
         item.description = description
+
+
+def _resolve_owner_id(raw_employee_id: str, known_user_ids: set[int]) -> int:
+    employee_id = int(raw_employee_id or "0")
+    if employee_id > 0 and employee_id in known_user_ids:
+        return employee_id
+    return LEGACY_OWNER_ID
 
 
 def _nullable_text(value: str | None) -> str | None:
