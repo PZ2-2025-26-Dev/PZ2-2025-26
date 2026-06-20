@@ -4,19 +4,27 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from src.auth.constants import UserRole, UserStatus
-from src.auth.dependencies import RequireAdmin
+from src.auth.dependencies import CurrentUser, RequireAdmin, RequireUserOrAdmin
 from src.auth.models import UserAccount
 from src.dependencies import DBDep
+from src.schemas import ErrorResponse
 
+from .constants import DEFAULT_USER_SELECT_PAGE_SIZE, MAX_USER_SELECT_PAGE_SIZE
 from .schemas import (
     BaseUserDetails,
+    GuestUserCreate,
+    GuestUserUpdate,
     SearchStr,
     UserDetails,
+    UserSelectOption,
     UsersPaged,
+    UsersSelectPaged,
     UserStatusUpdate,
 )
 from .service import (
+    GuestUserNotFoundError,
     InvalidUserApprovalRoleError,
+    UserEmailTakenError,
     UserHasHistoricalReferencesError,
     UserNotFoundError,
     UserOwnsItemsError,
@@ -77,6 +85,79 @@ def read_users(
     )
 
 
+@router.post(
+    "",
+    response_model=UserDetails,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dodaj Gościa",
+    responses={
+        status.HTTP_201_CREATED: {
+            "model": UserDetails,
+            "description": "Pomyślnie utworzono profil Gościa.",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Podany adres email jest już zajęty.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Brak uprawnień do dodania Gościa.",
+        },
+    },
+)
+def create_guest_user(
+    data: GuestUserCreate,
+    db: DBDep,
+    current_user: RequireUserOrAdmin,
+) -> UserDetails:
+    service = UserService(db)
+
+    try:
+        guest = service.create_guest_user(data)
+    except UserEmailTakenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Podany adres email jest już zajęty.",
+        ) from exc
+
+    return to_user_details(guest)
+
+
+@router.get(
+    "/select",
+    response_model=UsersSelectPaged,
+    status_code=status.HTTP_200_OK,
+    summary="Wylistuj użytkowników do wyboru",
+    responses={
+        status.HTTP_200_OK: {
+            "model": UsersSelectPaged,
+            "description": "Pomyślnie zwrócono skróconą listę użytkowników.",
+        },
+    },
+)
+def list_selectable_users(
+    db: DBDep,
+    current_user: CurrentUser,
+    search: SearchStr | None = None,
+    role: UserRole | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=MAX_USER_SELECT_PAGE_SIZE)] = DEFAULT_USER_SELECT_PAGE_SIZE,
+) -> UsersSelectPaged:
+    service = UserService(db)
+
+    users, total_count = service.list_selectable_users(
+        page=page,
+        limit=limit,
+        role=role,
+        search=search,
+    )
+
+    return UsersSelectPaged(
+        users=[UserSelectOption.model_validate(user) for user in users],
+        total_count=total_count,
+    )
+
+
 @router.get("/{user_id}")
 def read_user(user_id: int, db: DBDep, admin: RequireAdmin):
 
@@ -100,11 +181,26 @@ def read_user(user_id: int, db: DBDep, admin: RequireAdmin):
 )
 def update_user(
     user_id: int,
-    data: BaseUserDetails,
+    data: BaseUserDetails | GuestUserUpdate,
     db: DBDep,
     admin: RequireAdmin,
 ) -> UserDetails:
     service = UserService(db)
+
+    if isinstance(data, GuestUserUpdate):
+        try:
+            user = service.update_guest_user(user_id, data)
+        except GuestUserNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nie znaleziono Gościa.",
+            ) from exc
+        except UserEmailTakenError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Podany adres email jest już zajęty.",
+            ) from exc
+        return to_user_details(user)
 
     try:
         user = service.update_user(user_id, data)

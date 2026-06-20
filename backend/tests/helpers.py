@@ -67,7 +67,7 @@ def make_guest_payload(**overrides: Any) -> dict[str, Any]:
 
 def create_guest_via_api(client: TestClient, **overrides: Any) -> dict[str, Any]:
     """Create a guest through the API and fail the test if the request is rejected."""
-    response = client.post("/guests", json=make_guest_payload(**overrides))
+    response = client.post("/users", json=make_guest_payload(**overrides))
     assert response.status_code == 201, response.text
     return response.json()
 
