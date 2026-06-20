@@ -45,7 +45,7 @@ type AddAssetModalProps = {
     isOpen: boolean;
     onClose: () => void;
     onSave: (asset: InventoryItem) => void;
-    user: AppUser;
+    user: AppUser | null | undefined;
 };
 
 export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAssetModalProps) {
@@ -54,7 +54,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     const { listUsers } = useUsers();
     const { listLocations } = useLocations();
 
-    const isAdmin = user.role === ROLES.ADMIN;
+    const isAdmin = user?.role === ROLES.ADMIN;
 
     const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
     const [users, setUsers] = useState<ApiUser[]>([]);
@@ -85,7 +85,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     }, [categories]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !user) return;
 
         clearError();
         setIsCategoryDialogOpen(false);
@@ -136,7 +136,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                 }
             })
             .finally(() => setUsersLoading(false));
-    }, [isOpen, categories, clearError, isAdmin, user.id, listUsers, listLocations]);
+    }, [isOpen, categories, clearError, isAdmin, user?.id, listUsers, listLocations]);
 
     const handleAddCategory = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -158,9 +158,9 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         event.preventDefault();
         if (!formData.name.trim()) return;
 
-        const ownerId = isAdmin ? Number(formData.ownerId) : Number(user.id);
+        const ownerId = isAdmin ? Number(formData.ownerId) : Number(user?.id);
         const locationId = Number(formData.locationId);
-        if (!ownerId || !locationId) return;
+        if (!user || !ownerId || !locationId) return;
 
         const result = await createItem({
             name: formData.name,
@@ -173,7 +173,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         if (result.success && result.statusCode === 201) {
             const ownerName = isAdmin
                 ? getUserName(users.find((entry) => entry.id === ownerId) ?? { firstName: '', lastName: '' })
-                : user.name;
+                : (user?.name ?? '');
 
             onSave({
                 id: result.data.id,
@@ -188,6 +188,8 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
             onClose();
         }
     };
+
+    if (!user) return null;
 
     return (
         <>
