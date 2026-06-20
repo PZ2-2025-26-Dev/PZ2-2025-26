@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -219,24 +220,30 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         </div>
                                     </div>
                                     <div className="grid gap-3 border-t border-slate-100 pt-4 dark:border-slate-800 sm:grid-cols-2">
-                                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                            <SelectTrigger><SelectValue placeholder={t('dashboard.filterStatus')} /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t('dashboard.all')}</SelectItem>
-                                                {ITEM_STATUSES.map((status) => (
-                                                    <SelectItem key={status} value={status}>{getStatusLabel(status)}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                            <SelectTrigger><SelectValue placeholder={t('dashboard.filterCategory')} /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">{t('dashboard.all')}</SelectItem>
-                                                {categories.map((category) => (
-                                                    <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="status-filter">{t('dashboard.filterStatus')}</Label>
+                                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                                <SelectTrigger id="status-filter"><SelectValue placeholder={t('dashboard.all')} /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t('dashboard.all')}</SelectItem>
+                                                    {ITEM_STATUSES.map((status) => (
+                                                        <SelectItem key={status} value={status}>{getStatusLabel(status)}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="category-filter">{t('dashboard.filterCategory')}</Label>
+                                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                                <SelectTrigger id="category-filter"><SelectValue placeholder={t('dashboard.all')} /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">{t('dashboard.all')}</SelectItem>
+                                                    {categories.map((category) => (
+                                                        <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
