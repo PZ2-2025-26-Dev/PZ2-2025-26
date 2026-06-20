@@ -63,7 +63,7 @@ export default function ItemDetailsModal({
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
 
-    const itemId = typeof item?.id === 'number' ? item.id : Number(item?.id);
+    const itemId = item?.id ?? null;
     const {
         attachments,
         isLoading: isAttachmentsLoading,

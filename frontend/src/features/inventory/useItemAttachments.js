@@ -2,8 +2,24 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useInventory } from './useInventory';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * @param {number|null|undefined} itemId
+ * @param {string|number|null|undefined} itemId
+ */
+const isValidItemId = (itemId) => {
+    if (itemId === null || itemId === undefined || itemId === '') return false;
+    if (typeof itemId === 'number') return Number.isInteger(itemId) && itemId > 0;
+    if (typeof itemId === 'string') {
+        if (UUID_PATTERN.test(itemId)) return true;
+        const parsed = Number(itemId);
+        return Number.isInteger(parsed) && parsed > 0;
+    }
+    return false;
+};
+
+/**
+ * @param {string|number|null|undefined} itemId
  * @param {boolean} isOpen
  */
 export const useItemAttachments = (itemId, isOpen) => {
@@ -19,7 +35,7 @@ export const useItemAttachments = (itemId, isOpen) => {
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState(null);
 
-    const hasApiItemId = Number.isInteger(itemId) && itemId > 0;
+    const hasApiItemId = isValidItemId(itemId);
 
     useEffect(() => {
         if (!isOpen || !hasApiItemId) {
