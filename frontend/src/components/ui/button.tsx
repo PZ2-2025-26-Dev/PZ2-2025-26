@@ -52,7 +52,7 @@ function Button({
     VariantProps<typeof buttonVariants> & {
         asChild?: boolean;
     }) {
-    const Component = asChild ? Slot.Root : 'button';
+    const Component = asChild ? Slot : 'button';
 
     return (
         <Component
