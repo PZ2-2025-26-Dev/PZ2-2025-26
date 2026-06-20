@@ -1,11 +1,28 @@
-from uuid import uuid7
+from uuid import UUID, uuid7
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.items.constants import ItemChangeLogType, ItemStatus
+from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
-from src.items.schemas import ItemCreate, ItemUpdate
+from src.items.schemas import (
+    ItemCategory,
+    ItemCreate,
+    ItemCreateResponse,
+    ItemDeleteResponse,
+    ItemGetResponse,
+    ItemHistoryGet,
+    ItemHistoryGetResponse,
+    ItemLocation,
+    ItemOwner,
+    ItemPagination,
+    ItemSearch,
+    ItemSearchResponse,
+    ItemUpdate,
+    ItemUpdateResponse,
+    ItemsPaged,
+)
 from src.utils import now
 
 
@@ -13,23 +30,32 @@ class ItemService:
     def __init__(self, db: Session):
         self.db = db
 
-    def add_item(self, data: ItemCreate) -> Item:
-        inventory_number = uuid7()
+    def _get_item_by_uuid(self, item_id: UUID) -> Item | None:
+        return self.db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
+
+    def _owner_display_name(self, owner) -> str:
+        if owner.last_name:
+            return f"{owner.first_name} {owner.last_name}"
+        return owner.first_name
+
+    def add_item(self, data: ItemCreate) -> ItemCreateResponse:
+        item_uuid = uuid7()
 
         new_item = Item(
             name=data.name,
-            inventory_number=inventory_number,
+            uuid=item_uuid,
             category_id=data.category_id,
             location_id=data.location_id,
             owner_id=data.owner_id,
             status=ItemStatus.AVAILABLE,
             description=data.description,
+            parameters=data.parameters,
+            oldID=data.oldID,
         )
 
         self.db.add(new_item)
-        self.db.flush()  # Get the item ID without committing
+        self.db.flush()
 
-        # Create history record in the same transaction
         item_history = ItemHistory(
             item_id=new_item.id,
             updated_at=now(),
@@ -42,22 +68,25 @@ class ItemService:
         self.db.commit()
         self.db.refresh(new_item)
 
-        return new_item
+        return ItemCreateResponse(
+            id=new_item.uuid,
+            name=new_item.name,
+            status=new_item.status,
+            description=new_item.description,
+            oldID=new_item.oldID,
+            parameters=new_item.parameters,
+            category_id=new_item.category_id,
+            location_id=new_item.location_id,
+            owner_id=new_item.owner_id,
+        )
 
-    def update_item(
-        self,
-        item_id: int,
-        data: ItemUpdate,
-    ) -> Item:
-        """Update item fields in a single transaction.
-
-        Raises ValueError when item does not exist.
-        Returns the updated Item instance.
-        """
-        item = self.db.get(Item, item_id)
+    def update_item(self, item_id: UUID, data: ItemUpdate) -> ItemUpdateResponse:
+        item = self._get_item_by_uuid(item_id)
 
         if item is None:
             raise ValueError("Item not found")
+
+        updated_at = now()
 
         if data.name is not None:
             item.name = data.name
@@ -66,7 +95,7 @@ class ItemService:
             self.db.add(
                 ItemHistory(
                     item_id=item.id,
-                    updated_at=now(),
+                    updated_at=updated_at,
                     updated_by=item.owner_id,
                     change_type=ItemChangeLogType.CATEGORY_CHANGED,
                     description=f"Category changed from {item.category_id} to {data.category_id}",
@@ -78,7 +107,7 @@ class ItemService:
             self.db.add(
                 ItemHistory(
                     item_id=item.id,
-                    updated_at=now(),
+                    updated_at=updated_at,
                     updated_by=item.owner_id,
                     change_type=ItemChangeLogType.LOCATION_CHANGED,
                     description=f"Location changed from {item.location_id} to {data.location_id}",
@@ -90,7 +119,7 @@ class ItemService:
             self.db.add(
                 ItemHistory(
                     item_id=item.id,
-                    updated_at=now(),
+                    updated_at=updated_at,
                     updated_by=item.owner_id,
                     change_type=ItemChangeLogType.OWNER_CHANGED,
                     description=f"Owner changed from {item.owner_id} to {data.owner_id}",
@@ -101,18 +130,28 @@ class ItemService:
         if data.description is not None:
             item.description = data.description
 
-        if data.status is not None:
-            item.status = data.status
+        if data.parameters is not None:
+            item.parameters = data.parameters
 
         self.db.commit()
         self.db.refresh(item)
 
-        return item
+        return ItemUpdateResponse(
+            id=item.uuid,
+            name=item.name,
+            description=item.description,
+            category_id=item.category_id,
+            location_id=item.location_id,
+            owner_id=item.owner_id,
+            status=item.status,
+            parameters=item.parameters,
+            updated_at=updated_at,
+        )
 
-    def get_item(self, item_id: int) -> Item:
+    def get_item(self, item_id: UUID) -> ItemGetResponse:
         item = self.db.execute(
             select(Item)
-            .where(Item.id == item_id)
+            .where(Item.uuid == item_id)
             .options(
                 selectinload(Item.category),
                 selectinload(Item.location),
@@ -123,10 +162,29 @@ class ItemService:
         if item is None:
             raise ValueError("Item not found")
 
-        return item
+        return ItemGetResponse(
+            id=item.uuid,
+            name=item.name,
+            description=item.description,
+            status=item.status,
+            oldID=item.oldID,
+            category=ItemCategory(
+                id=item.category.id,
+                name=item.category.name,
+            ),
+            location=ItemLocation(
+                id=item.location.id,
+                path=build_location_path(item.location),
+            ),
+            owner=ItemOwner(
+                id=item.owner.id,
+                name=self._owner_display_name(item.owner),
+            ),
+            parameters=item.parameters,
+        )
 
-    def delete_item(self, item_id: int) -> None:
-        item = self.db.get(Item, item_id)
+    def delete_item(self, item_id: UUID) -> ItemDeleteResponse:
+        item = self._get_item_by_uuid(item_id)
 
         if item is None:
             raise ValueError("Item not found")
@@ -134,63 +192,84 @@ class ItemService:
         self.db.delete(item)
         self.db.commit()
 
-    def search_items(
-        self,
-        name: str | None,
-        description: str | None,
-        category_id: int | None,
-        location_id: int | None,
-        owner_id: int | None,
-        status: ItemStatus | None,
-        page: int,
-        limit: int,
-    ) -> tuple[list[Item], int]:
+        return ItemDeleteResponse(deleted=True)
+
+    def search_items(self, data: ItemSearch) -> ItemsPaged:
         stmt = select(Item).options(
             selectinload(Item.category),
             selectinload(Item.location),
             selectinload(Item.owner),
         )
 
-        if owner_id is not None:
-            stmt = stmt.where(Item.owner_id == owner_id)
+        if data.owner_id is not None:
+            stmt = stmt.where(Item.owner_id == data.owner_id)
 
-        if category_id is not None:
-            stmt = stmt.where(Item.category_id == category_id)
+        if data.category_id is not None:
+            stmt = stmt.where(Item.category_id == data.category_id)
 
-        if location_id is not None:
-            stmt = stmt.where(Item.location_id == location_id)
+        if data.location_id is not None:
+            stmt = stmt.where(Item.location_id == data.location_id)
 
-        if status is not None:
-            stmt = stmt.where(Item.status == status)
+        if data.status is not None:
+            stmt = stmt.where(Item.status == data.status)
 
-        if name is not None:
-            stmt = stmt.where(Item.name.ilike(f"%{name}%"))
+        if data.name is not None:
+            stmt = stmt.where(Item.name.ilike(f"%{data.name}%"))
 
-        if description is not None:
-            stmt = stmt.where(Item.description.ilike(f"%{description}%"))
+        if data.description is not None:
+            stmt = stmt.where(Item.description.ilike(f"%{data.description}%"))
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.execute(count_stmt).scalar_one()
 
         stmt = stmt.order_by(Item.id)
-        offset = (page - 1) * limit
-        stmt = stmt.offset(offset).limit(limit)
+        offset = (data.page - 1) * data.limit
+        stmt = stmt.offset(offset).limit(data.limit)
 
-        items = self.db.execute(stmt).scalars().all()
+        results = self.db.execute(stmt).scalars().all()
+        items = [
+            ItemSearchResponse(
+                id=item.uuid,
+                name=item.name,
+                status=item.status,
+                oldID=item.oldID,
+                category=ItemCategory(
+                    id=item.category.id,
+                    name=item.category.name,
+                ),
+                location=ItemLocation(
+                    id=item.location.id,
+                    path=build_location_path(item.location),
+                ),
+                owner=ItemOwner(
+                    id=item.owner.id,
+                    name=self._owner_display_name(item.owner),
+                ),
+                description=item.description,
+            )
+            for item in results
+        ]
+        pagination = ItemPagination(page=data.page, limit=data.limit, total=total)
+        return ItemsPaged(items=items, pagination=pagination)
 
-        return items, total
-
-    def get_item_history(self, item_id: int) -> list[ItemHistory]:
-        """Get item history ordered by newest first.
-
-        Raises ValueError when item does not exist.
-        Returns a list of ItemHistory entries.
-        """
-        item = self.db.get(Item, item_id)
+    def get_item_history(self, item_id: UUID) -> ItemHistoryGetResponse:
+        item = self._get_item_by_uuid(item_id)
 
         if item is None:
             raise ValueError("Item not found")
 
-        stmt = select(ItemHistory).where(ItemHistory.item_id == item_id).order_by(ItemHistory.updated_at.desc())
+        stmt = select(ItemHistory).where(ItemHistory.item_id == item.id).order_by(ItemHistory.updated_at.desc())
 
-        return self.db.execute(stmt).scalars().all()
+        results = self.db.execute(stmt).scalars().all()
+        return ItemHistoryGetResponse(
+            entries=[
+                ItemHistoryGet(
+                    id=entry.id,
+                    updated_at=entry.updated_at,
+                    updated_by=entry.updated_by,
+                    change_type=entry.change_type,
+                    description=entry.description,
+                )
+                for entry in results
+            ]
+        )
