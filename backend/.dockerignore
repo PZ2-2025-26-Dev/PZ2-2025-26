@@ -8,3 +8,4 @@ __pycache__
 htmlcov
 dist
 build
+sample_dump.sql
