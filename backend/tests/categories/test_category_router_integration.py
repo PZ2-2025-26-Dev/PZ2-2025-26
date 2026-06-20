@@ -37,6 +37,10 @@ def test_create_category_endpoint_rejects_duplicate_sibling_name(api_client: Tes
     response = api_client.post("/categories", json={"name": "Elektronika"}, headers=admin_headers())
 
     assert response.status_code == 409
+    assert response.json() == {
+        "code": 409,
+        "detail": "Category name already exists under this parent",
+    }
 
 
 def test_create_category_endpoint_rejects_missing_parent(api_client: TestClient, seeded_db: Session):
@@ -47,6 +51,7 @@ def test_create_category_endpoint_rejects_missing_parent(api_client: TestClient,
     )
 
     assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Parent category not found"}
 
 
 def test_create_category_endpoint_requires_admin_role(api_client: TestClient, seeded_db: Session):
@@ -82,6 +87,7 @@ def test_update_category_endpoint_rejects_parent_cycle(api_client: TestClient, s
     )
 
     assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Parent category cannot be a descendant"}
 
 
 def test_update_category_endpoint_rejects_duplicate_name(api_client: TestClient, seeded_db: Session):
@@ -92,6 +98,10 @@ def test_update_category_endpoint_rejects_duplicate_name(api_client: TestClient,
     )
 
     assert response.status_code == 409
+    assert response.json() == {
+        "code": 409,
+        "detail": "Category name already exists under this parent",
+    }
 
 
 def test_update_category_endpoint_requires_admin_role(api_client: TestClient, seeded_db: Session):
@@ -129,6 +139,7 @@ def test_delete_category_endpoint_blocks_category_with_children(api_client: Test
     )
 
     assert response.status_code == 409
+    assert response.json() == {"code": 409, "detail": "Category has child categories"}
 
 
 def test_delete_category_endpoint_rejects_same_replacement(api_client: TestClient, seeded_db: Session):
@@ -139,6 +150,10 @@ def test_delete_category_endpoint_rejects_same_replacement(api_client: TestClien
     )
 
     assert response.status_code == 400
+    assert response.json() == {
+        "code": 400,
+        "detail": "Replacement category must be different from deleted category",
+    }
 
 
 def test_delete_category_endpoint_requires_admin_role(api_client: TestClient, seeded_db: Session):
@@ -184,6 +199,7 @@ def test_read_category_items_endpoint_returns_404_for_missing_category(
     response = api_client.get("/categories/999999/items")
 
     assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Category not found"}
 
 
 def test_read_category_items_count_endpoint_returns_direct_count(api_client: TestClient, seeded_db: Session):
@@ -200,6 +216,7 @@ def test_read_category_items_count_endpoint_returns_404_for_missing_category(
     response = api_client.get("/categories/999999/items/count")
 
     assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Category not found"}
 
 
 def test_categories_openapi_contains_public_category_paths(api_client: TestClient, seeded_db: Session):

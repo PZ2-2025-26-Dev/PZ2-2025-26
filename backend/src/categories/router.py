@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
+from fastapi.responses import JSONResponse
 
 from src.auth.dependencies import RequireAdmin
 from src.categories.constants import CATEGORY_PAGE_DEFAULT, CATEGORY_PAGE_LIMIT_DEFAULT, CATEGORY_PAGE_LIMIT_MAX
@@ -27,6 +28,13 @@ from src.dependencies import DBDep
 from src.schemas import ErrorResponse
 
 router = APIRouter(prefix="/categories", tags=["categories"])
+
+
+def error_response(status_code: int, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content=ErrorResponse(code=status_code, detail=detail).model_dump(),
+    )
 
 
 @router.get(
@@ -69,11 +77,9 @@ def read_categories(
             "description": "Nie znaleziono kategorii nadrzędnej.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "model": ErrorResponse,
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "model": ErrorResponse,
             "description": "Operacja dostępna wyłącznie dla administratora.",
         },
         status.HTTP_409_CONFLICT: {
@@ -82,14 +88,14 @@ def read_categories(
         },
     },
 )
-def create_category(data: CategoryCreate, db: DBDep, _admin: RequireAdmin) -> CategoryResponse:
+def create_category(data: CategoryCreate, db: DBDep, _admin: RequireAdmin) -> CategoryResponse | JSONResponse:
     service = CategoryService(db)
     try:
         category = service.create_category(data)
-    except CategoryNotFoundError as err:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent category not found") from err
+    except CategoryNotFoundError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Parent category not found")
     except CategoryDuplicateNameError as err:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(err)) from err
+        return error_response(status.HTTP_409_CONFLICT, str(err))
 
     return service.to_response(category)
 
@@ -113,11 +119,9 @@ def create_category(data: CategoryCreate, db: DBDep, _admin: RequireAdmin) -> Ca
             "description": "Nie znaleziono kategorii lub kategorii nadrzędnej.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "model": ErrorResponse,
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "model": ErrorResponse,
             "description": "Operacja dostępna wyłącznie dla administratora.",
         },
         status.HTTP_409_CONFLICT: {
@@ -126,16 +130,21 @@ def create_category(data: CategoryCreate, db: DBDep, _admin: RequireAdmin) -> Ca
         },
     },
 )
-def update_category(category_id: CategoryID, data: CategoryUpdate, db: DBDep, _admin: RequireAdmin) -> CategoryResponse:
+def update_category(
+    category_id: CategoryID,
+    data: CategoryUpdate,
+    db: DBDep,
+    _admin: RequireAdmin,
+) -> CategoryResponse | JSONResponse:
     service = CategoryService(db)
     try:
         category = service.update_category(category_id, data)
     except CategoryNotFoundError as err:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err)) from err
+        return error_response(status.HTTP_404_NOT_FOUND, str(err))
     except CategoryParentCycleError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+        return error_response(status.HTTP_400_BAD_REQUEST, str(err))
     except CategoryDuplicateNameError as err:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(err)) from err
+        return error_response(status.HTTP_409_CONFLICT, str(err))
 
     return service.to_response(category)
 
@@ -159,11 +168,9 @@ def update_category(category_id: CategoryID, data: CategoryUpdate, db: DBDep, _a
             "description": "Nie znaleziono usuwanej lub zastępczej kategorii.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "model": ErrorResponse,
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "model": ErrorResponse,
             "description": "Operacja dostępna wyłącznie dla administratora.",
         },
         status.HTTP_409_CONFLICT: {
@@ -183,16 +190,16 @@ def delete_category(
             description="ID kategorii, do której zostaną przeniesione przedmioty z usuwanej kategorii.",
         ),
     ],
-) -> CategoryDeleteResponse:
+) -> CategoryDeleteResponse | JSONResponse:
     service = CategoryService(db)
     try:
         moved_items_count = service.delete_category(category_id, replacement_category_id)
     except CategoryNotFoundError as err:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err)) from err
+        return error_response(status.HTTP_404_NOT_FOUND, str(err))
     except CategoryReplacementError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+        return error_response(status.HTTP_400_BAD_REQUEST, str(err))
     except CategoryHasChildrenError as err:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(err)) from err
+        return error_response(status.HTTP_409_CONFLICT, str(err))
 
     return CategoryDeleteResponse(
         deleted_category_id=category_id,
@@ -222,12 +229,12 @@ def read_category_items(
     db: DBDep,
     page: Annotated[int, Query(ge=1)] = CATEGORY_PAGE_DEFAULT,
     limit: Annotated[int, Query(ge=1, le=CATEGORY_PAGE_LIMIT_MAX)] = CATEGORY_PAGE_LIMIT_DEFAULT,
-) -> CategoryItemsPaged:
+) -> CategoryItemsPaged | JSONResponse:
     service = CategoryService(db)
     try:
         items, total = service.get_category_items(category_id, page=page, limit=limit)
     except CategoryNotFoundError as err:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err)) from err
+        return error_response(status.HTTP_404_NOT_FOUND, str(err))
 
     return CategoryItemsPaged(
         items=items,
@@ -251,11 +258,11 @@ def read_category_items(
         },
     },
 )
-def read_category_items_count(category_id: CategoryID, db: DBDep) -> CategoryItemsCount:
+def read_category_items_count(category_id: CategoryID, db: DBDep) -> CategoryItemsCount | JSONResponse:
     service = CategoryService(db)
     try:
         count = service.get_category_items_count(category_id)
     except CategoryNotFoundError as err:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(err)) from err
+        return error_response(status.HTTP_404_NOT_FOUND, str(err))
 
     return CategoryItemsCount(category_id=category_id, count=count)
