@@ -2,7 +2,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.auth.dependencies import RequireAdmin
 from src.dependencies import DBDep
+from src.items.dependencies import (
+    ItemByUuid,
+    RequireItemReader,
+    RequireItemWriter,
+    assert_can_assign_owner_on_create,
+    assert_can_update_item,
+)
 from src.items.schemas import (
     ItemCreate,
     ItemCreateResponse,
@@ -28,12 +36,19 @@ router = APIRouter(prefix="/items")
         status.HTTP_200_OK: {
             "model": ItemsPaged,
             "description": "Pomyślnie zwrócono listę przedmiotów na podstawie zadanego filtru",
-        }
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
     },
 )
 def read_items(
     db: DBDep,
     data: Annotated[ItemSearch, Depends()],
+    _reader: RequireItemReader,
 ) -> ItemsPaged:
     return ItemService(db).search_items(data)
 
@@ -51,12 +66,20 @@ def read_items(
         status.HTTP_400_BAD_REQUEST: {
             "description": "Błędne dane lub nieistniejące powiązania",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do tworzenia przedmiotów.",
+        },
     },
 )
 def create_item(
     data: ItemCreate,
     db: DBDep,
+    user: RequireItemWriter,
 ) -> ItemCreateResponse:
+    assert_can_assign_owner_on_create(user, data.owner_id)
     service = ItemService(db)
 
     try:
@@ -75,6 +98,12 @@ def create_item(
             "model": ItemGetResponse,
             "description": "Pomyślnie zwrócono szczegóły przedmiotu",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
         },
@@ -83,6 +112,7 @@ def create_item(
 def read_item(
     item_id: ItemID,
     db: DBDep,
+    _reader: RequireItemReader,
 ) -> ItemGetResponse:
     service = ItemService(db)
 
@@ -105,6 +135,12 @@ def read_item(
             "model": ItemUpdateResponse,
             "description": "Dane przedmiotu zostały zaktualizowane.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do modyfikacji przedmiotu.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu.",
         },
@@ -114,7 +150,10 @@ def update_item(
     item_id: ItemID,
     data: ItemUpdate,
     db: DBDep,
+    user: RequireItemWriter,
+    item: ItemByUuid,
 ) -> ItemUpdateResponse:
+    assert_can_update_item(user, item, data, db)
     service = ItemService(db)
 
     try:
@@ -134,6 +173,12 @@ def update_item(
         status.HTTP_204_NO_CONTENT: {
             "description": "Przedmiot został usunięty",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Operacja dostępna wyłącznie dla administratora.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
         },
@@ -142,6 +187,7 @@ def update_item(
 def delete_item(
     item_id: ItemID,
     db: DBDep,
+    _admin: RequireAdmin,
 ) -> None:
     service = ItemService(db)
 
@@ -160,6 +206,12 @@ def delete_item(
     status_code=status.HTTP_200_OK,
     response_model=ItemHistoryGetResponse,
     responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
         },
@@ -168,6 +220,7 @@ def delete_item(
 def read_item_history(
     item_id: ItemID,
     db: DBDep,
+    _reader: RequireItemReader,
 ) -> ItemHistoryGetResponse:
     service = ItemService(db)
 
