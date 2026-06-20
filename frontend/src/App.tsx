@@ -175,6 +175,7 @@ export default function App() {
                         <RegisterForm
                             onSwitchToLogin={() => setAuthView('login')}
                             onBack={() => setAuthView('welcome')}
+                            onRegisterSuccess={() => setAuthView('login')} 
                         />
                     )}
                 </div>

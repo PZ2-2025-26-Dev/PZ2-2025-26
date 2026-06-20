@@ -1,39 +1,33 @@
-import  { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { StatusBadge } from '../../components/StatusBadge';
 import SystemClock from '../../components/SystemClock';
+import QrScannerDialog from '../../components/QrScannerDialog';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
+import { useCategories } from '../categories/useCategories';
+import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
+import UserManager from '../users/UserManager';
 import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
-import UserManager from '../users/UserManager';
-import QrScannerDialog from '../../components/QrScannerDialog';
-// import { useInventory } from './useInventory';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
     const { t, i18n } = useTranslation();
+    const { listItems, isLoading, error, clearError } = useInventory();
+    const { listCategories } = useCategories();
 
-    const [items, setItems] = useState([
-        { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski', description: 'Dwukanałowy oscyloskop cyfrowy przeznaczony do pomiarów sygnałów analogowych i cyfrowych. Pasmo 70 MHz, częstotliwość próbkowania do 2 GSa/s. Urządzenie wykorzystywane podczas laboratoriów z elektroniki oraz techniki pomiarowej.' },
-        { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01',     description: 'Generator sygnałów arbitralnych umożliwiający generowanie przebiegów sinusoidalnych, prostokątnych, trójkątnych oraz własnych przebiegów użytkownika. Dokumentacja producenta: https://en.wikipedia.org/wiki/Function_generator'},
-        { id: 'AGH-WFIIS-0391', name: 'Zasilacz laboratoryjny programowalny', producer: 'Rigol', model: 'DP832', serialNumber: 'DP8B123456', status: 'oczekuje akceptacji', category: 'Zasilacze laboratoryjne', location: 'Budynek D10 / Pokój 204 / Szafa C', owner: 'dr inż. Jan Kowalski', borrower: 'Anna Malik',     description: 'Trzykanałowy zasilacz laboratoryjny wykorzystywany w laboratoriach elektroniki, automatyki i systemów wbudowanych. Umożliwia niezależną regulację napięcia i prądu dla każdego kanału. Zakres pracy obejmuje dwa kanały 0–30 V / 3 A oraz trzeci kanał 0–5 V / 3 A. Urządzenie posiada zabezpieczenia przeciwzwarciowe, przeciwprzeciążeniowe oraz możliwość zdalnego sterowania przez interfejs USB i LAN. Ze względu na częste wykorzystanie podczas zajęć dydaktycznych należy każdorazowo sprawdzić stan przewodów pomiarowych przed rozpoczęciem pracy. Sprzęt podlega okresowej kontroli technicznej oraz kalibracji zgodnie z procedurami obowiązującymi w laboratorium.' }
-    ]);
-    // const { items, isLoading, error, addAsset } = useInventory(); docelowe użycie
-    // useEffect(() => {
-    //     fetchItems();
-    // }, [fetchItems]);
-
+    const [items, setItems] = useState([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [categories, setCategories] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [categoryFilter, setCategoryFilter] = useState('all');
-
     const [activeTab, setActiveTab] = useState('inventory');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
-
     const [selectedItem, setSelectedItem] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-
     const [pendingUserCount, setPendingUserCount] = useState(0);
 
     useEffect(() => {
@@ -44,29 +38,68 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
 
-    const filteredItems = canViewList ? items.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.producer.toLowerCase().includes(searchQuery.toLowerCase()) || item.id.toLowerCase().includes(searchQuery.toLowerCase()) || item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-        const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
-        return matchesSearch && matchesStatus && matchesCategory;
-    }) : [];
+    const refreshItems = useCallback(async () => {
+        const result = await listItems({ limit: 50 });
+        if (result.success) {
+            setItems(result.items);
+            setTotalCount(result.total);
+        }
+    }, [listItems]);
 
-    const handleSaveAsset = (newAsset) => {
-        setItems([newAsset, ...items]);
-    };
+    const refreshCategories = useCallback(async () => {
+        const result = await listCategories({ limit: 100 });
+        if (result.success) {
+            setCategories(result.categories);
+        }
+    }, [listCategories]);
+
+    useEffect(() => {
+        if (!canViewList) return;
+        refreshItems();
+        refreshCategories();
+    }, [canViewList, refreshItems, refreshCategories]);
+
+    const filteredItems = useMemo(() => {
+        if (!canViewList) return [];
+
+        return items.filter((item) => {
+            const query = searchQuery.toLowerCase();
+            const matchesSearch = !query || [
+                item.name,
+                String(item.id),
+                item.inventory_number,
+                item.description,
+                item.category,
+                item.location,
+                item.owner,
+            ].some((value) => value?.toLowerCase().includes(query));
+            const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+            const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+    }, [canViewList, items, searchQuery, statusFilter, categoryFilter]);
+
+    const stats = useMemo(() => ({
+        total: totalCount,
+        borrowed: items.filter((item) => item.status === 'loaned').length,
+        pending: items.filter((item) => item.status === 'pending_approval').length,
+        damaged: items.filter((item) => item.status === 'broken').length,
+    }), [items, totalCount]);
+
+    const getStatusLabel = (status) => t(`dashboard.itemStatuses.${status}`, { defaultValue: status });
 
     const handleQrScan = (decodedText) => {
         console.log('QR code scan result:', decodedText);
     };
 
     const handleUpdateItemStatus = (itemId, newStatus, clearBorrower = false, newBorrower = null, newDueDate = null) => {
-        setItems(prevItems => prevItems.map(item => {
+        setItems((prevItems) => prevItems.map((item) => {
             if (item.id === itemId) {
                 return {
                     ...item,
                     status: newStatus,
-                    borrower: newBorrower ? newBorrower : (clearBorrower ? null : item.borrower),
-                    dueDate: newDueDate ? newDueDate : (clearBorrower ? null : item.dueDate)
+                    borrower: newBorrower ?? (clearBorrower ? null : item.borrower),
+                    dueDate: newDueDate ?? (clearBorrower ? null : item.dueDate),
                 };
             }
             return item;
@@ -145,17 +178,23 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     </div>
                 ) : (
                     <div className="space-y-6 animate-fadeIn">
-
                         {activeTab === 'inventory' && (
                             <>
+                                {error && (
+                                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-400 flex justify-between items-start gap-3">
+                                        <span>{error}</span>
+                                        <button type="button" onClick={clearError} className="text-rose-500 hover:text-rose-700">✕</button>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                     {[
-                                        { title: t('dashboard.totalAssets'), count: items.length + 1245, color: 'text-slate-900 dark:text-white' }, // Dynamiczny licznik oparty na stanie
-                                        { title: t('dashboard.borrowedAssets'), count: '142', color: 'text-blue-600 dark:text-blue-400' },
-                                        { title: t('dashboard.pendingApprovals'), count: '7', color: 'text-amber-600 dark:text-amber-400' },
-                                        { title: t('dashboard.damagedAssets'), count: '3', color: 'text-rose-600 dark:text-rose-400' }
-                                    ].map((stat, idx) => (
-                                        <div key={idx} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-sm">
+                                        { title: t('dashboard.totalAssets'), count: stats.total, color: 'text-slate-900 dark:text-white' },
+                                        { title: t('dashboard.borrowedAssets'), count: stats.borrowed, color: 'text-blue-600 dark:text-blue-400' },
+                                        { title: t('dashboard.pendingApprovals'), count: stats.pending, color: 'text-amber-600 dark:text-amber-400' },
+                                        { title: t('dashboard.damagedAssets'), count: stats.damaged, color: 'text-rose-600 dark:text-rose-400' },
+                                    ].map((stat) => (
+                                        <div key={stat.title} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-sm">
                                             <div className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase">{stat.title}</div>
                                             <div className={`text-xl font-bold mt-1 ${stat.color}`}>{stat.count}</div>
                                         </div>
@@ -195,25 +234,18 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             <span className="shrink-0 text-slate-400 font-medium">{t('dashboard.filterStatus')}:</span>
                                             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="min-w-0 flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs sm:flex-none">
                                                 <option value="all">{t('dashboard.all')}</option>
-                                                <option value="dostępny">dostępny</option>
-                                                <option value="wypożyczony">wypożyczony</option>
-                                                <option value="oczekuje akceptacji">oczekuje akceptacji</option>
-                                                <option value="uszkodzony">uszkodzony</option>
-                                                <option value="zarezerwowany">zarezerwowany</option>
+                                                {ITEM_STATUSES.map((status) => (
+                                                    <option key={status} value={status}>{getStatusLabel(status)}</option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div className="flex w-full max-w-md items-center gap-2 sm:w-auto">
                                             <span className="shrink-0 text-slate-400 font-medium">{t('dashboard.filterCategory')}:</span>
                                             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="min-w-0 flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs sm:flex-none">
                                                 <option value="all">{t('dashboard.all')}</option>
-                                                <option value="Aparatura pomiarowa">Aparatura pomiarowa</option>
-                                                <option value="Oscyloskopy">Oscyloskopy</option>
-                                                <option value="Generatory funkcyjne">Generatory funkcyjne</option>
-                                                <option value="Aparatura zasilająca">Aparatura zasilająca</option>
-                                                <option value="Zasilacze laboratoryjne">Zasilacze laboratoryjne</option>
-                                                <option value="Sprzęt IT">Sprzęt IT</option>
-                                                <option value="Laptopy">Laptopy</option>
-                                                <option value="Akcesoria i optyka">Akcesoria i optyka</option>
+                                                {categories.map((category) => (
+                                                    <option key={category.id} value={category.name}>{category.name}</option>
+                                                ))}
                                             </select>
                                         </div>
                                     </div>
@@ -223,48 +255,46 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left border-collapse text-xs">
                                             <thead>
-                                            <tr className="bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
-                                                <th className="py-2.5 px-4">{t('dashboard.thId')}</th>
-                                                <th className="py-2.5 px-4">{t('dashboard.thName')}</th>
-                                                <th className="py-2.5 px-4">{t('dashboard.thCategory')}</th>
-                                                <th className="py-2.5 px-4">{t('dashboard.thLocation')}</th>
-                                                <th className="py-2.5 px-4">{t('dashboard.thStatus')}</th>
-                                                <th className="py-2.5 px-4">{t('dashboard.thOwner')}</th>
-                                            </tr>
+                                                <tr className="bg-slate-50/80 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                                    <th className="py-2.5 px-4">{t('dashboard.thId')}</th>
+                                                    <th className="py-2.5 px-4">{t('dashboard.thName')}</th>
+                                                    <th className="py-2.5 px-4">{t('dashboard.thCategory')}</th>
+                                                    <th className="py-2.5 px-4">{t('dashboard.thLocation')}</th>
+                                                    <th className="py-2.5 px-4">{t('dashboard.thStatus')}</th>
+                                                    <th className="py-2.5 px-4">{t('dashboard.thOwner')}</th>
+                                                </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
-                                            {filteredItems.length > 0 ? filteredItems.map(item => {
-                                                const badgeColor = {
-                                                    'dostępny': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
-                                                    'wypożyczony': 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
-                                                    'oczekuje akceptacji': 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
-                                                    'uszkodzony': 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400',
-                                                    'zarezerwowany': 'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400'
-                                                }[item.status];
-
-                                                return (
+                                                {isLoading && filteredItems.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="6" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">
+                                                            {t('userManager.loading')}
+                                                        </td>
+                                                    </tr>
+                                                ) : filteredItems.length > 0 ? filteredItems.map((item) => (
                                                     <tr
                                                         key={item.id}
                                                         onClick={() => { setSelectedItem(item); setIsDetailsModalOpen(true); }}
                                                         className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition cursor-pointer"
                                                     >
-                                                        <td className="py-3 px-4 font-mono text-slate-400 dark:text-slate-500">{item.id}</td>
+                                                        <td className="py-3 px-4 font-mono text-slate-400 dark:text-slate-500">{item.inventory_number ?? item.id}</td>
                                                         <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
                                                             <div>{item.name}</div>
-                                                            <div className="text-[10px] text-slate-400 font-normal">{item.producer} / {item.model}</div>
+                                                            {item.description && (
+                                                                <div className="text-[10px] text-slate-400 font-normal line-clamp-1">{item.description}</div>
+                                                            )}
                                                         </td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.category}</td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.location}</td>
                                                         <td className="py-3 px-4">
-                                                            <span className={`inline-block px-2 py-0.5 rounded-full font-medium tracking-wide ${badgeColor}`}>{item.status}</span>
+                                                            <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
                                                             {item.borrower && <div className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{item.borrower} ({item.dueDate})</div>}
                                                         </td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-medium">{item.owner}</td>
                                                     </tr>
-                                                );
-                                            }) : (
-                                                <tr><td colSpan="6" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">{t('dashboard.noResults')}</td></tr>
-                                            )}
+                                                )) : (
+                                                    <tr><td colSpan="6" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">{t('dashboard.noResults')}</td></tr>
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -283,7 +313,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 <CategoryManager />
                             </RoleGuard>
                         )}
-
                     </div>
                 )}
             </main>
@@ -291,7 +320,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             <AddAssetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                onSave={handleSaveAsset}
+                onSave={() => refreshItems()}
+                user={user}
             />
 
             <QrScannerDialog
