@@ -24,7 +24,7 @@ Po starcie usługi powinny być dostępne pod adresami:
 - backend API: `http://localhost:8000`
 - dokumentacja OpenAPI: `http://localhost:8000/docs`
 - healthcheck API: `http://localhost:8000/ready`
-- Adminer: `http://localhost:8080`
+- Adminer: `http://localhost:8080` (opcjonalnie, profil `tools` — patrz sekcja poniżej)
 
 ## Tryb Developerski
 
@@ -48,6 +48,31 @@ Po zmianach w Dockerfile'ach albo lockfile'ach przebuduj obrazy:
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml build
 ```
+
+## Adminer (opcjonalnie)
+
+Adminer to tylko webowy podgląd bazy — **nie jest wymagany** do działania API ani frontendu. Jest w profilu `tools`, więc domyślne `docker compose up` nie próbuje pobierać obrazu z Docker Hub.
+
+Uruchomienie z Adminerem:
+
+```sh
+docker compose --profile tools up --build
+```
+
+Jeżeli pobieranie obrazów z Docker Hub kończy się błędem `TLS handshake timeout`, uruchom sam stack aplikacji (baza + API + frontend):
+
+```sh
+docker compose up --build db api frontend
+```
+
+Spróbuj ponownie pobrać Adminer, gdy sieć będzie stabilniejsza:
+
+```sh
+docker pull adminer:5.4.0
+docker compose --profile tools up adminer
+```
+
+Typowe przyczyny timeoutów Docker Hub: słabe Wi‑Fi, VPN, firewall, Docker Desktop jeszcze się uruchamia. Pomaga restart Docker Desktop albo chwilowe wyłączenie VPN.
 
 ## Konfiguracja `.env`
 
@@ -182,7 +207,7 @@ Jeżeli `docker version` nie pokazuje sekcji `Server`, uruchom Docker Desktop i 
 Tylko baza i backend:
 
 ```sh
-docker compose up --build db api adminer
+docker compose --profile tools up --build db api adminer
 ```
 
 Tylko frontend, gdy API działa już gdzie indziej:

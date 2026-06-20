@@ -114,11 +114,94 @@ export const useInventory = () => {
         setError(null);
     }, []);
 
+    const fetchItems = useCallback(async () => {
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE);
+            return { success: true, data: response.data.items };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
+    const listAttachments = useCallback(async (itemId) => {
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.ATTACHMENTS(itemId));
+            return { success: true, data: response.data.attachments };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            return { success: false, error: errorMessage };
+        }
+    }, []);
+
+    const uploadAttachments = useCallback(async (itemId, files) => {
+        try {
+            const formData = new FormData();
+            Array.from(files).forEach((file) => formData.append('files', file));
+
+            const baseURL = axiosClient.defaults.baseURL || 'http://localhost:8000';
+            const token = localStorage.getItem('token');
+            const headers = {};
+            if (token) headers.Authorization = `Bearer ${token}`;
+
+            const response = await fetch(`${baseURL}${ENDPOINTS.ITEMS.ATTACHMENTS(itemId)}`, {
+                method: 'POST',
+                body: formData,
+                headers,
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                return {
+                    success: false,
+                    error: typeof data.detail === 'string' ? data.detail : parseApiError({ response: { data } }),
+                };
+            }
+
+            return { success: true, data: data.attachments };
+        } catch (err) {
+            return { success: false, error: err.message || parseApiError(err) };
+        }
+    }, []);
+
+    const downloadAttachment = useCallback(async (itemId, attachmentId, filename) => {
+        try {
+            const response = await axiosClient.get(
+                ENDPOINTS.ITEMS.ATTACHMENT_DOWNLOAD(itemId, attachmentId),
+                { responseType: 'blob' },
+            );
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
+    const deleteAttachment = useCallback(async (itemId, attachmentId) => {
+        try {
+            await axiosClient.delete(ENDPOINTS.ITEMS.ATTACHMENT_DELETE(itemId, attachmentId));
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
     return {
         createItem,
         isLoading,
         error,
         clearError,
+        fetchItems,
         getItemHistory,
+        listAttachments,
+        uploadAttachments,
+        downloadAttachment,
+        deleteAttachment,
     };
 };

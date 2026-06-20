@@ -1,12 +1,14 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Uuid
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.categories.models import Category
 from src.database import Base
 from src.items.constants import (
+    ATTACHMENT_FILENAME_MAX_LENGTH,
+    ATTACHMENT_MIME_TYPE_MAX_LENGTH,
     ITEM_DESC_LENGTH,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
@@ -60,3 +62,18 @@ class ItemACL(Base):
     item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     permission: Mapped[ItemPermissionType] = mapped_column(Enum(ItemPermissionType))
+
+
+class ItemAttachment(Base):
+    __tablename__ = "item_attachment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="CASCADE"), index=True)
+    original_filename: Mapped[str] = mapped_column(String(ATTACHMENT_FILENAME_MAX_LENGTH))
+    stored_filename: Mapped[str] = mapped_column(String(ATTACHMENT_FILENAME_MAX_LENGTH))
+    mime_type: Mapped[str] = mapped_column(String(ATTACHMENT_MIME_TYPE_MAX_LENGTH))
+    size_bytes: Mapped[int] = mapped_column()
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime)
+    uploaded_by: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+
+    __table_args__ = (Index("ix_item_attachment_item_uploaded_at", "item_id", "uploaded_at"),)

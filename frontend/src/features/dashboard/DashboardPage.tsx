@@ -31,12 +31,34 @@ import UserManager from '../users/UserManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
+import { useInventory } from '../inventory/useInventory';
 
-const INITIAL_ITEMS: InventoryItem[] = [
-    { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski', description: 'Dwukanałowy oscyloskop cyfrowy przeznaczony do pomiarów sygnałów analogowych i cyfrowych.' },
-    { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01', description: 'Generator sygnałów arbitralnych. Dokumentacja producenta: https://en.wikipedia.org/wiki/Function_generator' },
-    { id: 'AGH-WFIIS-0391', name: 'Zasilacz laboratoryjny programowalny', producer: 'Rigol', model: 'DP832', serialNumber: 'DP8B123456', status: 'oczekuje akceptacji', category: 'Zasilacze laboratoryjne', location: 'Budynek D10 / Pokój 204 / Szafa C', owner: 'dr inż. Jan Kowalski', borrower: 'Anna Malik', description: 'Trzykanałowy zasilacz laboratoryjny wykorzystywany w laboratoriach elektroniki, automatyki i systemów wbudowanych.' },
-];
+const STATUS_LABELS: Record<string, string> = {
+    available: 'dostępny',
+    borrowed: 'wypożyczony',
+    pending_approval: 'oczekuje akceptacji',
+    broken: 'uszkodzony',
+    reserved: 'zarezerwowany',
+};
+
+const mapApiItem = (item: {
+    id: number;
+    name: string;
+    category: { name: string };
+    location: { path: string };
+    owner: { id: number; name: string };
+    status: string;
+    description?: string | null;
+}): InventoryItem => ({
+    id: item.id,
+    name: item.name,
+    category: item.category.name,
+    location: item.location.path,
+    owner: item.owner.name,
+    ownerId: item.owner.id,
+    status: STATUS_LABELS[item.status] ?? item.status,
+    description: item.description ?? '',
+});
 
 const CATEGORIES = ['Aparatura pomiarowa', 'Oscyloskopy', 'Generatory funkcyjne', 'Aparatura zasilająca', 'Zasilacze laboratoryjne', 'Sprzęt IT', 'Laptopy', 'Akcesoria i optyka'];
 const STATUSES = ['dostępny', 'wypożyczony', 'oczekuje akceptacji', 'uszkodzony', 'zarezerwowany'];
@@ -50,7 +72,8 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
+    const { fetchItems } = useInventory();
+    const [items, setItems] = useState<InventoryItem[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [categoryFilter, setCategoryFilter] = useState('all');
@@ -63,6 +86,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
     }, [isDarkMode]);
+
+    useEffect(() => {
+        void fetchItems().then((result) => {
+            if (result.success && result.data) {
+                setItems(result.data.map(mapApiItem));
+            }
+        });
+    }, [fetchItems]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
     const filteredItems = canViewList

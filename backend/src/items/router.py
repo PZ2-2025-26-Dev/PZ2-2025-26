@@ -1,13 +1,22 @@
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 
-from src.auth.schemas import UserID
+from src.auth.constants import UserRole
+from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
+from src.items.attachment_service import (
+    AttachmentNotFoundError,
+    AttachmentTooLargeError,
+    ItemAttachmentService,
+    ItemNotFoundError,
+)
 from src.items.constants import ItemStatus
 from src.items.helpers import build_location_path
 from src.items.schemas import (
     CategoryID,
+    ItemAttachmentsListResponse,
     ItemCategory,
     ItemCreate,
     ItemCreateResponse,
@@ -22,9 +31,21 @@ from src.items.schemas import (
     LocationID,
     SearchStr,
 )
+from src.items.models import Item
 from src.items.service import ItemService
+from src.schemas import ErrorResponse
+from src.auth.schemas import UserID
+from src.users.models import User
 
 router = APIRouter(prefix="/items")
+
+
+def _ensure_item_owner(item_id: int, user: User, db: DBDep) -> None:
+    item = db.get(Item, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if item.owner_id != user.id and user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only item owner can manage attachments")
 
 
 @router.get(
@@ -281,3 +302,162 @@ def read_item_history(
         )
         for entry in history
     ]
+
+
+@router.get(
+    "/{item_id}/attachments",
+    response_model=ItemAttachmentsListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Wylistuj załączniki przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemAttachmentsListResponse,
+            "description": "Pomyślnie zwrócono listę załączników przedmiotu.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu.",
+        },
+    },
+)
+def read_item_attachments(
+    item_id: ItemID,
+    db: DBDep,
+) -> ItemAttachmentsListResponse:
+    service = ItemAttachmentService(db)
+
+    try:
+        attachments = service.list_attachments(item_id)
+    except ItemNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        )
+
+    return ItemAttachmentsListResponse(attachments=attachments)
+
+
+@router.post(
+    "/{item_id}/attachments",
+    response_model=ItemAttachmentsListResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dodaj załączniki do przedmiotu",
+    responses={
+        status.HTTP_201_CREATED: {
+            "model": ItemAttachmentsListResponse,
+            "description": "Pliki zostały pomyślnie dodane do przedmiotu.",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Plik przekracza dozwolony rozmiar.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Tylko właściciel przedmiotu może dodawać pliki.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu.",
+        },
+    },
+)
+def upload_item_attachments(
+    item_id: ItemID,
+    db: DBDep,
+    user: CurrentUser,
+    files: Annotated[list[UploadFile], File()],
+) -> ItemAttachmentsListResponse:
+    _ensure_item_owner(item_id, user, db)
+    service = ItemAttachmentService(db)
+
+    try:
+        attachments = service.upload_attachments(item_id, user.id, files)
+    except ItemNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        )
+    except AttachmentTooLargeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Attachment exceeds maximum allowed size",
+        )
+
+    return ItemAttachmentsListResponse(attachments=attachments)
+
+
+@router.get(
+    "/{item_id}/attachments/{attachment_id}/download",
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz załącznik przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Zwraca plik załącznika.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu lub załącznika.",
+        },
+    },
+)
+def download_item_attachment(
+    item_id: ItemID,
+    attachment_id: int,
+    db: DBDep,
+) -> FileResponse:
+    service = ItemAttachmentService(db)
+
+    try:
+        file_path, original_filename, mime_type = service.get_attachment_file(item_id, attachment_id)
+    except (ItemNotFoundError, AttachmentNotFoundError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attachment not found",
+        )
+
+    return FileResponse(
+        path=file_path,
+        filename=original_filename,
+        media_type=mime_type,
+    )
+
+
+@router.delete(
+    "/{item_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Usuń załącznik przedmiotu",
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Załącznik został usunięty.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "model": ErrorResponse,
+            "description": "Tylko właściciel przedmiotu może usuwać pliki.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu lub załącznika.",
+        },
+    },
+)
+def delete_item_attachment(
+    item_id: ItemID,
+    attachment_id: int,
+    db: DBDep,
+    user: CurrentUser,
+) -> None:
+    _ensure_item_owner(item_id, user, db)
+    service = ItemAttachmentService(db)
+
+    try:
+        service.delete_attachment(item_id, attachment_id, user.id)
+    except ItemNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item not found",
+        )
+    except AttachmentNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attachment not found",
+        )

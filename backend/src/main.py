@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,8 +30,10 @@ from src.users.router import router as users_router
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
 
-    yield
+    upload_root = Path(config.upload_dir)
+    upload_root.mkdir(parents=True, exist_ok=True)
 
+    yield
 
 app = FastAPI(version="0.1.0", lifespan=lifespan)
 
