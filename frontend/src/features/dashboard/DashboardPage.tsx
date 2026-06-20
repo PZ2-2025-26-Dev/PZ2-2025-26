@@ -236,7 +236,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 )}
             </main>
 
-            <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={(asset: InventoryItem) => setItems((current) => [asset, ...current])} />
+            <AddAssetModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={(asset: InventoryItem) => setItems((current) => [asset, ...current])} user={user} />
             <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
         </div>
     );
