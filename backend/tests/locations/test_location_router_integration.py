@@ -16,6 +16,7 @@ def test_create_location_endpoint_persists_location_and_history(api_client: Test
         "type": "shelf",
         "parent_id": SEED_IDS.cabinet,
         "description": "Dodana przez API",
+        "address": "Adres testowy",
     }
 
     response = api_client.post("/locations", json=payload)
@@ -25,6 +26,7 @@ def test_create_location_endpoint_persists_location_and_history(api_client: Test
     assert body["name"] == payload["name"]
     assert body["type"] == payload["type"]
     assert body["parent_id"] == SEED_IDS.cabinet
+    assert body["address"] == "Adres testowy"
     assert body["path"] == "Budynek D / Sala D10 / Szafa A / Polka testowa"
 
     location = seeded_db.get(Location, body["id"])
@@ -50,7 +52,7 @@ def test_list_locations_endpoint_returns_paged_locations(api_client: TestClient,
     assert body["pagination"] == {
         "page": 1,
         "limit": 2,
-        "total": 3,
+        "total": 4,
     }
 
 
@@ -66,13 +68,14 @@ def test_location_details_endpoint_returns_full_path(api_client: TestClient, see
 def test_update_location_endpoint_updates_database_and_history(api_client: TestClient, seeded_db: Session):
     response = api_client.put(
         f"/locations/{SEED_IDS.room}",
-        json={"name": "Sala 204", "description": "Opis z API"},
+        json={"name": "Sala 204", "description": "Opis z API", "address": "Adres z API"},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "Sala 204"
     assert body["description"] == "Opis z API"
+    assert body["address"] == "Adres z API"
     assert body["path"] == "Budynek D / Sala 204"
 
     location = seeded_db.get(Location, SEED_IDS.room)

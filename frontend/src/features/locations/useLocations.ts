@@ -4,7 +4,7 @@ import axiosClient from '@/api/axiosClient';
 import { parseApiError } from '@/api/apiUtils';
 import { ENDPOINTS } from '@/api/endpoints';
 
-export type LocationType = 'building' | 'room' | 'cabinet' | 'shelf' | 'other';
+export type LocationType = 'building' | 'room' | 'cabinet' | 'shelf' | 'remote' | 'other';
 
 export type Location = {
     id: number;
@@ -12,6 +12,7 @@ export type Location = {
     type: LocationType;
     parentId: number | null;
     description: string | null;
+    address: string | null;
     isActive: boolean;
     path: string;
 };
@@ -23,6 +24,7 @@ type LocationApiResponse = {
     parent_id?: number | null;
     parentId?: number | null;
     description?: string | null;
+    address?: string | null;
     is_active?: boolean;
     isActive?: boolean;
     path: string;
@@ -43,6 +45,7 @@ export type LocationCreateInput = {
     type: LocationType;
     parentId: number | null;
     description: string | null;
+    address?: string | null;
 };
 
 export type LocationUpdateInput = LocationCreateInput & {
@@ -55,6 +58,7 @@ const normalizeLocation = (location: LocationApiResponse): Location => ({
     type: location.type,
     parentId: location.parentId ?? location.parent_id ?? null,
     description: location.description ?? null,
+    address: location.address ?? null,
     isActive: location.isActive ?? location.is_active ?? true,
     path: location.path,
 });
@@ -64,6 +68,7 @@ const toCreatePayload = (location: LocationCreateInput) => ({
     type: location.type,
     parent_id: location.parentId,
     description: location.description,
+    address: location.address ?? null,
 });
 
 const toUpdatePayload = (location: LocationUpdateInput) => ({
@@ -71,6 +76,7 @@ const toUpdatePayload = (location: LocationUpdateInput) => ({
     type: location.type,
     parent_id: location.parentId,
     description: location.description,
+    address: location.address ?? null,
     is_active: location.isActive,
 });
 

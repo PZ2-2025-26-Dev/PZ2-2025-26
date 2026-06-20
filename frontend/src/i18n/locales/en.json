@@ -94,6 +94,9 @@
     "rootLevel": "-- Root level --",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Optional location description",
+    "addressLabel": "Address",
+    "addressPlaceholder": "e.g., Example Street 1, Kraków",
+    "addressInline": "Address: {{address}}",
     "addBtn": "Save Location",
     "saving": "Saving...",
     "edit": "Edit",
@@ -115,6 +118,7 @@
       "room": "Room",
       "cabinet": "Cabinet",
       "shelf": "Shelf",
+      "remote": "Remote",
       "other": "Other"
     },
     "statuses": {

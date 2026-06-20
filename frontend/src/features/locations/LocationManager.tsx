@@ -16,13 +16,15 @@ import { useLocations, type Location, type LocationType } from './useLocations';
 type LocationNode = Location & { children: LocationNode[] };
 
 const ROOT_LOCATION = 'root';
-const LOCATION_TYPES: LocationType[] = ['building', 'room', 'cabinet', 'shelf', 'other'];
+const LOCATION_TYPES: LocationType[] = ['building', 'room', 'cabinet', 'shelf', 'remote', 'other'];
+const LOCATION_ADMIN_CREATE_TYPES: LocationType[] = ['building', 'room', 'cabinet', 'shelf', 'other'];
 const LOCATION_STATUSES = ['active', 'inactive'] as const;
 const LOCATION_TYPE_ICONS: Record<LocationType, LucideIcon> = {
     building: Building2,
     room: DoorOpen,
     cabinet: Archive,
     shelf: Layers3,
+    remote: MapPin,
     other: MapPin,
 };
 const LOCATION_PARENT_TYPES: Record<LocationType, LocationType[]> = {
@@ -30,6 +32,7 @@ const LOCATION_PARENT_TYPES: Record<LocationType, LocationType[]> = {
     room: ['building'],
     cabinet: ['room'],
     shelf: ['cabinet'],
+    remote: [],
     other: ['building', 'room', 'cabinet', 'shelf', 'other'],
 };
 
@@ -38,11 +41,18 @@ type LocationFormState = {
     type: LocationType;
     parentId: string;
     description: string;
+    address: string;
     status: typeof LOCATION_STATUSES[number];
 };
 
 type DeleteErrorState = {
     locationName: string;
+};
+
+const compareLocations = (first: Location, second: Location) => {
+    if (first.type === 'remote' && second.type !== 'remote') return 1;
+    if (first.type !== 'remote' && second.type === 'remote') return -1;
+    return first.path.localeCompare(second.path, 'pl', { sensitivity: 'base' });
 };
 
 const buildLocationTree = (locations: Location[]) => {
@@ -61,10 +71,16 @@ const buildLocationTree = (locations: Location[]) => {
         else roots.push(node);
     });
 
+    const sortNodes = (nodes: LocationNode[]) => {
+        nodes.sort(compareLocations);
+        nodes.forEach((node) => sortNodes(node.children));
+    };
+    sortNodes(roots);
+
     return roots;
 };
 
-const flattenLocations = (locations: Location[]) => [...locations].sort((first, second) => first.path.localeCompare(second.path));
+const flattenLocations = (locations: Location[]) => [...locations].sort(compareLocations);
 
 const getParentOptions = (locations: Location[], type: LocationType) => {
     const allowedParentTypes = LOCATION_PARENT_TYPES[type];
@@ -116,10 +132,11 @@ export default function LocationManager() {
 
         return getParentOptions(locations, editForm.type).filter((location) => !blockedIds.has(location.id));
     }, [editForm, editingLocation, locations]);
-    const isBuildingType = newLocationType === 'building';
-    const isEditingBuildingType = editForm?.type === 'building';
-    const isParentRequired = !isBuildingType;
-    const isEditParentRequired = Boolean(editForm && !isEditingBuildingType);
+    const isRootLocationType = newLocationType === 'building' || newLocationType === 'remote';
+    const isEditingRootLocationType = editForm?.type === 'building' || editForm?.type === 'remote';
+    const editLocationTypes = editingLocation?.type === 'remote' ? LOCATION_TYPES : LOCATION_ADMIN_CREATE_TYPES;
+    const isParentRequired = !isRootLocationType;
+    const isEditParentRequired = Boolean(editForm && !isEditingRootLocationType);
 
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
@@ -138,20 +155,20 @@ export default function LocationManager() {
     }, [locations]);
 
     useEffect(() => {
-        if (isBuildingType) setSelectedParentId(ROOT_LOCATION);
+        if (isRootLocationType) setSelectedParentId(ROOT_LOCATION);
         else setSelectedParentId((current) => getValidParentId(current, parentOptions));
-    }, [isBuildingType, parentOptions, selectedParentId]);
+    }, [isRootLocationType, parentOptions, selectedParentId]);
 
     useEffect(() => {
-        if (isEditingBuildingType && editForm?.parentId !== ROOT_LOCATION) {
+        if (isEditingRootLocationType && editForm?.parentId !== ROOT_LOCATION) {
             setEditForm((current) => current ? { ...current, parentId: ROOT_LOCATION } : current);
-        } else if (editForm && !isEditingBuildingType) {
+        } else if (editForm && !isEditingRootLocationType) {
             const validParentId = getValidParentId(editForm.parentId, editParentOptions);
             if (validParentId !== editForm.parentId) {
                 setEditForm((current) => current ? { ...current, parentId: validParentId } : current);
             }
         }
-    }, [editForm, editParentOptions, isEditingBuildingType]);
+    }, [editForm, editParentOptions, isEditingRootLocationType]);
 
     const handleCreateLocation = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -162,7 +179,7 @@ export default function LocationManager() {
         const result = await createLocation({
             name: trimmedName,
             type: newLocationType,
-            parentId: isBuildingType || selectedParentId === ROOT_LOCATION ? null : Number(selectedParentId),
+            parentId: isRootLocationType || selectedParentId === ROOT_LOCATION ? null : Number(selectedParentId),
             description: newLocationDescription.trim() || null,
         });
 
@@ -182,6 +199,7 @@ export default function LocationManager() {
             type: location.type,
             parentId: location.parentId ? String(location.parentId) : ROOT_LOCATION,
             description: location.description ?? '',
+            address: location.address ?? '',
             status: location.isActive ? 'active' : 'inactive',
         });
         clearError();
@@ -199,8 +217,9 @@ export default function LocationManager() {
         const result = await updateLocation(editingLocation.id, {
             name: editForm.name.trim(),
             type: editForm.type,
-            parentId: editForm.type === 'building' || editForm.parentId === ROOT_LOCATION ? null : Number(editForm.parentId),
+            parentId: editForm.type === 'building' || editForm.type === 'remote' || editForm.parentId === ROOT_LOCATION ? null : Number(editForm.parentId),
             description: editForm.description.trim() || null,
+            address: editForm.type === 'remote' ? editForm.address.trim() || null : null,
             isActive: editForm.status === 'active',
         });
 
@@ -271,6 +290,11 @@ export default function LocationManager() {
                         {node.description && (
                             <div className="ml-12 mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{node.description}</div>
                         )}
+                        {node.address && (
+                            <div className="ml-12 mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                                {t('locationManager.addressInline', { address: node.address })}
+                            </div>
+                        )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('locationManager.edit')}>
@@ -325,7 +349,7 @@ export default function LocationManager() {
                             <Select value={newLocationType} onValueChange={(type) => setNewLocationType(type as LocationType)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {LOCATION_TYPES.map((type) => (
+                                    {LOCATION_ADMIN_CREATE_TYPES.map((type) => (
                                         <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
                                     ))}
                                 </SelectContent>
@@ -334,10 +358,10 @@ export default function LocationManager() {
 
                         <div className="space-y-2">
                             <Label>{t('locationManager.parentLabel')}</Label>
-                            <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={isBuildingType}>
+                            <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={isRootLocationType}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {isBuildingType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
+                                    {isRootLocationType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
                                     {parentOptions.map((location) => (
                                         <SelectItem key={location.id} value={String(location.id)}>{location.path}</SelectItem>
                                     ))}
@@ -405,7 +429,7 @@ export default function LocationManager() {
                                     <Select value={editForm.type} onValueChange={(type) => setEditForm({ ...editForm, type: type as LocationType })}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            {LOCATION_TYPES.map((type) => (
+                                            {editLocationTypes.map((type) => (
                                                 <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -427,10 +451,10 @@ export default function LocationManager() {
 
                             <div className="space-y-2">
                                 <Label>{t('locationManager.parentLabel')}</Label>
-                                <Select value={editForm.parentId} onValueChange={(parentId) => setEditForm({ ...editForm, parentId })} disabled={isEditingBuildingType}>
+                                <Select value={editForm.parentId} onValueChange={(parentId) => setEditForm({ ...editForm, parentId })} disabled={isEditingRootLocationType}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        {isEditingBuildingType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
+                                        {isEditingRootLocationType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
                                         {editParentOptions.map((location) => (
                                             <SelectItem key={location.id} value={String(location.id)}>{location.path}</SelectItem>
                                         ))}
@@ -446,6 +470,18 @@ export default function LocationManager() {
                                     onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
                                 />
                             </div>
+
+                            {editForm.type === 'remote' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-location-address">{t('locationManager.addressLabel')}</Label>
+                                    <Input
+                                        id="edit-location-address"
+                                        value={editForm.address}
+                                        onChange={(event) => setEditForm({ ...editForm, address: event.target.value })}
+                                        placeholder={t('locationManager.addressPlaceholder')}
+                                    />
+                                </div>
+                            )}
                         </form>
                     )}
                     <DialogFooter>

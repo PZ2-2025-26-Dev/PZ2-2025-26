@@ -94,6 +94,9 @@
     "rootLevel": "-- Poziom główny --",
     "descriptionLabel": "Opis",
     "descriptionPlaceholder": "Opcjonalny opis lokalizacji",
+    "addressLabel": "Adres",
+    "addressPlaceholder": "np. ul. Przykładowa 1, Kraków",
+    "addressInline": "Adres: {{address}}",
     "addBtn": "Zapisz lokalizację",
     "saving": "Zapisywanie...",
     "edit": "Edytuj",
@@ -115,6 +118,7 @@
       "room": "Sala",
       "cabinet": "Szafa",
       "shelf": "Półka",
+      "remote": "Zewnętrzna",
       "other": "Inne"
     },
     "statuses": {

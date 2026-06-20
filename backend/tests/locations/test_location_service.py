@@ -22,7 +22,7 @@ def test_update_location_saves_history(seeded_db):
 
     updated = service.update_location(
         SEED_IDS.room,
-        LocationUpdate(name="Sala 204", description="Nowy opis"),
+        LocationUpdate(name="Sala 204", description="Nowy opis", address="Adres pomocniczy"),
     )
 
     history = seeded_db.scalars(
@@ -33,6 +33,7 @@ def test_update_location_saves_history(seeded_db):
     ).all()
 
     assert updated.name == "Sala 204"
+    assert updated.address == "Adres pomocniczy"
     assert updated.path == "Budynek D / Sala 204"
     assert len(history) == 1
 
@@ -104,3 +105,13 @@ def test_create_location_returns_path(seeded_db):
     )
 
     assert created.path == "Budynek D / Sala D10 / Szafa A / Półka 1"
+
+
+def test_seed_contains_remote_location_with_address(seeded_db):
+    service = LocationService(seeded_db)
+
+    remote = service.get_location(SEED_IDS.remote_location)
+
+    assert remote.type == LocationType.REMOTE
+    assert remote.address == "ul. Przykładowa 1, 30-001 Kraków"
+    assert remote.path == "Lokalizacja zewnętrzna"

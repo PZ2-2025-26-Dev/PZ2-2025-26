@@ -58,6 +58,7 @@ class LocationService:
             type=data.type,
             parent_id=data.parent_id,
             description=data.description,
+            address=data.address,
             is_active=data.is_active,
         )
 
@@ -102,6 +103,8 @@ class LocationService:
             location.type = data.type
         if "description" in updated_fields:
             location.description = data.description
+        if "address" in updated_fields:
+            location.address = data.address
         if "is_active" in updated_fields:
             location.is_active = data.is_active
 
@@ -165,6 +168,7 @@ class LocationService:
             type=location.type,
             parent_id=location.parent_id,
             description=location.description,
+            address=location.address,
             is_active=location.is_active,
             path=self.build_location_path(location.id),
         )
