@@ -157,15 +157,13 @@ def update_category(
         status.HTTP_200_OK: {
             "model": CategoryDeleteResponse,
             "description": (
-                "Kategoria i jej podkategorie zostały usunięte, "
-                "a ich przedmioty przeniesiono do kategorii zastępczej."
+                "Kategoria i jej podkategorie zostały usunięte, a ich przedmioty przeniesiono do kategorii zastępczej."
             ),
         },
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
             "description": (
-                "Kategoria zastępcza jest taka sama jak usuwana kategoria "
-                "albo znajduje się w usuwanym poddrzewie."
+                "Kategoria zastępcza jest taka sama jak usuwana kategoria albo znajduje się w usuwanym poddrzewie."
             ),
         },
         status.HTTP_404_NOT_FOUND: {
