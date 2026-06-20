@@ -239,7 +239,6 @@
     "guestLabel": "Guest (external entity)",
     "selectGuest": "— select a guest —",
     "dueDateLabel": "Declared return date",
-    "purposeLabel": "Loan purpose (optional)",
     "submitBtn": "Register loan",
     "returnBtn": "Register return",
     "historyTitle": "Loan history",

@@ -122,7 +122,8 @@ export default function AddAssetModal({ isOpen, onClose, onSave }) {
                 name: formData.name,
                 category: categoryName,
                 location: locationPath,
-                owner: ownerName,
+                owner: { id: parseInt(formData.ownerId, 10), name: ownerName },
+                ownerId: parseInt(formData.ownerId, 10),
                 description: formData.description,
             };
 

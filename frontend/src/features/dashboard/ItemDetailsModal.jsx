@@ -14,6 +14,8 @@ import {
 
 const getGuestLabel = (guest) => `${guest.firstName} ${guest.lastName}`.trim() || guest.email || `#${guest.id}`;
 
+const isActiveLoanStatus = (status) => status === 'active' || status === 'ACTIVE';
+
 const resolveOwner = (item) => {
     if (typeof item.owner === 'object' && item.owner !== null) {
         return { id: item.owner.id, name: item.owner.name };
@@ -28,12 +30,12 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
     const { registerLoan, listLoans, returnLoan, isLoading: isLoanLoading, error: loanError, clearError: clearLoanError } = useRentals();
 
     const [returnDate, setReturnDate] = useState('');
-    const [loanPurpose, setLoanPurpose] = useState('');
     const [selectedGuestId, setSelectedGuestId] = useState('');
     const [guests, setGuests] = useState([]);
     const [activeLoan, setActiveLoan] = useState(null);
     const [loanHistory, setLoanHistory] = useState([]);
     const [actionMessage, setActionMessage] = useState('');
+    const [registerSucceeded, setRegisterSucceeded] = useState(false);
 
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -42,7 +44,9 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
     const [history, setHistory] = useState([]);
 
     const apiItem = item && isApiItemId(item.id);
+    const itemId = apiItem ? Number(item.id) : null;
     const itemStatus = item ? normalizeItemStatus(item.status) : null;
+    const displayStatus = activeLoan ? ITEM_STATUS.LOANED : itemStatus;
 
     const owner = item ? resolveOwner(item) : { id: null, name: '' };
     const isOwner = user?.id === owner.id
@@ -51,11 +55,11 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
     const canRegisterExternalLoan = user?.role === ROLES.USER || user?.role === ROLES.ADMIN;
 
     const loadLoanData = useCallback(async () => {
-        if (!item || !apiItem) return;
+        if (!itemId) return;
 
         const [guestsResult, loansResult] = await Promise.all([
             listGuests({ limit: 100 }),
-            listLoans({ itemId: Number(item.id), limit: 50 }),
+            listLoans({ itemId, limit: 50 }),
         ]);
 
         if (guestsResult.success) {
@@ -64,10 +68,10 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
 
         if (loansResult.success) {
             setLoanHistory(loansResult.loans);
-            const active = loansResult.loans.find((loan) => loan.status === 'active');
+            const active = loansResult.loans.find((loan) => isActiveLoanStatus(loan.status));
             setActiveLoan(active ?? null);
         }
-    }, [apiItem, item, listGuests, listLoans]);
+    }, [itemId, listGuests, listLoans]);
 
     useEffect(() => {
         if (!isOpen || !item) return;
@@ -75,28 +79,54 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setReturnDate(tomorrow.toISOString().split('T')[0]);
-        setLoanPurpose('');
         setSelectedGuestId('');
         setActionMessage('');
+        setRegisterSucceeded(false);
         setEditedDescription(item.description || '');
         setIsEditingDescription(false);
         setHistory([]);
         setIsHistoryOpen(false);
         clearLoanError();
+    }, [isOpen, item?.id, item?.description, clearLoanError]);
 
-        if (apiItem) {
-            loadLoanData();
-        } else {
+    useEffect(() => {
+        if (!isOpen || !itemId) {
             setGuests([]);
             setActiveLoan(null);
             setLoanHistory([]);
+            return undefined;
         }
-    }, [isOpen, item, apiItem, loadLoanData, clearLoanError]);
+
+        let cancelled = false;
+
+        (async () => {
+            const [guestsResult, loansResult] = await Promise.all([
+                listGuests({ limit: 100 }),
+                listLoans({ itemId, limit: 50 }),
+            ]);
+
+            if (cancelled) return;
+
+            if (guestsResult.success) {
+                setGuests(guestsResult.guests);
+            }
+
+            if (loansResult.success) {
+                setLoanHistory(loansResult.loans);
+                const active = loansResult.loans.find((loan) => isActiveLoanStatus(loan.status));
+                setActiveLoan(active ?? null);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, itemId, listGuests, listLoans]);
 
     if (!isOpen || !item) return null;
 
-    const statusLabel = getItemStatusLabel(item.status, t);
-    const statusStyles = getStatusBadgeClass(item.status);
+    const statusLabel = getItemStatusLabel(displayStatus ?? item.status, t);
+    const statusStyles = getStatusBadgeClass(displayStatus ?? item.status);
 
     const handleRegisterExternalLoan = async () => {
         if (!selectedGuestId || !returnDate) return;
@@ -108,7 +138,6 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
             itemId: Number(item.id),
             borrowerId: Number(selectedGuestId),
             declaredReturnDate: `${returnDate}T23:59:59`,
-            loanPurpose: loanPurpose || null,
         });
 
         if (!result.success) {
@@ -119,7 +148,8 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         const guest = guests.find((g) => g.id === Number(selectedGuestId));
         const guestName = guest ? getGuestLabel(guest) : `#${selectedGuestId}`;
 
-        setActionMessage(t('rentals.registerSuccess'));
+        setRegisterSucceeded(true);
+        setActionMessage('');
         setActiveLoan(result.data);
 
         onLoanChange?.(item.id, {
@@ -145,6 +175,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         }
 
         setActionMessage(t('rentals.returnSuccess'));
+        setRegisterSucceeded(false);
         setActiveLoan(null);
 
         onLoanChange?.(item.id, {
@@ -203,14 +234,14 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                 </p>
             )}
 
-            {(loanError || actionMessage) && (
+            {(loanError || (actionMessage && !registerSucceeded)) && (
                 <p className={`text-xs mb-4 rounded-lg px-3 py-2 ${loanError ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/30' : 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30'}`}>
                     {loanError || actionMessage}
                 </p>
             )}
 
             <div className="space-y-4 flex-grow">
-                {apiItem && canRegisterExternalLoan && itemStatus === ITEM_STATUS.AVAILABLE && (
+                {apiItem && canRegisterExternalLoan && !activeLoan && displayStatus === ITEM_STATUS.AVAILABLE && (
                     <div className="bg-white dark:bg-slate-950 border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-4 shadow-sm space-y-3">
                         <h4 className="font-bold text-sm text-emerald-700 dark:text-emerald-400">{t('rentals.panelTitle')}</h4>
                         <p className="text-xs text-slate-500">{t('rentals.panelDesc')}</p>
@@ -239,29 +270,24 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">{t('rentals.purposeLabel')}</label>
-                            <input
-                                type="text"
-                                value={loanPurpose}
-                                onChange={(e) => setLoanPurpose(e.target.value)}
-                                maxLength={512}
-                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
-                            />
-                        </div>
-
                         <button
                             type="button"
                             onClick={handleRegisterExternalLoan}
                             disabled={isLoanLoading || !selectedGuestId || !returnDate}
                             className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg disabled:opacity-50"
                         >
-                                {isLoanLoading ? t('userManager.loading') : t('rentals.submitBtn')}
+                            {isLoanLoading ? t('userManager.loading') : t('rentals.submitBtn')}
                         </button>
                     </div>
                 )}
 
-                {apiItem && itemStatus === ITEM_STATUS.LOANED && activeLoan && (
+                {apiItem && activeLoan && registerSucceeded && (
+                    <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-4 text-center">
+                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{t('rentals.registerSuccess')}</p>
+                    </div>
+                )}
+
+                {apiItem && activeLoan && (
                     <div className="bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4 shadow-sm space-y-3">
                         <h4 className="font-bold text-sm text-blue-700 dark:text-blue-500">{t('itemDetailsModal.returnPending')}</h4>
                         <p className="text-xs text-slate-600 dark:text-slate-400">
@@ -290,7 +316,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                             {loanHistory.map((loan) => (
                                 <div key={loan.id} className="text-xs border-l-2 border-slate-200 dark:border-slate-700 pl-3 py-1">
                                     <span className="font-medium text-slate-700 dark:text-slate-300">
-                                        {loan.status === 'active' ? t('rentals.statusActive') : t('rentals.statusReturned')}
+                                        {isActiveLoanStatus(loan.status) ? t('rentals.statusActive') : t('rentals.statusReturned')}
                                     </span>
                                     <span className="text-slate-400 ml-2">
                                         {loan.created_at?.slice(0, 10)} → {loan.declared_return_date?.slice(0, 10)}
@@ -301,7 +327,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                     </div>
                 )}
 
-                {itemStatus !== ITEM_STATUS.BROKEN && onUpdateStatus && (
+                {itemStatus !== ITEM_STATUS.BROKEN && !activeLoan && onUpdateStatus && (
                     <div className="pt-4 mt-auto">
                         <button
                             type="button"

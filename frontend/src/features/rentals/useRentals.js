@@ -29,7 +29,6 @@ export const useRentals = () => {
                 item_id: loanData.itemId,
                 borrower_id: loanData.borrowerId,
                 declared_return_date: loanData.declaredReturnDate,
-                loan_purpose: loanData.loanPurpose || null,
             });
 
             return { success: true, data: response.data, statusCode: response.status };

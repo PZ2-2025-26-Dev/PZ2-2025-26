@@ -3,6 +3,21 @@ import axiosClient from '../../api/axiosClient';        // 1. Klient HTTP (wstrz
 import { ENDPOINTS } from '../../api/endpoints';        // 2. Słownik ścieżek
 import { parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
 
+/** @param {Object} item - odpowiedź GET /items */
+export const mapItemFromApi = (item) => ({
+    id: item.id,
+    name: item.name,
+    category: item.category?.name ?? '',
+    location: item.location?.path ?? '',
+    owner: item.owner ? { id: item.owner.id, name: item.owner.name } : '',
+    ownerId: item.owner?.id,
+    description: item.description ?? '',
+    status: item.status,
+    producer: '',
+    model: '',
+    serialNumber: '',
+});
+
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
  * @returns {{createItem: Function, isLoading: boolean, error: string|null, clearError: Function}}
@@ -54,6 +69,41 @@ export const useInventory = () => {
         }
     }, []);
 
+    /**
+     * Pobiera listę przedmiotów z GET /items
+     * @param {Object} [filters]
+     * @param {number} [filters.page]
+     * @param {number} [filters.limit]
+     * @param {string} [filters.status]
+     * @returns {Promise<{success: boolean, items?: Array, total?: number, error?: string}>}
+     */
+    const listItems = useCallback(async (filters = {}) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const params = {};
+            if (filters.page) params.page = filters.page;
+            if (filters.limit) params.limit = filters.limit;
+            if (filters.status) params.status = filters.status;
+
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, { params });
+            const payload = response.data;
+
+            return {
+                success: true,
+                items: (payload.items ?? []).map(mapItemFromApi),
+                total: payload.pagination?.total ?? 0,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, items: [], total: 0, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     
     /**
      * Pobiera historię zmian przedmiotu
@@ -93,6 +143,7 @@ export const useInventory = () => {
 
     return {
         createItem,
+        listItems,
         isLoading,
         error,
         clearError,

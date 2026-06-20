@@ -1,4 +1,4 @@
-import  { useState, useEffect } from 'react';
+import  { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import SystemClock from '../../components/SystemClock';
 import RoleGuard from '../auth/RoleGuard';
@@ -8,20 +8,15 @@ import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import UserManager from '../users/UserManager';
 import GuestManager from '../guests/GuestManager';
-import { getItemStatusLabel, getStatusBadgeClass, normalizeItemStatus } from '../../utils/itemStatus';
+import { useInventory } from '../inventory/useInventory';
+import { ITEM_STATUS, getItemStatusLabel, getStatusBadgeClass, normalizeItemStatus } from '../../utils/itemStatus';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
     const { t, i18n } = useTranslation();
+    const { listItems } = useInventory();
 
-    const [items, setItems] = useState([
-        { id: 'AGH-WFIIS-0042', name: 'Oscyloskop cyfrowy InfiniiVision', producer: 'Keysight', model: 'DSOX2002A', serialNumber: 'MY54321098', status: 'dostępny', category: 'Oscyloskopy', location: 'Budynek D10 / Pokój 204 / Szafa A', owner: 'dr inż. Jan Kowalski', description: 'Dwukanałowy oscyloskop cyfrowy przeznaczony do pomiarów sygnałów analogowych i cyfrowych. Pasmo 70 MHz, częstotliwość próbkowania do 2 GSa/s. Urządzenie wykorzystywane podczas laboratoriów z elektroniki oraz techniki pomiarowej.' },
-        { id: 'AGH-WFIIS-0113', name: 'Generator funkcji arbitralnych', producer: 'Tektronix', model: 'AFG1022', serialNumber: 'TEK7654321', status: 'wypożyczony', category: 'Generatory funkcyjne', location: 'Budynek D11 / Pokój 105 / Szafa B', owner: 'prof. dr hab. Andrzej Nowak', borrower: 'Jakub Wiśniewski', dueDate: '2026-06-01',     description: 'Generator sygnałów arbitralnych umożliwiający generowanie przebiegów sinusoidalnych, prostokątnych, trójkątnych oraz własnych przebiegów użytkownika. Dokumentacja producenta: https://en.wikipedia.org/wiki/Function_generator'},
-        { id: 'AGH-WFIIS-0391', name: 'Zasilacz laboratoryjny programowalny', producer: 'Rigol', model: 'DP832', serialNumber: 'DP8B123456', status: 'oczekuje akceptacji', category: 'Zasilacze laboratoryjne', location: 'Budynek D10 / Pokój 204 / Szafa C', owner: 'dr inż. Jan Kowalski', borrower: 'Anna Malik',     description: 'Trzykanałowy zasilacz laboratoryjny wykorzystywany w laboratoriach elektroniki, automatyki i systemów wbudowanych. Umożliwia niezależną regulację napięcia i prądu dla każdego kanału. Zakres pracy obejmuje dwa kanały 0–30 V / 3 A oraz trzeci kanał 0–5 V / 3 A. Urządzenie posiada zabezpieczenia przeciwzwarciowe, przeciwprzeciążeniowe oraz możliwość zdalnego sterowania przez interfejs USB i LAN. Ze względu na częste wykorzystanie podczas zajęć dydaktycznych należy każdorazowo sprawdzić stan przewodów pomiarowych przed rozpoczęciem pracy. Sprzęt podlega okresowej kontroli technicznej oraz kalibracji zgodnie z procedurami obowiązującymi w laboratorium.' }
-    ]);
-    // const { items, isLoading, error, addAsset } = useInventory(); docelowe użycie
-    // useEffect(() => {
-    //     fetchItems();
-    // }, [fetchItems]);
+    const [items, setItems] = useState([]);
+    const [isLoadingItems, setIsLoadingItems] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -35,23 +30,60 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const [pendingUserCount, setPendingUserCount] = useState(0);
 
+    const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
+
     useEffect(() => {
         const root = window.document.documentElement;
         if (isDarkMode) root.classList.add('dark');
         else root.classList.remove('dark');
     }, [isDarkMode]);
 
-    const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
+    const fetchItems = useCallback(async () => {
+        setIsLoadingItems(true);
+        const result = await listItems({ limit: 50 });
+        if (result.success) {
+            setItems(result.items);
+        }
+        setIsLoadingItems(false);
+    }, [listItems]);
+
+    useEffect(() => {
+        if (canViewList) {
+            fetchItems();
+        }
+    }, [canViewList, fetchItems]);
+
+    const categoryOptions = useMemo(
+        () => [...new Set(items.map((item) => item.category).filter(Boolean))].sort(),
+        [items],
+    );
+
+    const inventoryStats = useMemo(() => ({
+        total: items.length,
+        borrowed: items.filter((item) => normalizeItemStatus(item.status) === ITEM_STATUS.LOANED).length,
+        pending: items.filter((item) => normalizeItemStatus(item.status) === ITEM_STATUS.PENDING_APPROVAL).length,
+        broken: items.filter((item) => normalizeItemStatus(item.status) === ITEM_STATUS.BROKEN).length,
+    }), [items]);
 
     const filteredItems = canViewList ? items.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.producer.toLowerCase().includes(searchQuery.toLowerCase()) || item.id.toLowerCase().includes(searchQuery.toLowerCase()) || item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase());
+        const searchTarget = [
+            item.name,
+            item.category,
+            item.location,
+            String(item.id),
+            item.producer,
+            item.serialNumber,
+            typeof item.owner === 'object' ? item.owner?.name : item.owner,
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        const matchesSearch = searchTarget.includes(searchQuery.toLowerCase());
         const matchesStatus = statusFilter === 'all' || normalizeItemStatus(item.status) === statusFilter;
         const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
         return matchesSearch && matchesStatus && matchesCategory;
     }) : [];
 
     const handleSaveAsset = (newAsset) => {
-        setItems([newAsset, ...items]);
+        setItems((prevItems) => [newAsset, ...prevItems]);
     };
 
     const handleUpdateItemStatus = (itemId, newStatus, clearBorrower = false, newBorrower = null, newDueDate = null) => {
@@ -139,10 +171,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             <>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                     {[
-                                        { title: t('dashboard.totalAssets'), count: items.length + 1245, color: 'text-slate-900 dark:text-white' }, // Dynamiczny licznik oparty na stanie
-                                        { title: t('dashboard.borrowedAssets'), count: '142', color: 'text-blue-600 dark:text-blue-400' },
-                                        { title: t('dashboard.pendingApprovals'), count: '7', color: 'text-amber-600 dark:text-amber-400' },
-                                        { title: t('dashboard.damagedAssets'), count: '3', color: 'text-rose-600 dark:text-rose-400' }
+                                        { title: t('dashboard.totalAssets'), count: inventoryStats.total, color: 'text-slate-900 dark:text-white' },
+                                        { title: t('dashboard.borrowedAssets'), count: inventoryStats.borrowed, color: 'text-blue-600 dark:text-blue-400' },
+                                        { title: t('dashboard.pendingApprovals'), count: inventoryStats.pending, color: 'text-amber-600 dark:text-amber-400' },
+                                        { title: t('dashboard.damagedAssets'), count: inventoryStats.broken, color: 'text-rose-600 dark:text-rose-400' }
                                     ].map((stat, idx) => (
                                         <div key={idx} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-sm">
                                             <div className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase">{stat.title}</div>
@@ -185,14 +217,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             <span className="text-slate-400 font-medium">{t('dashboard.filterCategory')}:</span>
                                             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs">
                                                 <option value="all">{t('dashboard.all')}</option>
-                                                <option value="Aparatura pomiarowa">Aparatura pomiarowa</option>
-                                                <option value="Oscyloskopy">Oscyloskopy</option>
-                                                <option value="Generatory funkcyjne">Generatory funkcyjne</option>
-                                                <option value="Aparatura zasilająca">Aparatura zasilająca</option>
-                                                <option value="Zasilacze laboratoryjne">Zasilacze laboratoryjne</option>
-                                                <option value="Sprzęt IT">Sprzęt IT</option>
-                                                <option value="Laptopy">Laptopy</option>
-                                                <option value="Akcesoria i optyka">Akcesoria i optyka</option>
+                                                {categoryOptions.map((category) => (
+                                                    <option key={category} value={category}>{category}</option>
+                                                ))}
                                             </select>
                                         </div>
                                     </div>
@@ -212,9 +239,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
-                                            {filteredItems.length > 0 ? filteredItems.map(item => {
+                                            {isLoadingItems ? (
+                                                <tr><td colSpan="6" className="py-8 text-center text-slate-400 dark:text-slate-500 font-medium">{t('users.loading')}</td></tr>
+                                            ) : filteredItems.length > 0 ? filteredItems.map(item => {
                                                 const badgeColor = getStatusBadgeClass(item.status);
                                                 const statusLabel = getItemStatusLabel(item.status, t);
+                                                const ownerLabel = typeof item.owner === 'object' ? item.owner?.name : item.owner;
 
                                                 return (
                                                     <tr
@@ -225,7 +255,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         <td className="py-3 px-4 font-mono text-slate-400 dark:text-slate-500">{item.id}</td>
                                                         <td className="py-3 px-4 font-medium text-slate-900 dark:text-white">
                                                             <div>{item.name}</div>
-                                                            <div className="text-[10px] text-slate-400 font-normal">{item.producer} / {item.model}</div>
                                                         </td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.category}</td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.location}</td>
@@ -233,7 +262,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                             <span className={`inline-block px-2 py-0.5 rounded-full font-medium tracking-wide ${badgeColor}`}>{statusLabel}</span>
                                                             {item.borrower && <div className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{item.borrower} ({item.dueDate})</div>}
                                                         </td>
-                                                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-medium">{item.owner}</td>
+                                                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-medium">{ownerLabel}</td>
                                                     </tr>
                                                 );
                                             }) : (
@@ -269,7 +298,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             <AddAssetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                onSave={handleSaveAsset}
+                onSave={(newAsset) => {
+                    handleSaveAsset(newAsset);
+                    fetchItems();
+                }}
             />
 
             <ItemDetailsModal
