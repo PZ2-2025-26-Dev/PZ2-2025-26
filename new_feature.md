@@ -116,21 +116,36 @@ przez `make integration-tests`). `make unit-tests` i `ruff` przechodzą.
 > Uwaga: schemat bazy budowany jest przez `Base.metadata.create_all` (brak
 > Alembica). Środowiska dev/test należy odświeżyć: `python -m src.seed reset --yes`.
 
-## 4. Frontend — zmiany (warstwa danych)
+## 4. Frontend — zmiany
 
-Zgodnie z zasadą separacji logiki (custom hooks) dodano warstwę danych gotową do
-podpięcia pod UI:
+### Warstwa danych (spójna z backendem)
 
-- `src/api/endpoints.js` — dodano sekcje `GUESTS` i `LOANS`.
-- `src/features/rentals/useRentals.js` — hook `registerLoan`, `listLoans`,
-  `returnLoan`.
-- `src/features/guests/useGuests.js` — hook `listGuests`, `createGuest`,
-  `updateGuest`, `deleteGuest`.
-- `src/i18n/locales/pl.json` i `en.json` — sekcje `guests` i `rentals`.
+- `src/api/endpoints.js` — sekcje `GUESTS`, `LOANS`, `ITEMS.HISTORY`; usunięto martwe
+  `BORROW` / `RETURN` / `EXTERNAL_RENT`.
+- `src/features/rentals/useRentals.js` — `registerLoan`, `listLoans`, `getLoan`, `returnLoan`
+  (paginacja w filtrach).
+- `src/features/guests/useGuests.js` — pełny CRUD + `getGuest`, paginacja.
+- `src/utils/itemStatus.js` — mapowanie statusów API ↔ etykiety UI.
+- `src/features/inventory/useInventory.js` — `getItemHistory` korzysta z
+  `GET /items/{id}/history`.
+- `src/features/auth/permissions.js` — dodano rolę `GUEST`.
 
-### Do zrobienia po stronie UI (poza zakresem tej zmiany)
+### UI (podpięte do API)
 
-Komponenty widoków (np. panel rejestracji wypożyczenia w karcie obiektu oraz
-ekran zarządzania Gośćmi) należy zbudować w oparciu o powyższe hooki i klucze
-i18n. Istniejący `ItemDetailsModal.jsx` działa obecnie na danych mockowych i nie
-był modyfikowany, aby uniknąć konfliktów z trwającymi pracami.
+- **`GuestManager.jsx`** — zakładka „Goście” w dashboardzie: lista, dodawanie (user/admin),
+  edycja/usuwanie (admin).
+- **`ItemDetailsModal.jsx`** — panel właściciela: rejestracja wypożyczenia Gościowi
+  (`POST /loans`), zwrot (`POST /loans/{id}/return`), historia wypożyczeń i historii
+  przedmiotu. Działa dla przedmiotów z numerycznym ID (API).
+- **`DashboardPage.jsx`** — zakładka Gości, mapowanie statusów, callback `onLoanChange`.
+
+### Uwaga
+
+Lista inwentarza w dashboardzie nadal korzysta częściowo z danych mockowych (demo).
+Wypożyczenie zewnętrzne wymaga otwarcia przedmiotu pobranego z API (numeryczne `id`).
+Pełna integracja listy inwentarza z `GET /items` to osobny krok.
+
+
+
+
+dodac info o odswierzeniu tabeli

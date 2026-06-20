@@ -25,6 +25,7 @@
     "role": "Rola",
     "logout": "Wyloguj",
     "tabInventory": "Inwentarz",
+    "tabGuests": "Goście",
     "tabUsers": "Użytkownicy",
     "tabCategories": "Kategorie",
     "totalAssets": "Zasoby ogółem",
@@ -126,7 +127,18 @@
     "cancel": "Anuluj",
     "save": "Zapisz",
     "openLink": "Otwórz link",
-    "history": "Historia zmian"
+    "history": "Historia zmian",
+    "apiItemRequired": "Wypożyczenie zewnętrzne wymaga przedmiotu z bazy API (numeryczne ID).",
+    "externalLoanDesc": "Gość: {{guest}}. Termin zwrotu: {{dueDate}}.",
+    "readOnly": "Tylko do odczytu",
+    "noHistory": "Brak wpisów historii."
+  },
+  "itemStatuses": {
+    "available": "Dostępny",
+    "loaned": "Wypożyczony",
+    "pending_approval": "Oczekuje akceptacji",
+    "reserved": "Zarezerwowany",
+    "broken": "Uszkodzony"
   },
   "userManager": {
     "totalUsers": "Użytkownicy ogółem",
@@ -225,6 +237,7 @@
     "panelTitle": "Zarejestruj wypożyczenie zewnętrzne",
     "panelDesc": "Wskaż Gościa oraz deklarowany termin zwrotu, aby zarezerwować obiekt.",
     "guestLabel": "Gość (podmiot zewnętrzny)",
+    "selectGuest": "— wybierz Gościa —",
     "dueDateLabel": "Deklarowany termin zwrotu",
     "purposeLabel": "Cel wypożyczenia (opcjonalnie)",
     "submitBtn": "Zarejestruj wypożyczenie",

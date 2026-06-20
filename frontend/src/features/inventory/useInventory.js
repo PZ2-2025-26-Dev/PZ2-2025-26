@@ -66,34 +66,11 @@ export const useInventory = () => {
         setError(null);
 
         try {
-            // TODO: replace with GET /items/{itemId}/history
-            console.log(`Zmockowane pobieranie historii dla przedmiotu ID: ${itemId}`);
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.HISTORY(itemId));
 
             return {
                 success: true,
-                data: [
-                    {
-                        id: 1,
-                        updated_at: '2026-06-14T10:15:00',
-                        updated_by: 'Jan Kowalski',
-                        change_type: 'CREATED',
-                        description: 'Utworzenie przedmiotu',
-                    },
-                    {
-                        id: 2,
-                        updated_at: '2026-06-15T12:30:00',
-                        updated_by: 'Anna Nowak',
-                        change_type: 'LOCATION_CHANGED',
-                        description: 'Zmiana lokalizacji',
-                    },
-                    {
-                        id: 3,
-                        updated_at: '2026-06-20T09:05:00',
-                        updated_by: 'Piotr Wiśniewski',
-                        change_type: 'OWNER_CHANGED',
-                        description: 'Zmiana właściciela',
-                    },
-                ],
+                data: response.data,
             };
         } catch (err) {
             const errorMessage = parseApiError(err);

@@ -3,15 +3,6 @@ import axiosClient from '../../api/axiosClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { parseApiError } from '../../api/apiUtils';
 
-/**
- * @typedef {Object} Guest
- * @property {number} id
- * @property {string} first_name
- * @property {string|null} last_name
- * @property {string|null} email
- * @property {string} status
- */
-
 const normalizeGuest = (guest) => ({
     id: guest.id,
     firstName: guest.first_name ?? '',
@@ -20,27 +11,34 @@ const normalizeGuest = (guest) => ({
     status: guest.status,
 });
 
-const toApiPayload = (guest) => ({
+const toCreatePayload = (guest) => ({
     first_name: guest.firstName,
     last_name: guest.lastName || null,
     email: guest.email || null,
 });
 
-/**
- * Hook do zarządzania Gośćmi (encje User z rolą GUEST).
- * - Tworzenie: dostępne dla roli `user` oraz `admin`.
- * - Edycja / usuwanie: tylko `admin` (egzekwowane przez backend).
- */
+const toUpdatePayload = (guest) => {
+    const payload = {};
+    if (guest.firstName !== undefined) payload.first_name = guest.firstName;
+    if (guest.lastName !== undefined) payload.last_name = guest.lastName || null;
+    if (guest.email !== undefined) payload.email = guest.email || null;
+    return payload;
+};
+
 export const useGuests = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const listGuests = useCallback(async (search) => {
+    const listGuests = useCallback(async (options = {}) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            const params = search ? { search } : {};
+            const params = {};
+            if (options.search) params.search = options.search;
+            if (options.page) params.page = options.page;
+            if (options.limit) params.limit = options.limit;
+
             const response = await axiosClient.get(ENDPOINTS.GUESTS.BASE, { params });
             const payload = response.data;
 
@@ -58,12 +56,28 @@ export const useGuests = () => {
         }
     }, []);
 
+    const getGuest = useCallback(async (guestId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.GUESTS.DETAILS(guestId));
+            return { success: true, guest: normalizeGuest(response.data) };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage, statusCode: err.response?.status };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const createGuest = useCallback(async (guestData) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            const response = await axiosClient.post(ENDPOINTS.GUESTS.BASE, toApiPayload(guestData));
+            const response = await axiosClient.post(ENDPOINTS.GUESTS.BASE, toCreatePayload(guestData));
             return { success: true, guest: normalizeGuest(response.data) };
         } catch (err) {
             const errorMessage = parseApiError(err);
@@ -79,7 +93,10 @@ export const useGuests = () => {
         setError(null);
 
         try {
-            const response = await axiosClient.put(ENDPOINTS.GUESTS.DETAILS(guestId), toApiPayload(guestData));
+            const response = await axiosClient.put(
+                ENDPOINTS.GUESTS.DETAILS(guestId),
+                toUpdatePayload(guestData)
+            );
             return { success: true, guest: normalizeGuest(response.data) };
         } catch (err) {
             const errorMessage = parseApiError(err);
@@ -108,5 +125,5 @@ export const useGuests = () => {
 
     const clearError = useCallback(() => setError(null), []);
 
-    return { listGuests, createGuest, updateGuest, deleteGuest, isLoading, error, clearError };
+    return { listGuests, getGuest, createGuest, updateGuest, deleteGuest, isLoading, error, clearError };
 };

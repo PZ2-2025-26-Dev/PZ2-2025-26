@@ -7,8 +7,8 @@ import { parseApiError } from '../../api/apiUtils';
  * @typedef {Object} Loan
  * @property {number} id
  * @property {number} item_id
- * @property {number} borrower_id - ID Gościa (User z rolą GUEST)
- * @property {number} registered_by - ID osoby rejestrującej wypożyczenie
+ * @property {number} borrower_id
+ * @property {number} registered_by
  * @property {string} created_at
  * @property {string} declared_return_date
  * @property {string|null} loan_purpose
@@ -16,31 +16,10 @@ import { parseApiError } from '../../api/apiUtils';
  * @property {('active'|'returned')} status
  */
 
-/**
- * Hook do obsługi wypożyczeń obiektów podmiotom zewnętrznym (Gościom).
- * Cała komunikacja sieciowa domeny "rentals" jest tutaj scentralizowana.
- *
- * @returns {{
- *   registerLoan: Function,
- *   listLoans: Function,
- *   returnLoan: Function,
- *   isLoading: boolean,
- *   error: string|null,
- *   clearError: Function
- * }}
- */
 export const useRentals = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    /**
-     * Rejestruje wypożyczenie obiektu Gościowi (POST /loans).
-     * @param {Object} loanData
-     * @param {number} loanData.itemId - ID obiektu z rejestru
-     * @param {number} loanData.borrowerId - ID profilu Gościa
-     * @param {string} loanData.declaredReturnDate - Deklarowany termin zwrotu (ISO / YYYY-MM-DD)
-     * @param {string} [loanData.loanPurpose] - Cel wypożyczenia (opcjonalny)
-     */
     const registerLoan = useCallback(async (loanData) => {
         setIsLoading(true);
         setError(null);
@@ -63,13 +42,6 @@ export const useRentals = () => {
         }
     }, []);
 
-    /**
-     * Pobiera listę wypożyczeń (historia), z opcjonalnym filtrowaniem.
-     * @param {Object} [filters]
-     * @param {number} [filters.itemId]
-     * @param {number} [filters.borrowerId]
-     * @param {('active'|'returned')} [filters.loanStatus]
-     */
     const listLoans = useCallback(async (filters = {}) => {
         setIsLoading(true);
         setError(null);
@@ -79,6 +51,8 @@ export const useRentals = () => {
             if (filters.itemId) params.item_id = filters.itemId;
             if (filters.borrowerId) params.borrower_id = filters.borrowerId;
             if (filters.loanStatus) params.loan_status = filters.loanStatus;
+            if (filters.page) params.page = filters.page;
+            if (filters.limit) params.limit = filters.limit;
 
             const response = await axiosClient.get(ENDPOINTS.LOANS.BASE, { params });
             const payload = response.data;
@@ -97,10 +71,22 @@ export const useRentals = () => {
         }
     }, []);
 
-    /**
-     * Rejestruje zwrot wypożyczenia (POST /loans/{id}/return).
-     * @param {number} loanId
-     */
+    const getLoan = useCallback(async (loanId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.LOANS.DETAILS(loanId));
+            return { success: true, data: response.data };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage, statusCode: err.response?.status };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const returnLoan = useCallback(async (loanId) => {
         setIsLoading(true);
         setError(null);
@@ -119,5 +105,5 @@ export const useRentals = () => {
 
     const clearError = useCallback(() => setError(null), []);
 
-    return { registerLoan, listLoans, returnLoan, isLoading, error, clearError };
+    return { registerLoan, listLoans, getLoan, returnLoan, isLoading, error, clearError };
 };

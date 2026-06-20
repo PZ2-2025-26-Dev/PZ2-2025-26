@@ -2,7 +2,8 @@ export const ROLES = {
     ADMIN: 'admin',
     USER: 'user',
     OBSERVER: 'observer',
-    ZERO_ACCESS: 'zero-access'
+    GUEST: 'guest',
+    ZERO_ACCESS: 'zero-access',
 };
 
 export const PERMISSIONS = {

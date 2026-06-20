@@ -7,7 +7,8 @@ import CategoryManager from './CategoryManager';
 import AddAssetModal from './AddAssetModal';
 import ItemDetailsModal from './ItemDetailsModal';
 import UserManager from '../users/UserManager';
-// import { useInventory } from './useInventory';
+import GuestManager from '../guests/GuestManager';
+import { getItemStatusLabel, getStatusBadgeClass, normalizeItemStatus } from '../../utils/itemStatus';
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }) {
     const { t, i18n } = useTranslation();
@@ -44,7 +45,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const filteredItems = canViewList ? items.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.producer.toLowerCase().includes(searchQuery.toLowerCase()) || item.id.toLowerCase().includes(searchQuery.toLowerCase()) || item.serialNumber.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+        const matchesStatus = statusFilter === 'all' || normalizeItemStatus(item.status) === statusFilter;
         const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
         return matchesSearch && matchesStatus && matchesCategory;
     }) : [];
@@ -65,7 +66,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             }
             return item;
         }));
-        setIsDetailsModalOpen(false);
+    };
+
+    const handleLoanChange = (itemId, updates) => {
+        setItems(prevItems => prevItems.map(item => {
+            if (item.id === itemId) {
+                return { ...item, ...updates };
+            }
+            return item;
+        }));
     };
 
     const toggleLanguage = () => {
@@ -103,6 +112,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100 dark:border-slate-800/50">
                         <div className="flex space-x-6">
                             <button onClick={() => setActiveTab('inventory')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'inventory' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabInventory')}</button>
+                            <button onClick={() => setActiveTab('guests')} className={`py-3 text-xs font-semibold border-b-2 transition-colors ${activeTab === 'guests' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>{t('dashboard.tabGuests')}</button>
                             <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                                 <button onClick={() => setActiveTab('users')} className={`py-3 text-xs font-semibold border-b-2 transition-colors flex items-center space-x-1.5 ${activeTab === 'users' ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
                                     <span>{t('dashboard.tabUsers')}</span>
@@ -164,11 +174,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             <span className="text-slate-400 font-medium">{t('dashboard.filterStatus')}:</span>
                                             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 focus:outline-none text-slate-700 dark:text-slate-300 text-xs">
                                                 <option value="all">{t('dashboard.all')}</option>
-                                                <option value="dostępny">dostępny</option>
-                                                <option value="wypożyczony">wypożyczony</option>
-                                                <option value="oczekuje akceptacji">oczekuje akceptacji</option>
-                                                <option value="uszkodzony">uszkodzony</option>
-                                                <option value="zarezerwowany">zarezerwowany</option>
+                                                <option value="available">{t('itemStatuses.available')}</option>
+                                                <option value="loaned">{t('itemStatuses.loaned')}</option>
+                                                <option value="pending_approval">{t('itemStatuses.pending_approval')}</option>
+                                                <option value="broken">{t('itemStatuses.broken')}</option>
+                                                <option value="reserved">{t('itemStatuses.reserved')}</option>
                                             </select>
                                         </div>
                                         <div className="flex items-center space-x-1.5">
@@ -203,13 +213,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-900/60">
                                             {filteredItems.length > 0 ? filteredItems.map(item => {
-                                                const badgeColor = {
-                                                    'dostępny': 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
-                                                    'wypożyczony': 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
-                                                    'oczekuje akceptacji': 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
-                                                    'uszkodzony': 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400',
-                                                    'zarezerwowany': 'bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400'
-                                                }[item.status];
+                                                const badgeColor = getStatusBadgeClass(item.status);
+                                                const statusLabel = getItemStatusLabel(item.status, t);
 
                                                 return (
                                                     <tr
@@ -225,7 +230,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.category}</td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{item.location}</td>
                                                         <td className="py-3 px-4">
-                                                            <span className={`inline-block px-2 py-0.5 rounded-full font-medium tracking-wide ${badgeColor}`}>{item.status}</span>
+                                                            <span className={`inline-block px-2 py-0.5 rounded-full font-medium tracking-wide ${badgeColor}`}>{statusLabel}</span>
                                                             {item.borrower && <div className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{item.borrower} ({item.dueDate})</div>}
                                                         </td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-medium">{item.owner}</td>
@@ -239,6 +244,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     </div>
                                 </div>
                             </>
+                        )}
+
+                        {activeTab === 'guests' && (
+                            <GuestManager user={user} />
                         )}
 
                         {activeTab === 'users' && (
@@ -269,6 +278,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 item={selectedItem}
                 user={user}
                 onUpdateStatus={handleUpdateItemStatus}
+                onLoanChange={handleLoanChange}
             />
         </div>
     );

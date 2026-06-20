@@ -25,6 +25,7 @@
     "role": "Role",
     "logout": "Sign Out",
     "tabInventory": "Inventory",
+    "tabGuests": "Guests",
     "tabUsers": "Users",
     "tabCategories": "Categories",
     "totalAssets": "Total Assets",
@@ -126,7 +127,18 @@
     "cancel": "Cancel",
     "save": "Save",
     "openLink": "Open link",
-    "history": "History of changes"
+    "history": "History of changes",
+    "apiItemRequired": "External loans require an item from the API database (numeric ID).",
+    "externalLoanDesc": "Guest: {{guest}}. Due date: {{dueDate}}.",
+    "readOnly": "Read only",
+    "noHistory": "No history entries."
+  },
+  "itemStatuses": {
+    "available": "Available",
+    "loaned": "Loaned",
+    "pending_approval": "Pending approval",
+    "reserved": "Reserved",
+    "broken": "Broken"
   },
   "userManager": {
     "totalUsers": "Total users",
@@ -225,6 +237,7 @@
     "panelTitle": "Register external loan",
     "panelDesc": "Select a guest and declared return date to reserve the asset.",
     "guestLabel": "Guest (external entity)",
+    "selectGuest": "— select a guest —",
     "dueDateLabel": "Declared return date",
     "purposeLabel": "Loan purpose (optional)",
     "submitBtn": "Register loan",
