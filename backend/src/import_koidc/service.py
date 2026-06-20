@@ -44,15 +44,15 @@ class KoidcImporter:
 
         for row in sorted(dataset.users, key=lambda u: int(u["id"])):
             user_id = int(row["id"])
-            
+
             # Bezpieczne pobranie imienia i nazwiska
             first_name = row.get("imie", "Nieznany").strip()
             last_name = row.get("nazwisko", "").strip()
-            
+
             # Walidacja e-maila pod kątem ograniczeń UNIQUE i NOT NULL w bazie
             raw_email = row.get("email", "").strip().lower()
             email = raw_email if raw_email else f"brak_maila_{user_id}@koidc.local"
-            
+
             # Obsługa duplikatów e-mail pomiędzy różnymi ID użytkowników
             if email in seen_emails:
                 if "@" in email:
@@ -60,9 +60,9 @@ class KoidcImporter:
                     email = f"{local_part}+dup{user_id}@{domain}"
                 else:
                     email = f"{email}_dup_{user_id}"
-            
+
             seen_emails.add(email)
-            
+
             # Mapowanie widoczności na status
             is_visible = row.get("widocznosc", "tak").lower() == "tak"
             status = UserStatus.ACTIVE if is_visible else UserStatus.INACTIVE
@@ -84,9 +84,9 @@ class KoidcImporter:
                 user.last_name = last_name[:100] or None
                 user.email = email[:512]
                 user.status = status
-                
+
             imported += 1
-            
+
         return imported
 
     def import_dataset(self, dataset: LegacyDataset, *, clear_existing: bool = False) -> ImportStats:
@@ -171,7 +171,7 @@ class KoidcImporter:
 
         for row in sorted(dataset.rooms, key=lambda item: int(item["id"])):
             room_id = int(row["id"]) + 10000  # <--- OFFSET DLA POKOI
-            parent_id = int(row["id_budynku"]) # Budynków nie przesuwamy!
+            parent_id = int(row["id_budynku"])  # Budynków nie przesuwamy!
             if parent_id not in building_ids:
                 raise ValueError(f"Pokój id={int(row['id'])} wskazuje na nieistniejący budynek id={parent_id}")
 
@@ -191,7 +191,7 @@ class KoidcImporter:
         models = {int(row["id"]): row for row in dataset.models}
         category_ids = {int(row["id"]) for row in dataset.device_types}
         category_ids.add(FALLBACK_CATEGORY_ID)
-        
+
         # TUTAJ ZMIANA: Pokoje w zbiorze mają teraz +10000
         location_ids = {int(row["id"]) + 10000 for row in dataset.rooms} | {int(row["id"]) for row in dataset.buildings}
 
@@ -201,7 +201,7 @@ class KoidcImporter:
         for row in sorted(dataset.devices, key=lambda item: int(item["id"])):
             device_id = int(row["id"])
             model_id = int(row["id_modelu"] or "0")
-            
+
             # TUTAJ ZMIANA: Dodajemy offset do przypisanego pokoju
             legacy_room_id = int(row["id_pokoju"] or "0")
             room_id = legacy_room_id + 10000 if legacy_room_id > 0 else legacy_room_id
