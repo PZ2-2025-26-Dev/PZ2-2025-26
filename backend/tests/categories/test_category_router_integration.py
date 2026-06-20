@@ -29,6 +29,12 @@ def test_create_category_endpoint_rejects_duplicate_sibling_name(api_client: Tes
     assert response.status_code == 409
 
 
+def test_create_category_endpoint_rejects_missing_parent(api_client: TestClient, seeded_db: Session):
+    response = api_client.post("/categories", json={"name": "Telefony", "parent_id": 999999})
+
+    assert response.status_code == 404
+
+
 def test_update_category_endpoint_updates_live_database(api_client: TestClient, seeded_db: Session):
     response = api_client.put(
         f"/categories/{SEED_IDS.accessories}",
@@ -50,6 +56,15 @@ def test_update_category_endpoint_rejects_parent_cycle(api_client: TestClient, s
     )
 
     assert response.status_code == 400
+
+
+def test_update_category_endpoint_rejects_duplicate_name(api_client: TestClient, seeded_db: Session):
+    response = api_client.put(
+        f"/categories/{SEED_IDS.accessories}",
+        json={"name": "Komputery", "parent_id": SEED_IDS.electronics},
+    )
+
+    assert response.status_code == 409
 
 
 def test_delete_category_endpoint_reassigns_items(api_client: TestClient, seeded_db: Session):
@@ -77,6 +92,15 @@ def test_delete_category_endpoint_blocks_category_with_children(api_client: Test
     assert response.status_code == 409
 
 
+def test_delete_category_endpoint_rejects_same_replacement(api_client: TestClient, seeded_db: Session):
+    response = api_client.delete(
+        f"/categories/{SEED_IDS.accessories}",
+        params={"replacement_category_id": SEED_IDS.accessories},
+    )
+
+    assert response.status_code == 400
+
+
 def test_read_categories_endpoint_returns_paged_categories(api_client: TestClient, seeded_db: Session):
     response = api_client.get("/categories", params={"page": 1, "limit": 2})
 
@@ -88,6 +112,12 @@ def test_read_categories_endpoint_returns_paged_categories(api_client: TestClien
     assert len(body["categories"]) == 2
 
 
+def test_read_categories_endpoint_rejects_invalid_paging(api_client: TestClient, seeded_db: Session):
+    response = api_client.get("/categories", params={"page": 0, "limit": 101})
+
+    assert response.status_code == 422
+
+
 def test_read_category_items_endpoint_returns_direct_category_items(api_client: TestClient, seeded_db: Session):
     response = api_client.get(f"/categories/{SEED_IDS.electronics}/items")
 
@@ -95,6 +125,15 @@ def test_read_category_items_endpoint_returns_direct_category_items(api_client: 
     body = response.json()
     assert body["pagination"]["total"] == 1
     assert [item["name"] for item in body["items"]] == ["Projektor"]
+
+
+def test_read_category_items_endpoint_returns_404_for_missing_category(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get("/categories/999999/items")
+
+    assert response.status_code == 404
 
 
 def test_read_category_items_count_endpoint_returns_direct_count(api_client: TestClient, seeded_db: Session):

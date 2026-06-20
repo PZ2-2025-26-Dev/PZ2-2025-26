@@ -12,6 +12,19 @@ def test_build_category_path_for_nested_category():
     assert build_category_path(grandchild) == "Elektronika / Telefony / Smartfony"
 
 
+def test_build_category_path_for_root_category():
+    category = Category(id=1, name="Elektronika", parent_id=None)
+
+    assert build_category_path(category) == "Elektronika"
+
+
+def test_build_category_path_for_unsaved_category_tree():
+    root = Category(name="Elektronika", parent_id=None)
+    child = Category(name="Telefony", parent=root)
+
+    assert build_category_path(child) == "Elektronika / Telefony"
+
+
 def test_build_category_path_detects_cycle():
     root = Category(id=1, name="Elektronika", parent_id=None)
     child = Category(id=2, name="Telefony", parent_id=1, parent=root)
