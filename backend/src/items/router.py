@@ -97,12 +97,12 @@ def read_item(
 
 @router.patch(
     "/{item_id}",
-    response_model=ItemUpdate,
+    response_model=ItemUpdateResponse,
     status_code=status.HTTP_200_OK,
     summary="Aktualizuj dane przedmiotu",
     responses={
         status.HTTP_200_OK: {
-            "model": ItemUpdate,
+            "model": ItemUpdateResponse,
             "description": "Dane przedmiotu zostały zaktualizowane.",
         },
         status.HTTP_404_NOT_FOUND: {
@@ -114,7 +114,7 @@ def update_item(
     item_id: ItemID,
     data: ItemUpdate,
     db: DBDep,
-) -> ItemUpdate:
+) -> ItemUpdateResponse:
     service = ItemService(db)
 
     try:
