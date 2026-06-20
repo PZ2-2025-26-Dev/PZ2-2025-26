@@ -44,6 +44,7 @@ class SeedIds:
     building: int = 20_001
     room: int = 20_002
     cabinet: int = 20_003
+    remote_location: int = 20_004
 
     electronics: int = 30_001
     computers: int = 30_002
@@ -210,6 +211,18 @@ def seed_database(session: Session) -> SeedIds:
         type=LocationType.CABINET,
         description=None,
         parent_id=SEED_IDS.room,
+        is_active=True,
+    )
+    _upsert(
+        session,
+        Location,
+        SEED_IDS.remote_location,
+        select(Location).where(Location.parent_id.is_(None), Location.name == "Lokalizacja zewnętrzna"),
+        name="Lokalizacja zewnętrzna",
+        type=LocationType.REMOTE,
+        description="Przykładowa lokalizacja poza strukturą budynków AGH",
+        address="ul. Przykładowa 1, 30-001 Kraków",
+        parent_id=None,
         is_active=True,
     )
 
