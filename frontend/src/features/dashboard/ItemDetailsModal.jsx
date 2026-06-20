@@ -26,12 +26,15 @@ const resolveOwner = (item) => {
 export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdateStatus, onLoanChange }) {
     const { t } = useTranslation();
     const { getItemHistory } = useInventory();
-    const { listGuests } = useGuests();
+    const { listGuests, createGuest } = useGuests();
     const { registerLoan, listLoans, returnLoan, isLoading: isLoanLoading, error: loanError, clearError: clearLoanError } = useRentals();
 
     const [returnDate, setReturnDate] = useState('');
     const [selectedGuestId, setSelectedGuestId] = useState('');
     const [guests, setGuests] = useState([]);
+    const [guestForm, setGuestForm] = useState({ firstName: '', lastName: '', email: '' });
+    const [isGuestSearching, setIsGuestSearching] = useState(false);
+    const [guestSearchError, setGuestSearchError] = useState('');
     const [activeLoan, setActiveLoan] = useState(null);
     const [loanHistory, setLoanHistory] = useState([]);
     const [actionMessage, setActionMessage] = useState('');
@@ -58,7 +61,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         if (!itemId) return;
 
         const [guestsResult, loansResult] = await Promise.all([
-            listGuests({ limit: 100 }),
+            listGuests({ limit: 100, role: 'guest' }),
             listLoans({ itemId, limit: 50 }),
         ]);
 
@@ -80,6 +83,9 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         tomorrow.setDate(tomorrow.getDate() + 1);
         setReturnDate(tomorrow.toISOString().split('T')[0]);
         setSelectedGuestId('');
+        setGuestForm({ firstName: '', lastName: '', email: '' });
+        setIsGuestSearching(false);
+        setGuestSearchError('');
         setActionMessage('');
         setRegisterSucceeded(false);
         setEditedDescription(item.description || '');
@@ -101,7 +107,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
 
         (async () => {
             const [guestsResult, loansResult] = await Promise.all([
-                listGuests({ limit: 100 }),
+                listGuests({ limit: 100, role: 'guest' }),
                 listLoans({ itemId, limit: 50 }),
             ]);
 
@@ -159,6 +165,54 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
             dueDate: returnDate,
             activeLoan: result.data,
         });
+    };
+
+    const buildGuestSearchQuery = () => {
+        const parts = [guestForm.firstName, guestForm.lastName, guestForm.email]
+            .map((v) => (v || '').trim())
+            .filter(Boolean);
+        return parts.join(' ');
+    };
+
+    const handleSearchGuests = async () => {
+        const query = buildGuestSearchQuery();
+        setGuestSearchError('');
+        setIsGuestSearching(true);
+        try {
+            const result = await listGuests({ limit: 25, role: 'guest', search: query || undefined });
+            if (result.success) {
+                setGuests(result.guests);
+                if (result.guests.length === 1) {
+                    setSelectedGuestId(String(result.guests[0].id));
+                }
+            } else {
+                setGuests([]);
+                setGuestSearchError(result.error || t('rentals.guestSearchFailed'));
+            }
+        } finally {
+            setIsGuestSearching(false);
+        }
+    };
+
+    const handleCreateAndSelectGuest = async () => {
+        setGuestSearchError('');
+
+        const payload = {
+            firstName: (guestForm.firstName || '').trim(),
+            lastName: (guestForm.lastName || '').trim(),
+            email: (guestForm.email || '').trim(),
+        };
+
+        if (!payload.firstName) return;
+
+        const result = await createGuest(payload);
+        if (!result.success) {
+            setGuestSearchError(result.error || t('rentals.guestCreateFailed'));
+            return;
+        }
+
+        setSelectedGuestId(String(result.guest.id));
+        await handleSearchGuests();
     };
 
     const handleReturnLoan = async () => {
@@ -253,16 +307,69 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
 
                         <div>
                             <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-1">{t('rentals.guestLabel')}</label>
-                            <select
-                                value={selectedGuestId}
-                                onChange={(e) => setSelectedGuestId(e.target.value)}
-                                className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
-                            >
-                                <option value="">{t('rentals.selectGuest')}</option>
-                                {guests.map((guest) => (
-                                    <option key={guest.id} value={guest.id}>{getGuestLabel(guest)}</option>
-                                ))}
-                            </select>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <input
+                                    value={guestForm.firstName}
+                                    onChange={(e) => setGuestForm((f) => ({ ...f, firstName: e.target.value }))}
+                                    placeholder={t('rentals.guestFirstName')}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                                />
+                                <input
+                                    value={guestForm.lastName}
+                                    onChange={(e) => setGuestForm((f) => ({ ...f, lastName: e.target.value }))}
+                                    placeholder={t('rentals.guestLastName')}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                                />
+                                <input
+                                    type="email"
+                                    value={guestForm.email}
+                                    onChange={(e) => setGuestForm((f) => ({ ...f, email: e.target.value }))}
+                                    placeholder={t('rentals.guestEmail')}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                                />
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                                <button
+                                    type="button"
+                                    onClick={handleSearchGuests}
+                                    disabled={isLoanLoading || isGuestSearching}
+                                    className="px-3 py-2 text-xs font-bold rounded-lg bg-slate-800 dark:bg-slate-700 text-white disabled:opacity-50"
+                                >
+                                    {isGuestSearching ? t('userManager.loading') : t('rentals.guestSearchBtn')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleCreateAndSelectGuest}
+                                    disabled={isLoanLoading || !guestForm.firstName?.trim()}
+                                    className="px-3 py-2 text-xs font-bold rounded-lg bg-emerald-700 dark:bg-emerald-600 text-white disabled:opacity-50"
+                                >
+                                    {t('rentals.guestCreateBtn')}
+                                </button>
+                            </div>
+
+                            {!!guestSearchError && (
+                                <div className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+                                    {guestSearchError}
+                                </div>
+                            )}
+
+                            <div className="mt-3">
+                                <select
+                                    value={selectedGuestId}
+                                    onChange={(e) => setSelectedGuestId(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+                                >
+                                    <option value="">{t('rentals.selectGuest')}</option>
+                                    {guests.map((guest) => (
+                                        <option key={guest.id} value={guest.id}>{getGuestLabel(guest)}</option>
+                                    ))}
+                                </select>
+                                <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                    {guests.length > 0 ? t('rentals.guestMatches', { count: guests.length }) : t('rentals.guestNoMatches')}
+                                </div>
+                            </div>
                         </div>
 
                         <div>

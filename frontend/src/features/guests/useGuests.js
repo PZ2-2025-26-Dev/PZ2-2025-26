@@ -11,6 +11,14 @@ const normalizeGuest = (guest) => ({
     status: guest.status,
 });
 
+const normalizeSelectUser = (user) => ({
+    id: user.id,
+    firstName: user.first_name ?? '',
+    lastName: user.last_name ?? '',
+    email: '',
+    status: null,
+});
+
 const toCreatePayload = (guest) => ({
     first_name: guest.firstName,
     last_name: guest.lastName || null,
@@ -38,13 +46,14 @@ export const useGuests = () => {
             if (options.search) params.search = options.search;
             if (options.page) params.page = options.page;
             if (options.limit) params.limit = options.limit;
+            if (options.role) params.role = options.role;
 
-            const response = await axiosClient.get(ENDPOINTS.GUESTS.BASE, { params });
+            const response = await axiosClient.get(ENDPOINTS.USERS.SELECT, { params });
             const payload = response.data;
 
             return {
                 success: true,
-                guests: (payload.guests ?? []).map(normalizeGuest),
+                guests: (payload.users ?? []).map(normalizeSelectUser),
                 totalCount: payload.total_count ?? 0,
             };
         } catch (err) {
@@ -61,7 +70,7 @@ export const useGuests = () => {
         setError(null);
 
         try {
-            const response = await axiosClient.get(ENDPOINTS.GUESTS.DETAILS(guestId));
+            const response = await axiosClient.get(ENDPOINTS.USERS.DETAILS(guestId));
             return { success: true, guest: normalizeGuest(response.data) };
         } catch (err) {
             const errorMessage = parseApiError(err);
@@ -77,7 +86,7 @@ export const useGuests = () => {
         setError(null);
 
         try {
-            const response = await axiosClient.post(ENDPOINTS.GUESTS.BASE, toCreatePayload(guestData));
+            const response = await axiosClient.post(ENDPOINTS.USERS.BASE, toCreatePayload(guestData));
             return { success: true, guest: normalizeGuest(response.data) };
         } catch (err) {
             const errorMessage = parseApiError(err);
@@ -94,7 +103,7 @@ export const useGuests = () => {
 
         try {
             const response = await axiosClient.put(
-                ENDPOINTS.GUESTS.DETAILS(guestId),
+                ENDPOINTS.USERS.DETAILS(guestId),
                 toUpdatePayload(guestData)
             );
             return { success: true, guest: normalizeGuest(response.data) };
@@ -112,7 +121,7 @@ export const useGuests = () => {
         setError(null);
 
         try {
-            await axiosClient.delete(ENDPOINTS.GUESTS.DETAILS(guestId));
+            await axiosClient.delete(ENDPOINTS.USERS.DETAILS(guestId));
             return { success: true };
         } catch (err) {
             const errorMessage = parseApiError(err);

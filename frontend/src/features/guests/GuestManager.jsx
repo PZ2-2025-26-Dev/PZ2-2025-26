@@ -21,7 +21,7 @@ export default function GuestManager({ user }) {
     const [editForm, setEditForm] = useState(null);
 
     const refreshGuests = useCallback(async (searchQuery = search) => {
-        const result = await listGuests(searchQuery ? { search: searchQuery, limit: 100 } : { limit: 100 });
+        const result = await listGuests(searchQuery ? { search: searchQuery, limit: 100, role: 'guest' } : { limit: 100, role: 'guest' });
         if (result.success) {
             setGuests(result.guests);
             setTotalCount(result.totalCount);
