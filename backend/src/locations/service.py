@@ -6,7 +6,7 @@ from src.items.models import Item
 from src.items.schemas import ItemCategory, ItemDetails, ItemLocation, ItemOwner, ItemPagination, ItemsPaged
 from src.locations.constants import LocationHistoryChangeType
 from src.locations.models import Location, LocationHistory
-from src.locations.schemas import LocationCreate, LocationDetails, LocationUpdate
+from src.locations.schemas import LocationCreate, LocationDetails, LocationTreeNode, LocationUpdate
 from src.users.models import User
 from src.utils import now
 
@@ -94,6 +94,30 @@ class LocationService:
         total = self.db.scalar(count_stmt) or 0
 
         return [self._to_details(location) for location in locations], total
+
+    def list_location_tree(self) -> list[LocationTreeNode]:
+        locations = list(self.db.scalars(select(Location).order_by(Location.id)).all())
+        nodes = {
+            location.id: LocationTreeNode(
+                id=location.id,
+                name=location.name,
+                type=location.type,
+                children=[],
+            )
+            for location in locations
+        }
+        roots: list[LocationTreeNode] = []
+
+        for location in locations:
+            node = nodes[location.id]
+            parent = nodes.get(location.parent_id)
+
+            if parent is None:
+                roots.append(node)
+            else:
+                parent.children.append(node)
+
+        return roots
 
     def update_location(self, location_id: int, data: LocationUpdate, changed_by: int | None = None) -> LocationDetails:
         location = self._get_location(location_id)

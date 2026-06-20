@@ -54,6 +54,17 @@ class LocationsPaged(BaseModel):
     pagination: LocationPagination
 
 
+class LocationTreeNode(BaseModel):
+    id: LocationID
+    name: LocationName
+    type: LocationType
+    children: list[LocationTreeNode]
+
+
+class LocationsTree(BaseModel):
+    items: list[LocationTreeNode]
+
+
 class LocationDeleteRequest(BaseModel):
     replacement_location_id: LocationID
 

@@ -9,6 +9,7 @@ class LocationType(Enum):
     ROOM = "room"
     CABINET = "cabinet"
     SHELF = "shelf"
+    OTHER = "other"
 
 
 class LocationHistoryChangeType(Enum):

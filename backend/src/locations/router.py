@@ -13,6 +13,7 @@ from src.locations.schemas import (
     LocationID,
     LocationPagination,
     LocationsPaged,
+    LocationsTree,
     LocationUpdate,
 )
 from src.locations.service import (
@@ -74,6 +75,22 @@ def read_locations(
     items, total = LocationService(db).list_locations(page=page, limit=limit, parent_id=parent_id)
 
     return LocationsPaged(items=items, pagination=LocationPagination(page=page, limit=limit, total=total))
+
+
+@router.get(
+    "/tree",
+    response_model=LocationsTree,
+    status_code=status.HTTP_200_OK,
+    summary="Wylistuj drzewo lokalizacji",
+    responses={
+        status.HTTP_200_OK: {
+            "model": LocationsTree,
+            "description": "Zwrócono drzewo lokalizacji z węzłami podrzędnymi.",
+        },
+    },
+)
+def read_locations_tree(db: DBDep) -> LocationsTree:
+    return LocationsTree(items=LocationService(db).list_location_tree())
 
 
 @router.get(
