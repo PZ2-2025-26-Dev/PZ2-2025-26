@@ -9,10 +9,9 @@ from src.auth.constants import (
     UserRole,
     UserStatus,
 )
+from src.auth.errors import ErrorCode
 from src.auth.models import UserAccount
 from src.users.models import User
-
-from src.auth.errors import ErrorCode
 
 password_hasher = PasswordHasher()
 
@@ -43,9 +42,7 @@ def get_or_create_google_user(
             )
         return user
 
-    user = db.execute(
-        select(User).where(User.email == email)
-    ).scalar_one_or_none()
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
     if not user:
         user = User(
@@ -80,9 +77,7 @@ def register_user(
     last_name: str,
 ) -> User:
 
-    existing_user = db.execute(
-        select(User).where(User.email == email)
-    ).scalar_one_or_none()
+    existing_user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
     if existing_user:
         raise HTTPException(
@@ -118,16 +113,13 @@ def register_user(
     return user
 
 
-
 def login_user(
     db: Session,
     email: str,
     password: str,
 ) -> User:
 
-    user = db.execute(
-        select(User).where(User.email == email)
-    ).scalar_one_or_none()
+    user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
     if user is None:
         raise HTTPException(
@@ -159,14 +151,14 @@ def login_user(
             account.pwd_hash,
             password,
         )
-    except VerifyMismatchError:
+    except VerifyMismatchError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
                 "code": ErrorCode.INVALID_CREDENTIALS,
                 "message": "Nieprawidłowy email lub hasło.",
             },
-        )
+        ) from err
 
     if user.status == UserStatus.PENDING_APPROVAL:
         raise HTTPException(
