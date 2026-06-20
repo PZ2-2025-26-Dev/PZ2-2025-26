@@ -147,6 +147,7 @@ def assert_can_change_owner(user: User) -> None:
             detail="Tylko administrator może zmieniać właściciela przedmiotu.",
         )
 
+
 def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
     if user.role == UserRole.ADMIN:
         return

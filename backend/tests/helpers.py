@@ -18,6 +18,7 @@ def auth_headers(user_id: int = SEED_IDS.regular_user) -> dict[str, str]:
 def admin_headers() -> dict[str, str]:
     return auth_headers(SEED_IDS.admin_user)
 
+
 # Valid payload built from deterministic seed records. Tests can override only
 # fields relevant to the scenario instead of repeating all foreign keys.
 DEFAULT_ITEM_PAYLOAD: dict[str, Any] = {
