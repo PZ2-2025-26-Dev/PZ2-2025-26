@@ -191,7 +191,7 @@ class LocationService:
                 description=item.description,
                 status=item.status,
                 legacy_id=None,
-            )
+            ).model_dump()
             for item, category, owner in self.db.execute(stmt).all()
         ]
 
