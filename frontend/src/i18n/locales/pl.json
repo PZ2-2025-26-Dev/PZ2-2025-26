@@ -1,5 +1,13 @@
 {
   "welcome": {
+    "faculty": "Wydział Fizyki i Informatyki Stosowanej",
+    "language": "Język",
+    "systemLabel": "System wewnętrzny",
+    "productName": "Aparatura WFiIS",
+    "conciseDescription": "Ewidencja sprzętu, lokalizacji i wypożyczeń w jednym miejscu.",
+    "enterSystem": "Przejdź do logowania",
+    "noAccount": "Nie masz konta?",
+    "createAccount": "Utwórz konto",
     "title": "Zintegrowany System Zarządzania Aparaturą Pomiarową",
     "subtitle": "Akademia Górniczo-Hutnicza im. Stanisława Staszica w Krakowie",
     "description": "Wszechstronna platforma logistyczno-ewidencyjna dedykowana dla pracowników oraz studentów wydziału. Zapewnia pełną kontrolę nad bazą sprzętową, lokalizacją oraz procesem rezerwacji.",
@@ -26,6 +34,7 @@
     "logout": "Wyloguj",
     "tabInventory": "Inwentarz",
     "tabUsers": "Użytkownicy",
+    "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
     "totalAssets": "Zasoby ogółem",
     "borrowedAssets": "Wypożyczone",
@@ -70,6 +79,52 @@
     "treeTitle": "Drzewo Kategorii",
     "emptyTree": "Brak zdefiniowanych kategorii.",
     "delete": "Usuń"
+  },
+  "locationManager": {
+    "treeTitle": "Struktura lokalizacji",
+    "emptyTree": "Brak lokalizacji zwróconych przez API.",
+    "loading": "Ładowanie lokalizacji...",
+    "refresh": "Odśwież",
+    "addTitle": "Dodaj lokalizację",
+    "addDesc": "Utwórz budynek, salę, szafę albo półkę i wskaż opcjonalnego rodzica.",
+    "nameLabel": "Nazwa lokalizacji",
+    "namePlaceholder": "np. D10, Sala 204, Szafa A",
+    "typeLabel": "Typ lokalizacji",
+    "parentLabel": "Lokalizacja nadrzędna",
+    "rootLevel": "-- Poziom główny --",
+    "descriptionLabel": "Opis",
+    "descriptionPlaceholder": "Opcjonalny opis lokalizacji",
+    "addressLabel": "Adres",
+    "addressPlaceholder": "np. ul. Przykładowa 1, Kraków",
+    "addressInline": "Adres: {{address}}",
+    "addBtn": "Zapisz lokalizację",
+    "saving": "Zapisywanie...",
+    "edit": "Edytuj",
+    "editTitle": "Edytuj lokalizację",
+    "delete": "Usuń",
+    "deleteTitle": "Usuń lokalizację",
+    "deleteDesc": "Czy na pewno usunąć lokalizację \"{{name}}\"?",
+    "confirmDelete": "Usuń lokalizację",
+    "deleting": "Usuwanie...",
+    "deleteErrorTitle": "Nie można usunąć lokalizacji",
+    "deleteErrorDesc": "Przenieś najpierw wszystkie przedmioty z lokalizacji \"{{name}}\" oraz jej podlokalizacji, a potem spróbuj ponownie.",
+    "close": "Zamknij",
+    "statusLabel": "Status",
+    "cancel": "Anuluj",
+    "save": "Zapisz zmiany",
+    "errorTitle": "Nie udało się wykonać operacji",
+    "types": {
+      "building": "Budynek",
+      "room": "Sala",
+      "cabinet": "Szafa",
+      "shelf": "Półka",
+      "remote": "Zewnętrzna",
+      "other": "Inne"
+    },
+    "statuses": {
+      "active": "Aktywna",
+      "inactive": "Nieaktywna"
+    }
   },
   "addAssetModal": {
     "modalTitle": "Dodaj Nowy Przedmiot do Systemu",
@@ -185,6 +240,16 @@
       "deactivated": "Nieaktywny"
     },
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie."
+  },
+  "qrScanner": {
+    "button": "Skanuj QR",
+    "title": "Skaner kodu QR",
+    "description": "Skieruj aparat na kod QR przypisany do przedmiotu.",
+    "starting": "Uruchamianie aparatu...",
+    "cameraError": "Nie udało się uruchomić aparatu.",
+    "permissionHint": "Sprawdź uprawnienia aparatu w ustawieniach przeglądarki.",
+    "hint": "Kod zostanie odczytany automatycznie.",
+    "close": "Zamknij skaner"
   },
   "auth": {
     "login": "Logowanie",

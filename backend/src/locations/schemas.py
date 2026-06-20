@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from src.locations.constants import (
+    LOCATION_ADDRESS_LENGTH,
     LOCATION_HISTORY_DESC_LENGTH,
     LOCATION_NAME_LENGTH,
     LOCATION_PAGE_LIMIT_MAX,
@@ -14,6 +15,7 @@ from src.locations.constants import (
 type LocationID = int
 type LocationName = Annotated[str, Field(min_length=1, max_length=LOCATION_NAME_LENGTH)]
 type LocationDescription = Annotated[str, Field(min_length=1)]
+type LocationAddress = Annotated[str, Field(min_length=1, max_length=LOCATION_ADDRESS_LENGTH)]
 type LocationPath = str
 type LocationHistoryDescription = Annotated[str, Field(min_length=1, max_length=LOCATION_HISTORY_DESC_LENGTH)]
 
@@ -23,6 +25,7 @@ class LocationCreate(BaseModel):
     type: LocationType
     parent_id: LocationID | None = None
     description: LocationDescription | None = None
+    address: LocationAddress | None = None
     is_active: bool = True
 
 
@@ -31,6 +34,7 @@ class LocationUpdate(BaseModel):
     type: LocationType | None = None
     parent_id: LocationID | None = None
     description: LocationDescription | None = None
+    address: LocationAddress | None = None
     is_active: bool | None = None
 
 
@@ -40,6 +44,7 @@ class LocationDetails(BaseModel):
     type: LocationType
     parent_id: LocationID | None
     description: str | None
+    address: str | None
     is_active: bool
     path: LocationPath
 
@@ -55,14 +60,9 @@ class LocationsPaged(BaseModel):
     pagination: LocationPagination
 
 
-class LocationDeleteRequest(BaseModel):
-    replacement_location_id: LocationID
-
-
 class LocationDeleteResponse(BaseModel):
     id: LocationID
-    replacement_location_id: LocationID
-    migrated_items_count: int
+    deleted_locations_count: int
 
 
 class LocationHistoryEntry(BaseModel):

@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Uuid
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.categories.models import Category
@@ -9,6 +10,7 @@ from src.database import Base
 from src.items.constants import (
     ATTACHMENT_FILENAME_MAX_LENGTH,
     ATTACHMENT_MIME_TYPE_MAX_LENGTH,
+    BASIC_LENGTH,
     ITEM_DESC_LENGTH,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
@@ -24,7 +26,8 @@ class Item(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(ITEM_NAME_LENGTH))
-    inventory_number: Mapped[UUID] = mapped_column(Uuid, unique=True, index=True)
+    uuid: Mapped[UUID] = mapped_column(Uuid, unique=True, index=True)
+    """Used in schema's response"""
     location_id: Mapped[int] = mapped_column(ForeignKey("location.id"), index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("category.id"), index=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
@@ -34,11 +37,10 @@ class Item(Base):
     location: Mapped[Location] = relationship()
 
     status: Mapped[ItemStatus] = mapped_column(Enum(ItemStatus))
-
     description: Mapped[str | None] = mapped_column(String(ITEM_DESC_LENGTH))
 
-    # TODO:
-    # public_id: Mapped[UUID]
+    oldID: Mapped[str | None] = mapped_column(String(BASIC_LENGTH))
+    parameters: Mapped[dict | None] = mapped_column(JSON)
 
 
 class ItemHistory(Base):

@@ -1,25 +1,5 @@
 import { useEffect } from 'react';
-import {
-    CalendarClock,
-    ClipboardList,
-    LogIn,
-    MapPin,
-    Moon,
-    Plug,
-    QrCode,
-    Sun,
-} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 
 type WelcomePageProps = {
     onLocalLogin: () => void;
@@ -40,96 +20,91 @@ export default function WelcomePage({
         document.documentElement.classList.toggle('dark', isDarkMode);
     }, [isDarkMode]);
 
-    const features = [
-        { title: t('welcome.card1Title'), description: t('welcome.card1Desc'), icon: ClipboardList, tone: 'text-blue-600 bg-blue-100 dark:bg-blue-950/50 dark:text-blue-300' },
-        { title: t('welcome.card2Title'), description: t('welcome.card2Desc'), icon: QrCode, tone: 'text-violet-600 bg-violet-100 dark:bg-violet-950/50 dark:text-violet-300' },
-        { title: t('welcome.card3Title'), description: t('welcome.card3Desc'), icon: MapPin, tone: 'text-amber-600 bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300' },
-        { title: t('welcome.card4Title'), description: t('welcome.card4Desc'), icon: CalendarClock, tone: 'text-rose-600 bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300' },
-    ];
-
     return (
-        <div className="flex min-h-screen w-full flex-col bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-            <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/90">
-                <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center gap-3">
-                        <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold tracking-wider text-white dark:bg-emerald-600">
-                            AGH
-                        </div>
-                        <span className="hidden text-sm font-semibold text-slate-700 dark:text-slate-200 sm:inline">
-                            Central Positronics
+        <div className="min-h-[100dvh] w-full bg-slate-100 font-sans text-slate-950 transition-colors dark:bg-slate-950 dark:text-white">
+            <main className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-rows-[minmax(0,1fr)_auto] gap-3 p-3 sm:gap-4 sm:p-5 lg:p-7">
+                <section className="relative isolate h-full min-h-0 overflow-hidden rounded-[1.75rem] bg-emerald-900 px-7 py-8 text-white shadow-xl shadow-emerald-950/15 dark:bg-[#052e2b] sm:rounded-[2rem] sm:px-10 sm:py-10 lg:px-14 lg:py-12">
+                    <button
+                        type="button"
+                        onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'PL' : 'EN')}
+                        className="absolute -right-10 -top-10 z-20 flex h-44 w-44 items-end justify-start rounded-full bg-amber-400 pb-10 pl-10 text-left text-amber-950 shadow-lg transition hover:bg-amber-300 focus:outline-none focus:ring-4 focus:ring-white/70 sm:-right-8 sm:-top-12 sm:h-56 sm:w-56 sm:pb-14 sm:pl-14"
+                        aria-label={i18n.language === 'PL' ? 'Switch to English' : 'Przełącz na polski'}
+                    >
+                        <span className="flex flex-col">
+                            <span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">
+                                {t('welcome.language')}
+                            </span>
+                            <span className="text-lg font-black tracking-tight sm:text-xl">
+                                {i18n.language === 'PL' ? 'EN' : 'PL'}
+                            </span>
                         </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setIsDarkMode(!isDarkMode)}
+                        className="absolute right-5 top-36 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-md backdrop-blur transition hover:bg-white/25 focus:outline-none focus:ring-4 focus:ring-white/50 sm:right-8 sm:top-44 sm:h-14 sm:w-14"
+                        aria-label={isDarkMode ? 'Włącz jasny motyw' : 'Włącz ciemny motyw'}
+                    >
+                        {isDarkMode ? (
+                            <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M7.757 6.364l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                            </svg>
+                        ) : (
+                            <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        )}
+                    </button>
+
+                    <div className="pointer-events-none absolute -bottom-28 -left-20 h-64 w-64 rounded-full border-[3rem] border-emerald-600/35 dark:border-emerald-700/30 sm:-bottom-32 sm:h-72 sm:w-72" />
+
+                    <div className="relative z-10 flex h-full min-h-0 flex-col justify-between">
+                        <div className="max-w-[13rem] sm:max-w-sm">
+                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase leading-relaxed tracking-[0.18em] text-emerald-100">
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
+                                <span>{t('welcome.faculty')}</span>
+                            </div>
+                        </div>
+
+                        <div className="max-w-xl pb-1">
+                            <p className="mb-3 text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-300 sm:text-xs">
+                                {t('welcome.systemLabel')}
+                            </p>
+                            <h1 className="max-w-lg text-[clamp(2.5rem,11vw,4.5rem)] font-black leading-[0.94] tracking-[-0.045em] text-white">
+                                {t('welcome.productName')}
+                            </h1>
+                            <p className="mt-5 max-w-md text-[15px] font-medium leading-relaxed text-emerald-50 sm:text-base">
+                                {t('welcome.conciseDescription')}
+                            </p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL')}
+                </section>
+
+                <div className="space-y-2.5 pb-[max(0rem,env(safe-area-inset-bottom))]">
+                    <button
+                        type="button"
+                        onClick={onLocalLogin}
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950 sm:text-base"
+                    >
+                        {t('welcome.enterSystem')}
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+
+                    <p className="text-center text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {t('welcome.noAccount')}{' '}
+                        <button
+                            type="button"
+                            onClick={onRegister}
+                            className="font-bold text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
                         >
-                            {i18n.language === 'PL' ? 'EN' : 'PL'}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => setIsDarkMode(!isDarkMode)}
-                            aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}
-                        >
-                            {isDarkMode ? <Sun /> : <Moon />}
-                        </Button>
-                    </div>
+                            {t('welcome.createAccount')}
+                        </button>
+                    </p>
                 </div>
-            </header>
-
-            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:px-8 lg:py-20">
-                <section className="mx-auto max-w-3xl space-y-6 text-center">
-                    <Badge variant="success">
-                        Wydział Fizyki i Informatyki Stosowanej / WFiIS
-                    </Badge>
-                    <h1 className="flex items-center justify-center gap-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
-                        <Plug className="size-8 text-emerald-600 sm:size-10" />
-                        <span>{t('welcome.title')}</span>
-                    </h1>
-                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400 sm:text-base">
-                        {t('welcome.subtitle')}
-                    </p>
-                    <p className="mx-auto max-w-2xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                        {t('welcome.description')}
-                    </p>
-                    <div className="flex flex-col items-center gap-3 pt-4">
-                        <Button size="lg" onClick={onLocalLogin} className="w-full sm:w-auto">
-                            <LogIn />
-                            {t('auth.loginButton')}
-                        </Button>
-                        <Button variant="link" onClick={onRegister}>
-                            {t('welcome.registerLink')}
-                        </Button>
-                    </div>
-                </section>
-
-                <section className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                    {features.map(({ title, description, icon: Icon, tone }) => (
-                        <Card key={title} className="h-full">
-                            <CardHeader>
-                                <div className={`mb-2 flex size-10 items-center justify-center rounded-xl ${tone}`}>
-                                    <Icon className="size-5" />
-                                </div>
-                                <CardTitle className="text-sm">{title}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <CardDescription className="text-xs leading-relaxed">
-                                    {description}
-                                </CardDescription>
-                            </CardContent>
-                        </Card>
-                    ))}
-                </section>
             </main>
-
-            <footer className="border-t border-slate-200 bg-white py-4 text-[11px] text-slate-400 dark:border-slate-800 dark:bg-slate-950">
-                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1 px-4 sm:flex-row">
-                    <span>&copy; {new Date().getFullYear()} AGH WFiIS. {t('welcome.footerRights')}.</span>
-                    <span>{t('welcome.footerTeam')} <strong className="text-slate-600 dark:text-slate-300">Central Positronics</strong></span>
-                </div>
-            </footer>
         </div>
     );
 }
