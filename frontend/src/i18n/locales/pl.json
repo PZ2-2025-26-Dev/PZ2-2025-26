@@ -86,6 +86,7 @@
     "room": "Pokój / Sala",
     "cabinet": "Szafa / Półka (Opcjonalnie)",
     "owner": "Opiekun / Właściciel",
+    "ownerSelfHint": "Sprzęt zostanie przypisany do Ciebie.",
     "cancel": "Anuluj",
     "save": "Dodaj przedmiot",
     "saving": "Zapisywanie...",

@@ -86,6 +86,7 @@
     "room": "Room / Lab",
     "cabinet": "Cabinet / Shelf (Optional)",
     "owner": "Supervisor / Owner",
+    "ownerSelfHint": "The asset will be assigned to you.",
     "cancel": "Cancel",
     "save": "Add Asset",
     "saving": "Saving...",
