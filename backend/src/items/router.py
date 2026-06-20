@@ -37,6 +37,7 @@ def read_items(
 ) -> ItemsPaged:
     return ItemService(db).search_items(data)
 
+
 @router.post(
     "",
     response_model=ItemCreateResponse,
