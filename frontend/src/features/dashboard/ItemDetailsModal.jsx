@@ -69,7 +69,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         if (loansResult.success) {
             setLoanHistory(loansResult.loans);
             const active = loansResult.loans.find((loan) => isActiveLoanStatus(loan.status));
-            setActiveLoan(active ?? null);
+            setActiveLoan((prev) => active ?? prev);
         }
     }, [itemId, listGuests, listLoans]);
 
@@ -114,7 +114,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
             if (loansResult.success) {
                 setLoanHistory(loansResult.loans);
                 const active = loansResult.loans.find((loan) => isActiveLoanStatus(loan.status));
-                setActiveLoan(active ?? null);
+                setActiveLoan((prev) => active ?? prev);
             }
         })();
 
@@ -151,6 +151,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         setRegisterSucceeded(true);
         setActionMessage('');
         setActiveLoan(result.data);
+        setLoanHistory((prev) => [result.data, ...prev.filter((loan) => loan.id !== result.data.id)]);
 
         onLoanChange?.(item.id, {
             status: ITEM_STATUS.LOANED,
@@ -158,8 +159,6 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
             dueDate: returnDate,
             activeLoan: result.data,
         });
-
-        await loadLoanData();
     };
 
     const handleReturnLoan = async () => {
@@ -221,6 +220,12 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
         });
     };
 
+    const showRegistrationForm = apiItem
+        && canRegisterExternalLoan
+        && !registerSucceeded
+        && !activeLoan
+        && displayStatus === ITEM_STATUS.AVAILABLE;
+
     const renderOwnerPanel = () => (
         <div className="flex-1 bg-slate-50 dark:bg-slate-900/80 border border-emerald-100 dark:border-emerald-900/30 rounded-xl p-4 sm:p-5 flex flex-col">
             <div className="flex items-center space-x-2 mb-1">
@@ -241,7 +246,7 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
             )}
 
             <div className="space-y-4 flex-grow">
-                {apiItem && canRegisterExternalLoan && !activeLoan && displayStatus === ITEM_STATUS.AVAILABLE && (
+                {showRegistrationForm && (
                     <div className="bg-white dark:bg-slate-950 border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-4 shadow-sm space-y-3">
                         <h4 className="font-bold text-sm text-emerald-700 dark:text-emerald-400">{t('rentals.panelTitle')}</h4>
                         <p className="text-xs text-slate-500">{t('rentals.panelDesc')}</p>
@@ -281,9 +286,9 @@ export default function ItemDetailsModal({ isOpen, onClose, item, user, onUpdate
                     </div>
                 )}
 
-                {apiItem && activeLoan && registerSucceeded && (
-                    <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-4 text-center">
-                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{t('rentals.registerSuccess')}</p>
+                {registerSucceeded && (
+                    <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-5 text-center">
+                        <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300">{t('rentals.registerSuccess')}</p>
                     </div>
                 )}
 
