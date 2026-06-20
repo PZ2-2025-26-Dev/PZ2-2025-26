@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -7,6 +7,10 @@ import {
     AlertDescription,
     AlertTitle,
 } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { googleLogin, login } from './authService';
 
 // wiem że całość jest w JS-ie, ale ja mam to gdzieś i robię w TypeScripcie
@@ -114,35 +118,32 @@ export default function LoginForm({
     };
 
     return (
-        <form
-            onSubmit={handleLogin}
-            className="w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-        >
-            <button
-                type="button"
-                onClick={onBack}
-                className="text-xs text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
-            >
-                ← {t('welcome.backBtn')}
-            </button>
+        <Card className="w-full max-w-md">
+            <CardHeader>
+                <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 w-fit px-0">
+                    <ArrowLeft />
+                    {t('welcome.backBtn')}
+                </Button>
+                <CardTitle>{t('auth.login')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleLogin} className="space-y-4">
+                {loginError && (
+                    <Alert variant="destructive" aria-live="polite">
+                        <AlertCircle aria-hidden="true" />
+                        <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                        <AlertDescription>{loginError}</AlertDescription>
+                    </Alert>
+                )}
 
-            <h2 className="text-lg font-bold">{t('auth.login')}</h2>
-
-            {loginError && (
-                <Alert variant="destructive" aria-live="polite">
-                    <AlertCircle aria-hidden="true" />
-                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                    <AlertDescription>{loginError}</AlertDescription>
-                </Alert>
-            )}
-
-            <div>
-                <input
+                <div className="space-y-2">
+                    <Label htmlFor="login-email">{t('auth.email')}</Label>
+                    <Input
+                    id="login-email"
                     type="email"
                     autoComplete="email"
                     aria-invalid={Boolean(errors.email)}
                     aria-describedby={errors.email ? 'login-email-error' : undefined}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     placeholder={t('auth.email')}
                     value={email}
                     onChange={(event) => {
@@ -154,20 +155,21 @@ export default function LoginForm({
                     }}
                 />
 
-                {errors.email && (
-                    <p id="login-email-error" className="mt-1 text-sm text-rose-600 dark:text-rose-400">
+                    {errors.email && (
+                    <p id="login-email-error" className="text-xs text-rose-600 dark:text-rose-400">
                         {errors.email}
                     </p>
                 )}
-            </div>
+                </div>
 
-            <div>
-                <input
+                <div className="space-y-2">
+                    <Label htmlFor="login-password">{t('auth.password')}</Label>
+                    <Input
+                    id="login-password"
                     type="password"
                     autoComplete="current-password"
                     aria-invalid={Boolean(errors.password)}
                     aria-describedby={errors.password ? 'login-password-error' : undefined}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     placeholder={t('auth.password')}
                     value={password}
                     onChange={(event) => {
@@ -179,38 +181,45 @@ export default function LoginForm({
                     }}
                 />
 
-                {errors.password && (
-                    <p id="login-password-error" className="mt-1 text-sm text-rose-600 dark:text-rose-400">
+                    {errors.password && (
+                    <p id="login-password-error" className="text-xs text-rose-600 dark:text-rose-400">
                         {errors.password}
                     </p>
                 )}
-            </div>
+                </div>
 
-            <button
+                <Button
                 type="submit"
+                size="lg"
                 disabled={loading || !email || !password}
-                className="flex w-full items-center justify-center rounded-xl bg-emerald-700 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                className="w-full"
             >
+                <LogIn />
                 {loading ? t('auth.loggingIn') : t('auth.loginButton')}
-            </button>
+                </Button>
 
-            <div className="text-center text-sm text-slate-500">{t('auth.or')}</div>
+                <div className="text-center text-xs text-slate-500">{t('auth.or')}</div>
 
-            <button
+                <Button
                 type="button"
+                variant="secondary"
+                size="lg"
                 onClick={googleLogin}
-                className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-8 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="w-full"
             >
                 {t('auth.googleLogin')}
-            </button>
+                </Button>
 
-            <button
+                <Button
                 type="button"
+                variant="link"
                 onClick={onSwitchToRegister}
-                className="w-full text-center text-xs text-slate-400 underline transition hover:text-slate-600 dark:hover:text-slate-200"
+                className="w-full"
             >
                 {t('auth.dontHaveAccount')}
-            </button>
-        </form>
+                </Button>
+                </form>
+            </CardContent>
+        </Card>
     );
 }

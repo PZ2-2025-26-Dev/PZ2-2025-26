@@ -5,7 +5,7 @@ import { parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
 
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, getItemHistory: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
