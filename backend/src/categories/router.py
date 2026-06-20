@@ -7,7 +7,6 @@ from src.auth.dependencies import RequireAdmin
 from src.categories.constants import CATEGORY_PAGE_DEFAULT, CATEGORY_PAGE_LIMIT_DEFAULT, CATEGORY_PAGE_LIMIT_MAX
 from src.categories.exceptions import (
     CategoryDuplicateNameError,
-    CategoryHasChildrenError,
     CategoryNotFoundError,
     CategoryParentCycleError,
     CategoryReplacementError,
@@ -157,11 +156,17 @@ def update_category(
     responses={
         status.HTTP_200_OK: {
             "model": CategoryDeleteResponse,
-            "description": "Kategoria została usunięta, a jej przedmioty przeniesiono do kategorii zastępczej.",
+            "description": (
+                "Kategoria i jej podkategorie zostały usunięte, "
+                "a ich przedmioty przeniesiono do kategorii zastępczej."
+            ),
         },
         status.HTTP_400_BAD_REQUEST: {
             "model": ErrorResponse,
-            "description": "Kategoria zastępcza jest taka sama jak usuwana kategoria.",
+            "description": (
+                "Kategoria zastępcza jest taka sama jak usuwana kategoria "
+                "albo znajduje się w usuwanym poddrzewie."
+            ),
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
@@ -172,10 +177,6 @@ def update_category(
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "Operacja dostępna wyłącznie dla administratora.",
-        },
-        status.HTTP_409_CONFLICT: {
-            "model": ErrorResponse,
-            "description": "Kategoria ma podkategorie i nie może zostać usunięta przed ich przeniesieniem.",
         },
     },
 )
@@ -198,8 +199,6 @@ def delete_category(
         return error_response(status.HTTP_404_NOT_FOUND, str(err))
     except CategoryReplacementError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
-    except CategoryHasChildrenError as err:
-        return error_response(status.HTTP_409_CONFLICT, str(err))
 
     return CategoryDeleteResponse(
         deleted_category_id=category_id,

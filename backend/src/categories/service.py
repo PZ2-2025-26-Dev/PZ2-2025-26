@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from src.categories.exceptions import (
     CategoryDuplicateNameError,
-    CategoryHasChildrenError,
     CategoryNotFoundError,
     CategoryParentCycleError,
     CategoryReplacementError,
@@ -78,16 +77,24 @@ class CategoryService:
             raise CategoryReplacementError("Replacement category must be different from deleted category")
 
         self._get_category_or_raise(replacement_category_id)
+        deleted_category_ids = self._collect_subtree_ids(category_id)
 
-        children_count = self.db.scalar(
-            select(func.count()).select_from(Category).where(Category.parent_id == category_id)
+        if replacement_category_id in deleted_category_ids:
+            raise CategoryReplacementError("Replacement category cannot be inside deleted category tree")
+
+        item_count = (
+            self.db.scalar(select(func.count()).select_from(Item).where(Item.category_id.in_(deleted_category_ids)))
+            or 0
         )
-        if children_count:
-            raise CategoryHasChildrenError("Category has child categories")
-
-        item_count = self.count_category_items(category_id)
-        self.db.execute(update(Item).where(Item.category_id == category_id).values(category_id=replacement_category_id))
-        self.db.delete(category)
+        self.db.execute(
+            update(Item).where(Item.category_id.in_(deleted_category_ids)).values(category_id=replacement_category_id)
+        )
+        for deleted_category_id in reversed(deleted_category_ids):
+            deleted_category = (
+                category if deleted_category_id == category_id else self.db.get(Category, deleted_category_id)
+            )
+            if deleted_category is not None:
+                self.db.delete(deleted_category)
         self.db.commit()
         return item_count
 
@@ -164,3 +171,10 @@ class CategoryService:
             if current.id == category_id:
                 raise CategoryParentCycleError("Parent category cannot be a descendant")
             current = current.parent
+
+    def _collect_subtree_ids(self, category_id: int) -> list[int]:
+        ids = [category_id]
+        child_ids = self.db.execute(select(Category.id).where(Category.parent_id == category_id)).scalars().all()
+        for child_id in child_ids:
+            ids.extend(self._collect_subtree_ids(child_id))
+        return ids

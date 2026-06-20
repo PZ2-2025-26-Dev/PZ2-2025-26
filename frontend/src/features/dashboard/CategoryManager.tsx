@@ -107,6 +107,7 @@ export default function CategoryManager() {
 
         return getParentOptions(categories).filter((category) => !blockedIds.has(category.id));
     }, [deletingCategory, categories]);
+    const hasDeleteReplacementOptions = deleteReplacementOptions.length > 0;
 
     const refreshCategories = useCallback(async () => {
         const result = await listCategories();
@@ -384,17 +385,25 @@ export default function CategoryManager() {
                         <p className="text-sm text-slate-600 dark:text-slate-400">
                             {t('categoryManager.deleteDesc', { name: deletingCategory?.name })}
                         </p>
-                        <div className="space-y-2">
-                            <Label>{t('categoryManager.replacementLabel')}</Label>
-                            <Select value={replacementCategoryId} onValueChange={setReplacementCategoryId}>
-                                <SelectTrigger><SelectValue placeholder={t('categoryManager.replacementPlaceholder')} /></SelectTrigger>
-                                <SelectContent>
-                                    {deleteReplacementOptions.map((category) => (
-                                        <SelectItem key={category.id} value={String(category.id)}>{category.path}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        {hasDeleteReplacementOptions ? (
+                            <div className="space-y-2">
+                                <Label>{t('categoryManager.replacementLabel')}</Label>
+                                <Select value={replacementCategoryId} onValueChange={setReplacementCategoryId}>
+                                    <SelectTrigger><SelectValue placeholder={t('categoryManager.replacementPlaceholder')} /></SelectTrigger>
+                                    <SelectContent>
+                                        {deleteReplacementOptions.map((category) => (
+                                            <SelectItem key={category.id} value={String(category.id)}>{category.path}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : (
+                            <Alert variant="destructive">
+                                <AlertCircle />
+                                <AlertTitle>{t('categoryManager.noReplacementTitle')}</AlertTitle>
+                                <AlertDescription>{t('categoryManager.noReplacementDesc')}</AlertDescription>
+                            </Alert>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setDeletingCategory(null)}>{t('categoryManager.cancel')}</Button>
