@@ -16,6 +16,7 @@ from src.categories import models as categories_models  # noqa: F401
 from src.categories.router import router as categories_router
 from src.config import config
 from src.database import Base, engine
+from src.exports.router import router as exports_router
 from src.guests import models as guests_models  # noqa: F401
 from src.items import models as items_models  # noqa: F401
 from src.items.router import router as items_router
@@ -24,7 +25,6 @@ from src.locations import models as locations_models  # noqa: F401
 from src.locations.router import router as locations_router
 from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
-from src.exports.router import router as exports_router
 
 
 @asynccontextmanager

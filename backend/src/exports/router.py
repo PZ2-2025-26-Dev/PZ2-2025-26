@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Annotated
+
 from fastapi import APIRouter, Query
 
 from src.dependencies import DBDep
@@ -10,9 +11,9 @@ router = APIRouter(prefix="/exports", tags=["exports"])
 @router.get("/items/xlsx")
 def export_items_xlsx(
     db: DBDep,
-    search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
-    category: Optional[str] = Query(None),
+    search: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
 ):
     service = ExportService(db)
 

@@ -1,8 +1,9 @@
-from typing import Optional
-from sqlalchemy import select
 from io import BytesIO
+
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
+from sqlalchemy import select
+
 from src.items.models import Item
 
 
@@ -12,14 +13,11 @@ class ExportService:
 
     def get_items(
         self,
-        search: Optional[str] = None,
-        status: Optional[str] = None,
-        category: Optional[str] = None,
+        search: str | None = None,
+        status: str | None = None,
+        category: str | None = None,
     ):
-        stmt = (
-            select(Item)
-            .order_by(Item.id)
-        )
+        stmt = select(Item).order_by(Item.id)
 
         if status:
             stmt = stmt.where(Item.status == status)
@@ -29,14 +27,16 @@ class ExportService:
 
         if search:
             like = f"%{search}%"
-            stmt = stmt.where(
-                (Item.name.ilike(like)) |
-                (Item.description.ilike(like))
-            )
+            stmt = stmt.where((Item.name.ilike(like)) | (Item.description.ilike(like)))
 
         return self.db.execute(stmt).scalars().all()
-    
-    def export_items_xlsx(self, search=None, status=None, category=None):
+
+    def export_items_xlsx(
+        self,
+        search: str | None = None,
+        status: str | None = None,
+        category: str | None = None,
+    ):
         items = self.get_items(
             search=search,
             status=status,
@@ -47,28 +47,32 @@ class ExportService:
         worksheet = workbook.active
         worksheet.title = "Items"
 
-        worksheet.append([
-            "ID",
-            "Name",
-            "Inventory Number",
-            "Category",
-            "Location",
-            "Owner",
-            "Status",
-            "Description",
-        ])
+        worksheet.append(
+            [
+                "ID",
+                "Name",
+                "Inventory Number",
+                "Category",
+                "Location",
+                "Owner",
+                "Status",
+                "Description",
+            ]
+        )
 
         for item in items:
-            worksheet.append([
-                item.id,
-                item.name,
-                str(item.oldID or ""),
-                item.category.name,
-                item.location.name,
-                item.owner.first_name,
-                item.status.value,
-                item.description,
-            ])
+            worksheet.append(
+                [
+                    item.id,
+                    item.name,
+                    str(item.oldID or ""),
+                    item.category.name,
+                    item.location.name,
+                    item.owner.first_name,
+                    item.status.value,
+                    item.description,
+                ]
+            )
 
         stream = BytesIO()
         workbook.save(stream)
@@ -77,7 +81,5 @@ class ExportService:
         return StreamingResponse(
             stream,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={
-                "Content-Disposition": 'attachment; filename="items.xlsx"'
-            },
+            headers={"Content-Disposition": 'attachment; filename="items.xlsx"'},
         )
