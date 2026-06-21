@@ -62,7 +62,7 @@ class ExportService:
             worksheet.append([
                 item.id,
                 item.name,
-                str(item.inventory_number),
+                str(item.oldID or ""),
                 item.category.name,
                 item.location.name,
                 item.owner.first_name,
