@@ -1,26 +1,19 @@
 import { useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowLeft, LogIn } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { googleLogin, login } from './authService';
 
-import {
-    Alert,
-    AlertDescription,
-    AlertTitle,
-} from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-
-// wiem że całość jest w JS-ie, ale ja mam to gdzieś i robię w TypeScripcie
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { googleLogin, login } from './authService';
 
 type LoginUser = {
     id: string | number;
     name: string;
     role: string;
-    status: 'ACTIVE';
+    status: 'ACTIVE' | 'GUEST';
 };
 
 type LoginFormProps = {
@@ -34,23 +27,7 @@ type FieldErrors = {
     password?: string;
 };
 
-type ApiError = {
-    response?: {
-        status?: number;
-        data?: {
-            detail?: {
-                code?: string;
-                message?: string;
-            };
-        };
-    };
-};
-
-export default function LoginForm({
-    onSwitchToRegister,
-    onLoginSuccess,
-    onBack,
-}: LoginFormProps) {
+export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onBack }: LoginFormProps) {
     const { t } = useTranslation();
 
     const [email, setEmail] = useState('');
@@ -67,6 +44,10 @@ export default function LoginForm({
             newErrors.email = t('auth.invalidEmail');
         }
 
+        if (password.length < 8) {
+            newErrors.password = t('auth.passwordTooShort');
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -78,10 +59,10 @@ export default function LoginForm({
         if (!validate()) return;
 
         setLoading(true);
-
         try {
             const response = await login({ email, password });
             const user = response.data.user;
+            const token = response.data.access_token;
 
             onLoginSuccess(
                 {
@@ -90,145 +71,127 @@ export default function LoginForm({
                     role: user.role,
                     status: 'ACTIVE',
                 },
-                response.data.access_token,
+                token,
             );
-        } catch (error) {
-            const err = error as ApiError;
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail;
 
-            const status = err.response?.status;
-            const code = err.response?.data?.detail?.code;
-            const message = err.response?.data?.detail?.message;
-
-            const errorMap: Record<string, string> = {
-                PENDING_APPROVAL: t('auth.pendingApprovalError'),
-                INVALID_CREDENTIALS: t('auth.invalidCredentials'),
-                FORBIDDEN: t('auth.forbidden'),
-            };
-            if (status === 403 && code && errorMap[code]) {
-                setLoginError(errorMap[code]);
-                return;
+            if (status === 403 && detail === 'PENDING_APPROVAL') {
+                setLoginError(t('auth.pendingApprovalError'));
+            } else if (status === 401) {
+                setLoginError(t('auth.invalidCredentials'));
+            } else {
+                setLoginError(t('auth.serverError'));
             }
-
-            if (status === 401 && code === 'INVALID_CREDENTIALS') {
-                setLoginError(errorMap.INVALID_CREDENTIALS);
-                return;
-            }
-            if (status === 422) {
-                setLoginError(errorMap.INVALID_CREDENTIALS);
-                return;
-            }
-
-            setLoginError(message || t('auth.serverError'));
         } finally {
             setLoading(false);
         }
     };
 
+    const handleGoogle = () => {
+        googleLogin();
+    };
+
+    const clearLoginError = () => {
+        if (loginError) setLoginError('');
+    };
+
     return (
-        <Card className="w-full max-w-md">
-            <CardHeader>
-                <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 w-fit px-0">
-                    <ArrowLeft />
-                    {t('welcome.backBtn')}
-                </Button>
-                <CardTitle>{t('auth.login')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                {loginError && (
-                    <Alert variant="destructive" aria-live="polite">
-                        <AlertCircle aria-hidden="true" />
-                        <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                        <AlertDescription>{loginError}</AlertDescription>
-                    </Alert>
-                )}
+        <div className="min-h-[80vh] flex items-center justify-center">
+            <Card className="w-full max-w-md">
+                <CardHeader className="text-center">
+                    <div className="flex justify-center mb-4">
+                        <div className="p-3 bg-primary/10 rounded-full">
+                            <svg className="h-10 w-10 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <path d="M6 18h8" />
+                                <path d="M9 3v5" />
+                                <path d="M12 8l6 6" />
+                                <circle cx="7" cy="17" r="3" />
+                            </svg>
+                        </div>
+                    </div>
+                    <CardTitle className="text-2xl">Aparatura AGH</CardTitle>
+                    <CardDescription>
+                        Zintegrowany system zarządzania aparaturą pomiarową
+                    </CardDescription>
+                </CardHeader>
 
-                <div className="space-y-2">
-                    <Label htmlFor="login-email">{t('auth.email')}</Label>
-                    <Input
-                    id="login-email"
-                    type="email"
-                    autoComplete="email"
-                    aria-invalid={Boolean(errors.email)}
-                    aria-describedby={errors.email ? 'login-email-error' : undefined}
-                    placeholder={t('auth.email')}
-                    value={email}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                    onChange={(e) => {
-                        setEmail(e.target.value);
-                        setLoginError('');
-                        if (errors.email) {
-                            setErrors((p) => ({ ...p, email: undefined }));
-                        }
-                    }}
-                />
+                <CardContent className="space-y-6">
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <Button type="button" onClick={handleGoogle} className="w-full h-12 text-base" size="lg">
+                            {t('auth.googleLogin')}
+                        </Button>
 
-                    {errors.email && (
-                    <p id="login-email-error" className="text-xs text-rose-600 dark:text-rose-400">
-                        {errors.email}
-                    </p>
-                )}
-                </div>
+                        <div className="relative">
+                            <Separator />
+                            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                                {t('auth.or')}
+                            </span>
+                        </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="login-password">{t('auth.password')}</Label>
-                    <Input
-                    id="login-password"
-                    type="password"
-                    autoComplete="current-password"
-                    aria-invalid={Boolean(errors.password)}
-                    aria-describedby={errors.password ? 'login-password-error' : undefined}
-                    placeholder={t('auth.password')}
-                    value={password}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                    onChange={(e) => {
-                        setPassword(e.target.value);
-                        setLoginError('');
-                        if (errors.password) {
-                            setErrors((p) => ({ ...p, password: undefined }));
-                        }
-                    }}
-                />
+                        {loginError && (
+                            <Alert variant="destructive" aria-live="polite">
+                                <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                <AlertDescription>{loginError}</AlertDescription>
+                            </Alert>
+                        )}
 
-                    {errors.password && (
-                    <p id="login-password-error" className="text-xs text-rose-600 dark:text-rose-400">
-                        {errors.password}
-                    </p>
-                )}
-                </div>
+                        <div>
+                            <Label htmlFor="login-email" className="sr-only">{t('auth.email')}</Label>
+                            <Input
+                                id="login-email"
+                                type="email"
+                                autoComplete="email"
+                                aria-invalid={Boolean(errors.email)}
+                                aria-describedby={errors.email ? 'login-email-error' : undefined}
+                                placeholder={t('auth.email')}
+                                value={email}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    clearLoginError();
+                                    if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                                }}
+                            />
+                            {errors.email && (
+                                <p id="login-email-error" className="mt-1 text-sm text-rose-600 dark:text-rose-400">{errors.email}</p>
+                            )}
+                        </div>
 
-                <Button
-                type="submit"
-                size="lg"
-                disabled={loading || !email || !password}
-                className="w-full"
-            >
-                <LogIn />
-                {loading ? t('auth.loggingIn') : t('auth.loginButton')}
-                </Button>
+                        <div>
+                            <Label htmlFor="login-password" className="sr-only">{t('auth.password')}</Label>
+                            <Input
+                                id="login-password"
+                                type="password"
+                                autoComplete="current-password"
+                                aria-invalid={Boolean(errors.password)}
+                                aria-describedby={errors.password ? 'login-password-error' : undefined}
+                                placeholder={t('auth.password')}
+                                value={password}
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    clearLoginError();
+                                    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                                }}
+                            />
+                            {errors.password && (
+                                <p id="login-password-error" className="mt-1 text-sm text-rose-600 dark:text-rose-400">{errors.password}</p>
+                            )}
+                        </div>
 
-                <div className="text-center text-xs text-slate-500">{t('auth.or')}</div>
+                        <Button type="submit" disabled={loading || !email || !password} className="flex w-full items-center justify-center rounded-xl bg-emerald-700 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                            {loading ? t('auth.loggingIn') : t('auth.loginButton')}
+                        </Button>
 
-                <Button
-                type="button"
-                variant="secondary"
-                size="lg"
-                onClick={googleLogin}
-                className="w-full"
-            >
-                {t('auth.googleLogin')}
-                </Button>
+                        <div className="text-center text-sm text-slate-500">{t('auth.or')}</div>
 
-                <Button
-                type="button"
-                variant="link"
-                onClick={onSwitchToRegister}
-                className="w-full"
-            >
-                {t('auth.dontHaveAccount')}
-                </Button>
-                </form>
-            </CardContent>
-        </Card>
+                        <div className="flex items-center justify-between">
+                            <button type="button" onClick={onBack} className="text-xs text-slate-400 hover:text-slate-600">← {t('welcome.backBtn')}</button>
+                            <button type="button" onClick={onSwitchToRegister} className="text-xs text-slate-400 underline hover:text-slate-600">{t('auth.dontHaveAccount')}</button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
