@@ -37,6 +37,7 @@ import LocationManager from '../locations/LocationManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
+import { useExport } from '@/features/exports/useExport';
 
 type CategoryOption = { id: number; name: string };
 
@@ -47,10 +48,12 @@ type DashboardPageProps = {
     setIsDarkMode: (enabled: boolean) => void;
 };
 
+
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
     const { listItems, isLoading, error, clearError } = useInventory();
     const { listCategories } = useCategories();
+    const { exportItemsXlsx } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -136,6 +139,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`, { defaultValue: status });
 
+    const handleExportXlsx = useCallback(async () => {
+        await exportItemsXlsx({
+            search: searchQuery,
+            status: statusFilter,
+            category: categoryFilter,
+        });
+    }, [exportItemsXlsx, searchQuery, statusFilter, categoryFilter]);
+
     return (
         <div className="flex min-h-screen flex-col bg-slate-50 font-sans dark:bg-slate-900">
             <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
@@ -215,8 +226,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
                                         </div>
                                         <div className="flex gap-2">
-                                            <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                                                <Button variant="secondary" size="sm"><Download />{t('dashboard.exportXlsx')}</Button>
+                                           <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={handleExportXlsx}
+                                                >
+                                                    <Download />
+                                                    {t('dashboard.exportXlsx')}
+                                                </Button>
                                             </RoleGuard>
                                             <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
                                                 <Button size="sm" onClick={() => setIsAddModalOpen(true)}><Plus />{t('dashboard.addAsset')}</Button>
