@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from src.categories.exceptions import (
     CategoryDuplicateNameError,
-    CategoryHasChildrenError,
     CategoryNotFoundError,
     CategoryParentCycleError,
     CategoryReplacementError,
@@ -84,10 +83,25 @@ def test_delete_category_reassigns_items_to_replacement_category(seeded_db: Sess
     assert seeded_db.get(Item, SEED_IDS.adapter).category_id == SEED_IDS.electronics
 
 
-def test_delete_category_with_children_is_blocked(seeded_db: Session):
+def test_delete_category_removes_subcategories_and_reassigns_their_items(seeded_db: Session):
+    service = CategoryService(seeded_db)
+    replacement = service.create_category(CategoryCreate(name="Archiwum", parent_id=None))
+
+    moved_count = service.delete_category(SEED_IDS.electronics, replacement.id)
+
+    assert moved_count == 3
+    assert seeded_db.get(Category, SEED_IDS.electronics) is None
+    assert seeded_db.get(Category, SEED_IDS.computers) is None
+    assert seeded_db.get(Category, SEED_IDS.accessories) is None
+    assert seeded_db.get(Item, SEED_IDS.projector).category_id == replacement.id
+    assert seeded_db.get(Item, SEED_IDS.laptop).category_id == replacement.id
+    assert seeded_db.get(Item, SEED_IDS.adapter).category_id == replacement.id
+
+
+def test_delete_category_rejects_replacement_from_deleted_tree(seeded_db: Session):
     service = CategoryService(seeded_db)
 
-    with pytest.raises(CategoryHasChildrenError):
+    with pytest.raises(CategoryReplacementError):
         service.delete_category(SEED_IDS.electronics, SEED_IDS.computers)
 
 

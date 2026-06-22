@@ -24,6 +24,7 @@ export const ENDPOINTS = {
     },
     CATEGORIES: {
         BASE: '/categories',
+        DETAILS: (id) => `/categories/${id}`,
         TREE: '/categories/tree',
     },
     LOCATIONS: {
