@@ -45,6 +45,12 @@ type CategoryOption = { id: number; name: string };
 
 type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'users';
 
+const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
+
+function isMenuSection(value: string | null): value is MenuSection {
+    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'users';
+}
+
 type DashboardPageProps = {
     user: AppUser;
     onLogout: () => void;
@@ -63,7 +69,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [categoryFilter, setCategoryFilter] = useState('all');
-    const [activeSection, setActiveSection] = useState<MenuSection>('dashboard');
+    const [activeSection, setActiveSection] = useState<MenuSection>(() => {
+        const storedSection = localStorage.getItem(DASHBOARD_ACTIVE_SECTION_KEY);
+        return isMenuSection(storedSection) ? storedSection : 'dashboard';
+    });
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -75,6 +84,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [isDarkMode]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
+
+    useEffect(() => {
+        localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
+    }, [activeSection]);
+
+    useEffect(() => {
+        const restrictedSection = activeSection === 'users' || activeSection === 'locations';
+        if (restrictedSection && !hasPermission(user, PERMISSIONS.SYSTEM_MANAGE)) {
+            setActiveSection('dashboard');
+        }
+    }, [activeSection, user]);
 
     const refreshItems = useCallback(async () => {
         const result = await listItems({ limit: 50 });
