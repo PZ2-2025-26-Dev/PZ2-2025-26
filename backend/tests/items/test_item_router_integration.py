@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
@@ -631,3 +632,138 @@ def test_delegated_user_cannot_update_critical_fields(api_client: TestClient, se
     )
 
     assert response.status_code == 403
+
+
+def test_owner_can_update_item_name(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"name": "Laptop po aktualizacji nazwy"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Laptop po aktualizacji nazwy"
+    assert seeded_db.get(Item, SEED_IDS.laptop).name == "Laptop po aktualizacji nazwy"
+
+
+def test_owner_can_list_item_acl(api_client: TestClient, seeded_db: Session):
+    seeded_db.add(
+        ItemACL(
+            item_id=SEED_IDS.laptop,
+            user_id=SEED_IDS.observer_user,
+            permission=ItemPermissionType.EDIT_DESCRIPTION,
+        )
+    )
+    seeded_db.flush()
+
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["entries"]) == 1
+    assert body["entries"][0]["permission"] == ItemPermissionType.EDIT_DESCRIPTION.value
+
+
+def test_owner_can_grant_item_acl(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        json={
+            "user_id": SEED_IDS.observer_user,
+            "permission": ItemPermissionType.EDIT_LOCATION.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["user_id"] == SEED_IDS.observer_user
+    assert body["permission"] == ItemPermissionType.EDIT_LOCATION.value
+
+
+def test_owner_can_revoke_item_acl(api_client: TestClient, seeded_db: Session):
+    acl = ItemACL(
+        item_id=SEED_IDS.laptop,
+        user_id=SEED_IDS.observer_user,
+        permission=ItemPermissionType.EDIT_PARAMETERS,
+    )
+    seeded_db.add(acl)
+    seeded_db.flush()
+
+    response = api_client.delete(
+        f"/items/{SEED_IDS.laptop_uuid}/acl/{acl.id}",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 204
+    assert (
+        seeded_db.execute(
+            select(ItemACL).where(ItemACL.id == acl.id)
+        ).scalar_one_or_none()
+        is None
+    )
+
+
+def test_non_owner_cannot_grant_item_acl(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        f"/items/{SEED_IDS.projector_uuid}/acl",
+        json={
+            "user_id": SEED_IDS.regular_user,
+            "permission": ItemPermissionType.EDIT_DESCRIPTION.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
+
+
+def test_delegated_user_sees_only_own_acl_entries(api_client: TestClient, seeded_db: Session):
+    seeded_db.add_all(
+        [
+            ItemACL(
+                item_id=SEED_IDS.projector,
+                user_id=SEED_IDS.regular_user,
+                permission=ItemPermissionType.EDIT_DESCRIPTION,
+            ),
+            ItemACL(
+                item_id=SEED_IDS.projector,
+                user_id=SEED_IDS.observer_user,
+                permission=ItemPermissionType.EDIT_LOCATION,
+            ),
+        ]
+    )
+    seeded_db.flush()
+
+    response = api_client.get(
+        f"/items/{SEED_IDS.projector_uuid}/acl",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["entries"]) == 1
+    assert body["entries"][0]["user_id"] == SEED_IDS.regular_user
+
+
+def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db: Session):
+    seeded_db.add(
+        ItemACL(
+            item_id=SEED_IDS.laptop,
+            user_id=SEED_IDS.observer_user,
+            permission=ItemPermissionType.AUTO_APPROVED_LOAN,
+        )
+    )
+    seeded_db.flush()
+
+    response = api_client.post(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        json={
+            "user_id": SEED_IDS.observer_user,
+            "permission": ItemPermissionType.AUTO_APPROVED_LOAN.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 400

@@ -64,6 +64,8 @@ class ItemACL(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     permission: Mapped[ItemPermissionType] = mapped_column(Enum(ItemPermissionType))
 
+    user: Mapped[User] = relationship()
+
 
 class ItemAttachment(Base):
     __tablename__ = "item_attachment"

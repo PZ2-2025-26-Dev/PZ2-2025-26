@@ -29,6 +29,7 @@ class ItemPermissionType(Enum):
     EDIT_LOCATION = "edit_location"
     EDIT_DESCRIPTION = "edit_description"
     EDIT_PARAMETERS = "edit_parameters"
+    EDIT_ATTACHMENTS = "edit_attachments"
 
 
 # Pola ItemUpdate wymagające delegacji przez ItemACL (niekrytyczne).

@@ -15,8 +15,8 @@ from src.config import config
 from src.constants import Environment
 from src.database import Base, SessionLocal, engine
 from src.guests import models as guest_models  # noqa: F401
-from src.items.constants import ItemChangeLogType, ItemStatus
-from src.items.models import Item, ItemHistory
+from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
+from src.items.models import Item, ItemACL, ItemHistory
 from src.loans import models as loan_models  # noqa: F401
 from src.locations.constants import LocationType
 from src.locations.models import Location
@@ -60,6 +60,9 @@ class SeedIds:
     laptop_history: int = 50_001
     projector_history: int = 50_002
     adapter_history: int = 50_003
+
+    projector_acl_edit_attachments: int = 60_001
+    projector_acl_auto_approved_loan: int = 60_002
 
 
 SEED_IDS = SeedIds()
@@ -349,6 +352,29 @@ def seed_database(session: Session) -> SeedIds:
             updated_by=updated_by,
             change_type=ItemChangeLogType.CREATED,
             description=description,
+        )
+
+    item_acl_entries = (
+        (
+            SEED_IDS.projector_acl_auto_approved_loan,
+            SEED_IDS.projector,
+            SEED_IDS.observer_user,
+            ItemPermissionType.AUTO_APPROVED_LOAN,
+        ),
+    )
+    for acl_id, item_id, user_id, permission in item_acl_entries:
+        _upsert(
+            session,
+            ItemACL,
+            acl_id,
+            select(ItemACL).where(
+                ItemACL.item_id == item_id,
+                ItemACL.user_id == user_id,
+                ItemACL.permission == permission,
+            ),
+            item_id=item_id,
+            user_id=user_id,
+            permission=permission,
         )
 
     session.flush()
