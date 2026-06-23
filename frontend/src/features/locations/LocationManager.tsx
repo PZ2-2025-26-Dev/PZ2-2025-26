@@ -59,8 +59,7 @@ type HideErrorState = {
 type LocationManagerProps = {
     canManage?: boolean;
     canCreateRemote?: boolean;
-    showOnlyOwnRemote?: boolean;
-    currentUserId?: string | number | null;
+    showOnlyRemote?: boolean;
 };
 
 const compareLocations = (first: Location, second: Location) => {
@@ -124,8 +123,7 @@ const collectDescendantIds = (locationId: number, locations: Location[]) => {
 export default function LocationManager({
     canManage = true,
     canCreateRemote = false,
-    showOnlyOwnRemote = false,
-    currentUserId = null,
+    showOnlyRemote = false,
 }: LocationManagerProps) {
     const { t } = useTranslation();
     const { listLocations, createLocation, updateLocation, deleteLocation, isLoading, error, clearError } = useLocations();
@@ -174,15 +172,13 @@ export default function LocationManager({
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
         if (result.success) {
-            const visibleLocations = showOnlyOwnRemote
-                ? result.locations.filter((location) => (
-                    location.type === 'remote' && location.ownerId === Number(currentUserId)
-                ))
+            const visibleLocations = showOnlyRemote
+                ? result.locations.filter((location) => location.type === 'remote')
                 : result.locations;
 
             setLocations(visibleLocations);
         }
-    }, [currentUserId, listLocations, showOnlyOwnRemote]);
+    }, [listLocations, showOnlyRemote]);
 
     useEffect(() => {
         void refreshLocations();
