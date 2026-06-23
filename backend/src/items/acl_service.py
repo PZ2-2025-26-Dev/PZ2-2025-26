@@ -31,10 +31,7 @@ class ItemACLService:
 
     def list_acl(self, item: Item, requesting_user: User) -> ItemACLListResponse:
         stmt = (
-            select(ItemACL)
-            .where(ItemACL.item_id == item.id)
-            .options(selectinload(ItemACL.user))
-            .order_by(ItemACL.id)
+            select(ItemACL).where(ItemACL.item_id == item.id).options(selectinload(ItemACL.user)).order_by(ItemACL.id)
         )
 
         is_manager = requesting_user.role == UserRole.ADMIN or item.owner_id == requesting_user.id
@@ -74,9 +71,7 @@ class ItemACLService:
         self.db.refresh(acl)
 
         acl = self.db.execute(
-            select(ItemACL)
-            .where(ItemACL.id == acl.id)
-            .options(selectinload(ItemACL.user))
+            select(ItemACL).where(ItemACL.id == acl.id).options(selectinload(ItemACL.user))
         ).scalar_one()
 
         return self._to_response(acl)

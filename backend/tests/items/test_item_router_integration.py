@@ -698,12 +698,7 @@ def test_owner_can_revoke_item_acl(api_client: TestClient, seeded_db: Session):
     )
 
     assert response.status_code == 204
-    assert (
-        seeded_db.execute(
-            select(ItemACL).where(ItemACL.id == acl.id)
-        ).scalar_one_or_none()
-        is None
-    )
+    assert seeded_db.execute(select(ItemACL).where(ItemACL.id == acl.id)).scalar_one_or_none() is None
 
 
 def test_non_owner_cannot_grant_item_acl(api_client: TestClient, seeded_db: Session):

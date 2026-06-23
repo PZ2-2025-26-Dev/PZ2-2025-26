@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.dependencies import DBDep
+from src.items.acl_service import ItemACLService
 from src.items.attachment_service import (
     AttachmentNotFoundError,
     AttachmentStorageError,
@@ -21,7 +22,6 @@ from src.items.dependencies import (
     assert_can_manage_item_attachments,
     assert_can_update_item,
 )
-from src.items.acl_service import ItemACLService
 from src.items.schemas import (
     ItemACLCreate,
     ItemACLListResponse,
