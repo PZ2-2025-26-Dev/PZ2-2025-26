@@ -200,7 +200,14 @@
     "categoryRootOption": "-- Kategoria Główna (Brak nadrzędnej) --",
     "cancelCategory": "Anuluj",
     "saveCategory": "Dodaj",
-    "categoryPlaceholder": "np. Zasilacze"
+    "categoryPlaceholder": "np. Zasilacze",
+    "parametersTitle": "Parametry (opcjonalnie)",
+    "parametersHint": "Dodaj dowolne parametry techniczne jako pary klucz-wartość.",
+    "parameterKey": "Nazwa parametru",
+    "parameterValue": "Wartość",
+    "addParameter": "Dodaj parametr",
+    "removeParameter": "Usuń parametr",
+    "noLocations": "Brak dostępnych lokalizacji. Skontaktuj się z administratorem."
   },
   "itemDetailsModal": {
     "detailsTitle": "Karta Przedmiotu",

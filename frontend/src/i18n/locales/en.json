@@ -200,7 +200,14 @@
     "categoryRootOption": "-- Root Category (None) --",
     "cancelCategory": "Cancel",
     "saveCategory": "Add Category",
-    "categoryPlaceholder": "e.g., Power Supplies"
+    "categoryPlaceholder": "e.g., Power Supplies",
+    "parametersTitle": "Parameters (optional)",
+    "parametersHint": "Add any technical parameters as key-value pairs.",
+    "parameterKey": "Parameter name",
+    "parameterValue": "Value",
+    "addParameter": "Add parameter",
+    "removeParameter": "Remove parameter",
+    "noLocations": "No locations available. Contact an administrator."
   },
   "itemDetailsModal": {
     "detailsTitle": "Asset Details",

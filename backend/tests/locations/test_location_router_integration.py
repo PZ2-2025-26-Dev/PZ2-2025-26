@@ -75,6 +75,15 @@ def test_list_locations_endpoint_returns_paged_locations(api_client: TestClient,
     }
 
 
+def test_list_locations_endpoint_allows_regular_user(api_client: TestClient, seeded_db: Session):
+    response = api_client.get("/locations", params={"page": 1, "limit": 10}, headers=auth_headers(SEED_IDS.regular_user))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["locations"]) == 4
+    assert body["pagination"]["total"] == 4
+
+
 def test_location_details_endpoint_returns_full_path(api_client: TestClient, seeded_db: Session):
     assert seeded_db.get(Location, SEED_IDS.cabinet) is not None
 
