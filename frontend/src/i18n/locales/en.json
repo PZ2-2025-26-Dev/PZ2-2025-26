@@ -57,6 +57,7 @@
     "thStatus": "Status",
     "thOwner": "Supervisor",
     "noResults": "No equipment matches the chosen filter metrics.",
+    "openItemDetails": "Open item details: {{name}}",
     "exportXlsx": "Export (.xlsx)",
     "addAsset": "Add Item",
     "accessDeniedTitle": "Access Restriction",

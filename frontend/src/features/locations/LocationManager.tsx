@@ -299,7 +299,7 @@ export default function LocationManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => {
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100" onClick={() => {
                             // open add dialog with this node as parent
                             const allowedChildTypes = LOCATION_TYPES.filter((type) => LOCATION_PARENT_TYPES[type].includes(node.type));
                             const defaultType = (allowedChildTypes[0] ?? 'room') as LocationType;
@@ -312,10 +312,10 @@ export default function LocationManager() {
                         }} aria-label={t('locationManager.addTitle')}>
                             <Plus />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('locationManager.edit')}>
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('locationManager.edit')}>
                             <Pencil />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => setDeletingLocation(node)} aria-label={t('locationManager.delete')}>
+                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 dark:text-rose-300" onClick={() => setDeletingLocation(node)} aria-label={t('locationManager.delete')}>
                             <Trash2 />
                         </Button>
                         <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">

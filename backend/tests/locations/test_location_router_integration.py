@@ -76,7 +76,9 @@ def test_list_locations_endpoint_returns_paged_locations(api_client: TestClient,
 
 
 def test_list_locations_endpoint_allows_regular_user(api_client: TestClient, seeded_db: Session):
-    response = api_client.get("/locations", params={"page": 1, "limit": 10}, headers=auth_headers(SEED_IDS.regular_user))
+    response = api_client.get(
+        "/locations", params={"page": 1, "limit": 10}, headers=auth_headers(SEED_IDS.regular_user)
+    )
 
     assert response.status_code == 200
     body = response.json()

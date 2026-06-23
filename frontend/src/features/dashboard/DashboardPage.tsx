@@ -297,6 +297,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
+    const openItemDetails = (item: InventoryItem) => {
+        setSelectedItem(item);
+        setIsDetailsModalOpen(true);
+    };
+
     // Menu items with role-based visibility
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
@@ -490,7 +495,20 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                     </TableCell>
                                                 </TableRow>
                                             ) : filteredItems.length > 0 ? filteredItems.map((item) => (
-                                                <TableRow key={item.id} className="cursor-pointer" onClick={() => { setSelectedItem(item); setIsDetailsModalOpen(true); }}>
+                                                <TableRow
+                                                    key={item.id}
+                                                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/70"
+                                                    tabIndex={0}
+                                                    role="button"
+                                                    aria-label={t('dashboard.openItemDetails', { name: item.name })}
+                                                    onClick={() => openItemDetails(item)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            openItemDetails(item);
+                                                        }
+                                                    }}
+                                                >
                                                     <TableCell className="font-mono text-xs text-slate-400">{item.inventory_number ?? item.id}</TableCell>
                                                     <TableCell>
                                                         <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>

@@ -57,6 +57,7 @@
     "thStatus": "Status",
     "thOwner": "Opiekun",
     "noResults": "Brak przyrządów pomiarowych spełniających zadane kryteria filtrowania.",
+    "openItemDetails": "Otwórz szczegóły przedmiotu: {{name}}",
     "exportXlsx": "Eksportuj (.xlsx)",
     "addAsset": "Dodaj przedmiot",
     "accessDeniedTitle": "Brak aktywnego dostępu",
