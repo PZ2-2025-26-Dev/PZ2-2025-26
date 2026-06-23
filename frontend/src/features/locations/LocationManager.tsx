@@ -335,15 +335,15 @@ export default function LocationManager() {
             <Card>
                 <CardHeader className="flex-row items-start justify-between gap-4">
                     <div>
-                        <CardTitle className="text-sm">{t('locationManager.treeTitle')}</CardTitle>
-                        <CardDescription className="text-xs">{t('locationManager.treeDesc')}</CardDescription>
+                        <CardTitle className="text-sm">Lokalizacje</CardTitle>
+                        <CardDescription className="text-xs">Hierarchia lokalizacji</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon-sm" onClick={() => void refreshLocations()} disabled={isLoading} aria-label={t('locationManager.refresh')}>
                             <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                         </Button>
                         <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_LOCATION); setNewLocationType('building'); }}>
-                            <Plus className="mr-2" /> {t('locationManager.addButton')}
+                            <Plus className="mr-2" /> Dodaj lokalizację
                         </Button>
                     </div>
                 </CardHeader>

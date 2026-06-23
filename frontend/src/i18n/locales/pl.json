@@ -63,15 +63,34 @@
     "accessDeniedDesc": "Twoje konto nie posiada uprawnień odczytu. Oczekuj na konfigurację ról przez Administratora.",
     "userReqTitle": "Zarządzanie rejestracjami lokalnymi",
     "userReqDesc": "Konta utworzone poza AGH SSO wymagają Twojej weryfikacji i ręcznego nadania uprawnień.",
-    "approveBtn": "Zatwierdź",
-    "rejectBtn": "Odrzuć",
-    "itemStatuses": {
+     "approveBtn": "Zatwierdź",
+     "rejectBtn": "Odrzuć",
+     "refresh": "Odśwież",
+     "itemStatuses": {
       "available": "Dostępny",
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
       "broken": "Uszkodzony"
     }
+  },
+  "rentalCenter": {
+    "openRequestForm": "Złóż wniosek",
+    "requestTitle": "Nowy wniosek o wypożyczenie",
+    "requestDescription": "Wypełnij formularz, aby złożyć wniosek o wypożyczenie sprzętu",
+    "itemLabel": "Sprzęt",
+    "itemPlaceholder": "Wybierz sprzęt",
+    "selectDueDate": "Planowana data zwrotu",
+    "requestInfo": "Po wysłaniu wniosek trafi do historii wypożyczeń jako oczekujący.",
+    "noAvailableInDialog": "Brak dostępnego sprzętu do wypożyczenia.",
+    "cancel": "Anuluj",
+    "submitting": "Wysyłanie...",
+    "submitRequest": "Złóż wniosek",
+    "myRequests": "Moje wnioski",
+    "requests": "wniosków",
+    "dueDate": "Termin zwrotu",
+    "requested": "Zgłoszono",
+    "noRequests": "Brak wniosków"
   },
   "categoryManager": {
     "title": "Kategorie",
@@ -311,9 +330,27 @@
     "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków",
     "firstNameRequired": "Imię jest wymagane",
     "lastNameRequired": "Nazwisko jest wymagane",
-    "registerErrorTitle": "Rejestracja nie powiodła się",
-    "registerSuccessTitle": "Rejestracja zakończona sukcesem",
-    "registering": "Tworzenie konta...",
-    "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
-  }
-}
+     "registerErrorTitle": "Rejestracja nie powiodła się",
+     "registerSuccessTitle": "Rejestracja zakończona sukcesem",
+     "registering": "Tworzenie konta...",
+     "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Dostępny sprzęt",
+     "itemsAvailable": "elementów dostępnych",
+     "action": "Akcja",
+     "requestBorrow": "Wypożycz",
+     "noAvailable": "Brak dostępnego sprzętu",
+     "myRequests": "Moje wnioski",
+     "requests": "wniosków",
+     "dueDate": "Data zwrotu",
+     "requested": "Złożono",
+     "noRequests": "Brak złożonych wniosków",
+     "requestTitle": "Złóż wniosek o wypożyczenie",
+     "selectDueDate": "Wybierz datę zwrotu",
+     "requestInfo": "Twój wniosek będzie wysłany do opiekuna sprzętu. Opiekun zatwierdzi lub odrzuci żądanie.",
+     "cancel": "Anuluj",
+     "submitting": "Wysyłanie...",
+     "submitRequest": "Złóż wniosek"
+   }
+ }

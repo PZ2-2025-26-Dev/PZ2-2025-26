@@ -63,15 +63,34 @@
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",
     "userReqTitle": "Local Registration Management",
     "userReqDesc": "Accounts created outside of AGH SSO require your verification and manual role assignment.",
-    "approveBtn": "Approve",
-    "rejectBtn": "Reject",
-    "itemStatuses": {
+     "approveBtn": "Approve",
+     "rejectBtn": "Reject",
+     "refresh": "Refresh",
+     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
       "loaned": "Loaned",
       "broken": "Broken"
     }
+  },
+  "rentalCenter": {
+    "openRequestForm": "Submit request",
+    "requestTitle": "New rental request",
+    "requestDescription": "Fill in the form to submit an equipment rental request",
+    "itemLabel": "Equipment",
+    "itemPlaceholder": "Select equipment",
+    "selectDueDate": "Planned return date",
+    "requestInfo": "After submission, the request will appear in the rental history as pending.",
+    "noAvailableInDialog": "No equipment is available for borrowing.",
+    "cancel": "Cancel",
+    "submitting": "Submitting...",
+    "submitRequest": "Submit request",
+    "myRequests": "My requests",
+    "requests": "requests",
+    "dueDate": "Due date",
+    "requested": "Requested",
+    "noRequests": "No requests"
   },
   "categoryManager": {
     "title": "Categories",
@@ -311,9 +330,27 @@
     "passwordTooShort": "Password must be at least 8 characters long.",
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
-    "registerErrorTitle": "Registration failed",
-    "registerSuccessTitle": "Registration successful",
-    "registering": "Creating account...",
-    "emailAlreadyExists": "An account with this email already exists"
-  }
-}
+     "registerErrorTitle": "Registration failed",
+     "registerSuccessTitle": "Registration successful",
+     "registering": "Creating account...",
+     "emailAlreadyExists": "An account with this email already exists"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Available Equipment",
+     "itemsAvailable": "items available",
+     "action": "Action",
+     "requestBorrow": "Borrow",
+     "noAvailable": "No equipment available",
+     "myRequests": "My Requests",
+     "requests": "requests",
+     "dueDate": "Due Date",
+     "requested": "Requested",
+     "noRequests": "No requests submitted",
+     "requestTitle": "Submit Rental Request",
+     "selectDueDate": "Select Due Date",
+     "requestInfo": "Your request will be sent to the equipment owner. The owner will approve or reject the request.",
+     "cancel": "Cancel",
+     "submitting": "Submitting...",
+     "submitRequest": "Submit Request"
+   }
+ }

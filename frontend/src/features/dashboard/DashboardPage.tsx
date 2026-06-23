@@ -39,6 +39,7 @@ import LocationManager from '../locations/LocationManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
+import RentalCenter from '../rental/RentalCenter';
 
 type CategoryOption = { id: number; name: string };
 
@@ -274,16 +275,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 );
             
             case 'loans':
-                return (
-                    <div className="space-y-5">
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.loans')}</h2>
-                        <Card>
-                            <CardContent className="p-6 text-center text-slate-600 dark:text-slate-400">
-                                {t('dashboard.loansPlaceholder')}
-                            </CardContent>
-                        </Card>
-                    </div>
-                );
+                return <RentalCenter user={user} />;
             
             case 'locations':
                 return (
