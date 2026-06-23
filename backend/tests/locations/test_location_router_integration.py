@@ -77,6 +77,7 @@ def test_create_remote_location_endpoint_allows_regular_user(api_client: TestCli
     assert body["name"] == "Domowe laboratorium"
     assert body["type"] == "remote"
     assert body["parent_id"] is None
+    assert body["owner_id"] == SEED_IDS.regular_user
     assert body["address"] == "ul. Testowa 1"
 
 
@@ -159,6 +160,17 @@ def test_update_location_endpoint_updates_database_and_history(api_client: TestC
         )
     ).all()
     assert len(history) == 1
+
+
+def test_update_location_endpoint_blocks_hiding_subtree_with_items(api_client: TestClient, seeded_db: Session):
+    response = api_client.put(
+        f"/locations/{SEED_IDS.room}",
+        json={"is_active": False},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 400
+    assert seeded_db.get(Location, SEED_IDS.room).is_active is True
 
 
 def test_delete_location_endpoint_blocks_when_subtree_contains_items(api_client: TestClient, seeded_db: Session):

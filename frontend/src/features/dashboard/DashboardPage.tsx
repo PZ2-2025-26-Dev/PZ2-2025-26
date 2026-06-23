@@ -563,7 +563,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 ) : (
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                        <LocationManager canManage={false} canCreateRemote={user.role === 'user'} />
+                        <LocationManager
+                            canManage={false}
+                            canCreateRemote={user.role === 'user'}
+                            showOnlyOwnRemote={user.role === 'user'}
+                            currentUserId={user.id}
+                        />
                     </div>
                 );
             

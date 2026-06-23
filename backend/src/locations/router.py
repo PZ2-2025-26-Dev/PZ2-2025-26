@@ -143,13 +143,21 @@ def read_location(location_id: LocationID, db: DBDep) -> LocationDetails:
         },
     },
 )
-def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
+def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep, admin: RequireAdmin) -> LocationDetails:
     try:
-        return LocationService(db).update_location(location_id, data)
+        return LocationService(db).update_location(location_id, data, changed_by=admin.id)
     except InvalidLocationParentError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ErrorResponse(code=status.HTTP_400_BAD_REQUEST, detail="Invalid parent location.").model_dump(),
+        ) from err
+    except LocationHasAssignedItemsError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ErrorResponse(
+                code=status.HTTP_400_BAD_REQUEST,
+                detail="Location cannot be hidden because it or its descendants contain assigned items.",
+            ).model_dump(),
         ) from err
     except LocationNotFoundError as err:
         raise HTTPException(

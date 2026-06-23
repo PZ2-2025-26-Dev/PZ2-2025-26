@@ -52,9 +52,15 @@ type DeleteErrorState = {
     locationName: string;
 };
 
+type HideErrorState = {
+    locationName: string;
+};
+
 type LocationManagerProps = {
     canManage?: boolean;
     canCreateRemote?: boolean;
+    showOnlyOwnRemote?: boolean;
+    currentUserId?: string | number | null;
 };
 
 const compareLocations = (first: Location, second: Location) => {
@@ -115,7 +121,12 @@ const collectDescendantIds = (locationId: number, locations: Location[]) => {
     return descendants;
 };
 
-export default function LocationManager({ canManage = true, canCreateRemote = false }: LocationManagerProps) {
+export default function LocationManager({
+    canManage = true,
+    canCreateRemote = false,
+    showOnlyOwnRemote = false,
+    currentUserId = null,
+}: LocationManagerProps) {
     const { t } = useTranslation();
     const { listLocations, createLocation, updateLocation, deleteLocation, isLoading, error, clearError } = useLocations();
     const {
@@ -138,6 +149,7 @@ export default function LocationManager({ canManage = true, canCreateRemote = fa
     const [editForm, setEditForm] = useState<LocationFormState | null>(null);
     const [deletingLocation, setDeletingLocation] = useState<Location | null>(null);
     const [deleteError, setDeleteError] = useState<DeleteErrorState | null>(null);
+    const [hideError, setHideError] = useState<HideErrorState | null>(null);
     const [expandedLocationIds, setExpandedLocationIds] = useState<Set<number>>(() => new Set());
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
@@ -161,8 +173,16 @@ export default function LocationManager({ canManage = true, canCreateRemote = fa
 
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
-        if (result.success) setLocations(result.locations);
-    }, [listLocations]);
+        if (result.success) {
+            const visibleLocations = showOnlyOwnRemote
+                ? result.locations.filter((location) => (
+                    location.type === 'remote' && location.ownerId === Number(currentUserId)
+                ))
+                : result.locations;
+
+            setLocations(visibleLocations);
+        }
+    }, [currentUserId, listLocations, showOnlyOwnRemote]);
 
     useEffect(() => {
         void refreshLocations();
@@ -226,11 +246,13 @@ export default function LocationManager({ canManage = true, canCreateRemote = fa
             status: location.isActive ? 'active' : 'inactive',
         });
         clearError();
+        setHideError(null);
     };
 
     const closeEditDialog = () => {
         setEditingLocation(null);
         setEditForm(null);
+        setHideError(null);
     };
 
     const handleUpdateLocation = async (event: FormEvent<HTMLFormElement>) => {
@@ -249,6 +271,9 @@ export default function LocationManager({ canManage = true, canCreateRemote = fa
         if (result.success) {
             closeEditDialog();
             await refreshLocations();
+        } else if (editForm.status === 'inactive') {
+            setHideError({ locationName: editingLocation.name });
+            clearError();
         }
     };
 
@@ -575,6 +600,15 @@ export default function LocationManager({ canManage = true, canCreateRemote = fa
                     <DialogHeader>
                         <DialogTitle>{t('locationManager.editTitle')}</DialogTitle>
                     </DialogHeader>
+                    {hideError && (
+                        <Alert variant="destructive">
+                            <AlertCircle />
+                            <AlertTitle>{t('locationManager.hideErrorTitle')}</AlertTitle>
+                            <AlertDescription>
+                                {t('locationManager.hideErrorDesc', { name: hideError.locationName })}
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     {editForm && (
                         <form id="edit-location-form" onSubmit={(event) => void handleUpdateLocation(event)} className="space-y-4">
                             <div className="space-y-2">

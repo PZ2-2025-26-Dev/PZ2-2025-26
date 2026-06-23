@@ -38,6 +38,32 @@ def test_update_location_saves_history(seeded_db):
     assert len(history) == 1
 
 
+def test_update_location_blocks_hiding_subtree_with_items(seeded_db):
+    service = LocationService(seeded_db)
+
+    with pytest.raises(LocationHasAssignedItemsError):
+        service.update_location(SEED_IDS.room, LocationUpdate(is_active=False))
+
+    assert seeded_db.get(Location, SEED_IDS.room).is_active is True
+
+
+def test_update_location_can_hide_empty_location(seeded_db):
+    empty_room = Location(
+        name="Pusta sala do ukrycia",
+        type=LocationType.ROOM,
+        parent_id=SEED_IDS.building,
+        description=None,
+        is_active=True,
+    )
+    seeded_db.add(empty_room)
+    seeded_db.commit()
+
+    hidden = LocationService(seeded_db).update_location(empty_room.id, LocationUpdate(is_active=False))
+
+    assert hidden.is_active is False
+    assert seeded_db.get(Location, empty_room.id).is_active is False
+
+
 def test_delete_location_blocks_when_subtree_contains_items(seeded_db):
     service = LocationService(seeded_db)
 
