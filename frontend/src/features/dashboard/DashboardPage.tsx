@@ -97,17 +97,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [isDarkMode]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
+    const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
 
     useEffect(() => {
         localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
     }, [activeSection]);
 
     useEffect(() => {
-        const restrictedSection = activeSection === 'users' || activeSection === 'locations';
-        if (restrictedSection && !hasPermission(user, PERMISSIONS.SYSTEM_MANAGE)) {
+        if (activeSection === 'users' && !canManageSystem) {
             setActiveSection('dashboard');
         }
-    }, [activeSection, user]);
+    }, [activeSection, canManageSystem]);
 
     const refreshItems = useCallback(async () => {
         const result = await listItems({ limit: 50 });
@@ -311,8 +311,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
+        { id: 'locations', label: canManageSystem ? t('dashboard.locationsAndCategories') : t('dashboard.tabLocations'), icon: <MapPinned className="size-5" /> },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
-        { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
 
@@ -535,19 +535,22 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 return <RentalCenter user={user} />;
             
             case 'locations':
-                return (
-                    <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
+                return canManageSystem ? (
                         <div className="grid gap-6 lg:grid-cols-2">
                             <div>
                                 <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                                <LocationManager />
+                                <LocationManager canManage />
                             </div>
                             <div>
                                 <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabCategories')}</h3>
                                 <CategoryManager />
                             </div>
                         </div>
-                    </RoleGuard>
+                ) : (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
+                        <LocationManager canManage={false} />
+                    </div>
                 );
             
             case 'directory':

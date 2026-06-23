@@ -68,17 +68,10 @@ def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> Lo
             "model": LocationsPaged,
             "description": "Zwrócono stronicowaną listę lokalizacji.",
         },
-        status.HTTP_401_UNAUTHORIZED: {
-            "description": "Brak poprawnego tokena uwierzytelniającego.",
-        },
-        status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
-        },
     },
 )
 def read_locations(
     db: DBDep,
-    _admin: RequireAdmin,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
@@ -102,15 +95,9 @@ def read_locations(
             "model": ErrorResponse,
             "description": "Nie znaleziono lokalizacji.",
         },
-        status.HTTP_401_UNAUTHORIZED: {
-            "description": "Brak poprawnego tokena uwierzytelniającego.",
-        },
-        status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
-        },
     },
 )
-def read_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
+def read_location(location_id: LocationID, db: DBDep) -> LocationDetails:
     try:
         return LocationService(db).get_location(location_id)
     except LocationNotFoundError as err:
