@@ -2,6 +2,8 @@
   "welcome": {
     "faculty": "Faculty of Physics and Applied Computer Science",
     "language": "Language",
+    "switchToEnglish": "Switch to English",
+    "switchToPolish": "Switch to Polish",
     "systemLabel": "A comprehensive system for managing measurement equipment",
     "productName": "WFiIS Equipment",
     "conciseDescription": "Equipment, location and loan records in one place.",
@@ -37,6 +39,7 @@
     "tabUsers": "Users",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
+    "locationsAndCategories": "Locations and Categories",
     "loans": "Rental Center",
     "loansPlaceholder": "Rental center section - here you will be able to submit equipment rental requests",
     "totalAssets": "Total Assets",
@@ -71,10 +74,11 @@
     }
   },
   "categoryManager": {
-    "title": "Category Hierarchy Management",
-    "desc": "Add, edit, and remove equipment categories. The structure supports infinite nesting.",
+    "title": "Categories",
+    "desc": "Hierarchy of equipment categories",
     "addTitle": "Add New Category",
     "addDesc": "Create a root category or assign it to an existing branch.",
+    "addButton": "Add category",
     "nameLabel": "Category Name",
     "namePlaceholder": "e.g., Computers, Monitors, Peripherals",
     "parentLabel": "Parent Category (Optional)",
@@ -104,12 +108,14 @@
     "errorTitle": "Operation failed"
   },
   "locationManager": {
-    "treeTitle": "Location Structure",
+    "treeTitle": "Locations",
+    "treeDesc": "Location hierarchy",
     "emptyTree": "No locations returned by the API.",
     "loading": "Loading locations...",
     "refresh": "Refresh",
     "addTitle": "Add Location",
     "addDesc": "Create a building, room, cabinet, or shelf and optionally assign a parent location.",
+    "addButton": "Add location",
     "nameLabel": "Location Name",
     "namePlaceholder": "e.g., D10, Room 204, Cabinet A",
     "typeLabel": "Location Type",

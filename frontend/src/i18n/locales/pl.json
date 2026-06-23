@@ -2,6 +2,8 @@
   "welcome": {
     "faculty": "Wydział Fizyki i Informatyki Stosowanej",
     "language": "Język",
+    "switchToEnglish": "Przełącz na angielski",
+    "switchToPolish": "Przełącz na polski",
     "systemLabel": "System wewnętrzny",
     "productName": "Aparatura WFiIS",
     "conciseDescription": "Ewidencja sprzętu, lokalizacji i wypożyczeń w jednym miejscu.",
@@ -37,6 +39,7 @@
     "tabUsers": "Użytkownicy",
     "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
+    "locationsAndCategories": "Lokalizacje i Kategorie",
     "loans": "Centrum wypożyczeń",
     "loansPlaceholder": "Sekcja centrum wypożyczeń - tu będzie można składać wnioski o wypożyczenie sprzętu",
     "totalAssets": "Zasoby ogółem",
@@ -71,10 +74,11 @@
     }
   },
   "categoryManager": {
-    "title": "Zarządzanie Hierarchią Kategorii",
-    "desc": "Dodawaj, edytuj i usuwaj kategorie sprzętu. Struktura wspiera nieskończone zagnieżdżenie.",
+    "title": "Kategorie",
+    "desc": "Hierarchia kategorii sprzętu",
     "addTitle": "Dodaj nową kategorię",
     "addDesc": "Utwórz kategorię główną albo przypisz ją do istniejącej gałęzi.",
+    "addButton": "Dodaj kategorię",
     "nameLabel": "Nazwa kategorii",
     "namePlaceholder": "np. Komputery, Monitory, Peryferia",
     "parentLabel": "Kategoria nadrzędna (Opcjonalnie)",
@@ -104,12 +108,14 @@
     "errorTitle": "Nie udało się wykonać operacji"
   },
   "locationManager": {
-    "treeTitle": "Struktura lokalizacji",
+    "treeTitle": "Lokalizacje",
+    "treeDesc": "Hierarchia lokalizacji",
     "emptyTree": "Brak lokalizacji zwróconych przez API.",
     "loading": "Ładowanie lokalizacji...",
     "refresh": "Odśwież",
     "addTitle": "Dodaj lokalizację",
     "addDesc": "Utwórz budynek, salę, szafę albo półkę i wskaż opcjonalnego rodzica.",
+    "addButton": "Dodaj lokalizację",
     "nameLabel": "Nazwa lokalizacji",
     "namePlaceholder": "np. D10, Sala 204, Szafa A",
     "typeLabel": "Typ lokalizacji",

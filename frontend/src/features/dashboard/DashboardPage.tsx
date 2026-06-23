@@ -139,14 +139,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setIsDetailsModalOpen(false);
     };
 
-    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`, { defaultValue: status });
+    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
     // Menu items with role-based visibility
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
-        { id: 'loans', label: t('dashboard.loans', { defaultValue: 'Centrum wypożyczeń' }), icon: <ClipboardList className="size-5" /> },
-        { id: 'locations', label: 'Lokalizacje i Kategorie', icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
+        { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
+        { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
 
@@ -276,10 +276,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             case 'loans':
                 return (
                     <div className="space-y-5">
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.loans', { defaultValue: 'Centrum wypożyczeń' })}</h2>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.loans')}</h2>
                         <Card>
                             <CardContent className="p-6 text-center text-slate-600 dark:text-slate-400">
-                                {t('dashboard.loansPlaceholder', { defaultValue: 'Sekcja centrum wypożyczeń - tu będzie można składać wnioski o wypożyczenie sprzętu' })}
+                                {t('dashboard.loansPlaceholder')}
                             </CardContent>
                         </Card>
                     </div>
@@ -332,7 +332,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             <h1 className="truncate text-xs font-bold uppercase tracking-tight text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h1>
                             <div className="flex items-center gap-1 text-[10px] text-slate-500">
                                 <span className="truncate">{t('dashboard.welcome')}, {user.name}</span>
-                                <Badge variant="secondary" className="hidden text-[9px] sm:inline-flex">{user.role}</Badge>
+                                <Badge variant="secondary" className="hidden text-[9px] sm:inline-flex">{t(`userManager.roles.${user.role}`)}</Badge>
                             </div>
                         </div>
                     </div>
@@ -356,7 +356,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar */}
                 <aside
-                    className={`fixed left-0 top-16 z-30 h-[calc(100vh-64px)] w-64 border-r border-slate-200 bg-white/95 backdrop-blur transition-transform dark:border-slate-800 dark:bg-slate-950/95 lg:relative lg:z-0 lg:translate-x-0 ${
+                    className={`fixed left-0 top-16 z-30 h-[calc(100vh-64px)] w-64 border-r border-slate-200 bg-white/95 backdrop-blur transition-transform dark:border-slate-800 dark:bg-slate-950/95 lg:relative lg:top-0 lg:z-0 lg:translate-x-0 ${
                         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 >
