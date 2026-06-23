@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from src.auth.dependencies import RequireAdmin
 from src.dependencies import DBDep
-from src.locations.dependencies import RequireLocationReader
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
+from src.locations.dependencies import RequireLocationReader
 from src.locations.schemas import (
     LocationCreate,
     LocationDeleteResponse,
