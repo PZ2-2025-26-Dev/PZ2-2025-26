@@ -10,7 +10,6 @@ import {
     Plus,
     Search,
     Sun,
-    Tags,
     Users,
     LayoutDashboard,
     ClipboardList,
@@ -43,7 +42,7 @@ import ItemDetailsModal from './ItemDetailsModal';
 
 type CategoryOption = { id: number; name: string };
 
-type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'categories' | 'users';
+type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'users';
 
 type DashboardPageProps = {
     user: AppUser;
@@ -85,7 +84,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [listItems]);
 
     const refreshCategories = useCallback(async () => {
-        const result = await listCategories({ limit: 100 });
+        const result = await listCategories();
         if (result.success) {
             setCategories(result.categories);
         }
@@ -147,8 +146,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans', { defaultValue: 'Centrum wypożyczeń' }), icon: <ClipboardList className="size-5" /> },
-        { id: 'locations', label: t('dashboard.tabLocations'), icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
-        { id: 'categories', label: t('dashboard.tabCategories'), icon: <Tags className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
+        { id: 'locations', label: 'Lokalizacje i Kategorie', icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
 
@@ -290,14 +288,16 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             case 'locations':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
-                        <LocationManager />
-                    </RoleGuard>
-                );
-            
-            case 'categories':
-                return (
-                    <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
-                        <CategoryManager />
+                        <div className="grid gap-6 lg:grid-cols-2">
+                            <div>
+                                <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
+                                <LocationManager />
+                            </div>
+                            <div>
+                                <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabCategories')}</h3>
+                                <CategoryManager />
+                            </div>
+                        </div>
                     </RoleGuard>
                 );
             
@@ -360,7 +360,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
                 >
-                    <nav className="space-y-2 p-4">
+                    <nav className="flex flex-col gap-2 px-4 py-2">
                         {menuItems.map((item) => {
                             const requiresPermission = item.requiresPermission ? hasPermission(user, item.requiresPermission) : true;
                             

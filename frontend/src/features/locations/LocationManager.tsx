@@ -121,6 +121,7 @@ export default function LocationManager() {
     const [deletingLocation, setDeletingLocation] = useState<Location | null>(null);
     const [deleteError, setDeleteError] = useState<DeleteErrorState | null>(null);
     const [expandedLocationIds, setExpandedLocationIds] = useState<Set<number>>(() => new Set());
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
     const locationTree = useMemo(() => buildLocationTree(locations), [locations]);
     const parentOptions = useMemo(() => getParentOptions(locations, newLocationType), [locations, newLocationType]);
@@ -298,6 +299,19 @@ export default function LocationManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => {
+                            // open add dialog with this node as parent
+                            const allowedChildTypes = LOCATION_TYPES.filter((type) => LOCATION_PARENT_TYPES[type].includes(node.type));
+                            const defaultType = (allowedChildTypes[0] ?? 'room') as LocationType;
+                            setNewLocationType(defaultType);
+                            setSelectedParentId(String(node.id));
+                            setNewLocationName('');
+                            setNewLocationDescription('');
+                            setNewLocationAddress('');
+                            setIsAddDialogOpen(true);
+                        }} aria-label={t('locationManager.addTitle')}>
+                            <Plus />
+                        </Button>
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('locationManager.edit')}>
                             <Pencil />
                         </Button>
@@ -317,13 +331,23 @@ export default function LocationManager() {
     };
 
     return (
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="">
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-sm">{t('locationManager.addTitle')}</CardTitle>
-                    <CardDescription className="text-xs">{t('locationManager.addDesc')}</CardDescription>
+                <CardHeader className="flex-row items-start justify-between gap-4">
+                    <div>
+                        <CardTitle className="text-sm">Lokalizacje</CardTitle>
+                        <CardDescription className="text-xs">Hierarchia lokalizacji</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon-sm" onClick={() => void refreshLocations()} disabled={isLoading} aria-label={t('locationManager.refresh')}>
+                            <RefreshCw className={isLoading ? 'animate-spin' : ''} />
+                        </Button>
+                        <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_LOCATION); setNewLocationType('building'); }}>
+                            <Plus className="mr-2" /> Dodaj lokalizację
+                        </Button>
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent>
                     {error && (
                         <Alert variant="destructive">
                             <AlertCircle />
@@ -333,7 +357,21 @@ export default function LocationManager() {
                         </Alert>
                     )}
 
-                    <form onSubmit={(event) => void handleCreateLocation(event)} className="space-y-4">
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
+                        {locationTree.length > 0
+                            ? locationTree.map((node) => renderLocationNode(node))
+                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('locationManager.loading') : t('locationManager.emptyTree')}</p>}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Add Location dialog (used by top button or node +) */}
+            <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => !open && setIsAddDialogOpen(false)}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>{t('locationManager.addTitle')}</DialogTitle>
+                    </DialogHeader>
+                    <form id="add-location-form" onSubmit={(event) => { void handleCreateLocation(event); setIsAddDialogOpen(false); }} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="new-location-name">{t('locationManager.nameLabel')}</Label>
                             <Input
@@ -345,29 +383,31 @@ export default function LocationManager() {
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>{t('locationManager.typeLabel')}</Label>
-                            <Select value={newLocationType} onValueChange={(type) => setNewLocationType(type as LocationType)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {LOCATION_TYPES.map((type) => (
-                                        <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>{t('locationManager.typeLabel')}</Label>
+                                <Select value={newLocationType} onValueChange={(type: string) => setNewLocationType(type as LocationType)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {LOCATION_TYPES.map((type) => (
+                                            <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                        <div className="space-y-2">
-                            <Label>{t('locationManager.parentLabel')}</Label>
-                            <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={isRootLocationType}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {isRootLocationType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
-                                    {parentOptions.map((location) => (
-                                        <SelectItem key={location.id} value={String(location.id)}>{location.path}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="space-y-2">
+                                <Label>{t('locationManager.parentLabel')}</Label>
+                                <Select value={selectedParentId} onValueChange={setSelectedParentId} disabled={isRootLocationType}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {isRootLocationType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
+                                        {parentOptions.map((location) => (
+                                            <SelectItem key={location.id} value={String(location.id)}>{location.path}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
@@ -391,35 +431,18 @@ export default function LocationManager() {
                                 />
                             </div>
                         )}
-
-                        <Button type="submit" className="w-full" disabled={isLoading || !newLocationName.trim() || (isParentRequired && selectedParentId === ROOT_LOCATION)}>
-                            <Plus />
+                    </form>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{t('locationManager.cancel')}</Button>
+                        <Button type="submit" form="add-location-form" disabled={isLoading || !newLocationName.trim() || (isParentRequired && selectedParentId === ROOT_LOCATION)}>
                             {isLoading ? t('locationManager.saving') : t('locationManager.addBtn')}
                         </Button>
-                    </form>
-                </CardContent>
-            </Card>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-            <Card className="lg:col-span-2">
-                <CardHeader className="flex-row items-start justify-between gap-4">
-                    <div>
-                        <CardTitle className="text-sm">{t('locationManager.treeTitle')}</CardTitle>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => void refreshLocations()} disabled={isLoading}>
-                        <RefreshCw className={isLoading ? 'animate-spin' : ''} />
-                        {t('locationManager.refresh')}
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
-                        {locationTree.length > 0
-                            ? locationTree.map((node) => renderLocationNode(node))
-                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('locationManager.loading') : t('locationManager.emptyTree')}</p>}
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Dialog open={Boolean(editingLocation && editForm)} onOpenChange={(open) => !open && closeEditDialog()}>
+            {/* Edit dialog */}
+                    <Dialog open={Boolean(editingLocation && editForm)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('locationManager.editTitle')}</DialogTitle>
@@ -439,7 +462,7 @@ export default function LocationManager() {
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>{t('locationManager.typeLabel')}</Label>
-                                    <Select value={editForm.type} onValueChange={(type) => setEditForm({ ...editForm, type: type as LocationType })}>
+                                    <Select value={editForm.type} onValueChange={(type: string) => setEditForm({ ...editForm, type: type as LocationType })}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {LOCATION_TYPES.map((type) => (
@@ -451,7 +474,7 @@ export default function LocationManager() {
 
                                 <div className="space-y-2">
                                     <Label>{t('locationManager.statusLabel')}</Label>
-                                    <Select value={editForm.status} onValueChange={(status) => setEditForm({ ...editForm, status: status as LocationFormState['status'] })}>
+                                    <Select value={editForm.status} onValueChange={(status: string) => setEditForm({ ...editForm, status: status as LocationFormState['status'] })}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {LOCATION_STATUSES.map((status) => (
@@ -464,7 +487,7 @@ export default function LocationManager() {
 
                             <div className="space-y-2">
                                 <Label>{t('locationManager.parentLabel')}</Label>
-                                <Select value={editForm.parentId} onValueChange={(parentId) => setEditForm({ ...editForm, parentId })} disabled={isEditingRootLocationType}>
+                                <Select value={editForm.parentId} onValueChange={(parentId: string) => setEditForm({ ...editForm, parentId })} disabled={isEditingRootLocationType}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         {isEditingRootLocationType && <SelectItem value={ROOT_LOCATION}>{t('locationManager.rootLevel')}</SelectItem>}
@@ -506,7 +529,7 @@ export default function LocationManager() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(deletingLocation)} onOpenChange={(open) => !open && setDeletingLocation(null)}>
+            <Dialog open={Boolean(deletingLocation)} onOpenChange={(open: boolean) => !open && setDeletingLocation(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t('locationManager.deleteTitle')}</DialogTitle>
@@ -523,7 +546,7 @@ export default function LocationManager() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(deleteError)} onOpenChange={(open) => !open && setDeleteError(null)}>
+            <Dialog open={Boolean(deleteError)} onOpenChange={(open: boolean) => !open && setDeleteError(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="text-rose-700 dark:text-rose-300">{t('locationManager.deleteErrorTitle')}</DialogTitle>
