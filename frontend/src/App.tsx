@@ -41,12 +41,22 @@ export default function App() {
     const { t } = useTranslation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<AppUser | null>(null);
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme === 'dark') return true;
+        if (storedTheme === 'light') return false;
+
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
     const [authView, setAuthView] = useState<AuthView>('welcome');
     const [loading, setLoading] = useState(true);
     const [appError, setAppError] = useState('');
 
     const currentPath = window.location.pathname;
+
+    useEffect(() => {
+        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    }, [isDarkMode]);
 
     const resetAuth = useCallback(() => {
         localStorage.removeItem('token');

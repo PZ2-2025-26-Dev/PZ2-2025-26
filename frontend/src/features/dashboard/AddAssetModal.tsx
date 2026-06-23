@@ -22,6 +22,7 @@ import { ROLES } from '../auth/permissions';
 import { useInventory } from '../inventory/useInventory';
 import { useLocations } from '../locations/useLocations';
 import { useUsers } from '../users/useUsers';
+import { useCategories, type Category as CategoryType } from './useCategories';
 
 type Category = { id: number; name: string; parentId: number | null };
 type ApiUser = { id: number; firstName: string; lastName: string };
@@ -30,16 +31,6 @@ type LocationOption = { id: number; path: string };
 const getUserName = (user: Pick<ApiUser, 'firstName' | 'lastName'>) =>
     `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
 
-const INITIAL_CATEGORIES: Category[] = [
-    { id: 1, name: 'Aparatura pomiarowa', parentId: null },
-    { id: 2, name: 'Oscyloskopy', parentId: 1 },
-    { id: 3, name: 'Generatory funkcyjne', parentId: 1 },
-    { id: 4, name: 'Aparatura zasilająca', parentId: null },
-    { id: 5, name: 'Zasilacze laboratoryjne', parentId: 4 },
-    { id: 6, name: 'Sprzęt IT', parentId: null },
-    { id: 7, name: 'Laptopy', parentId: 6 },
-    { id: 8, name: 'Akcesoria i optyka', parentId: null },
-];
 
 type AddAssetModalProps = {
     isOpen: boolean;
@@ -53,21 +44,23 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     const { createItem, isLoading, error, clearError } = useInventory();
     const { listUsers } = useUsers();
     const { listLocations } = useLocations();
+    const { listCategories } = useCategories();
 
     const isAdmin = user?.role === ROLES.ADMIN;
 
-    const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [users, setUsers] = useState<ApiUser[]>([]);
     const [locations, setLocations] = useState<LocationOption[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
     const [locationsLoading, setLocationsLoading] = useState(false);
+    const [categoriesLoading, setCategoriesLoading] = useState(false);
     const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryParentId, setNewCategoryParentId] = useState('root');
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        categoryId: String(INITIAL_CATEGORIES[0].id),
+        categoryId: '',
         locationId: '',
         ownerId: '',
     });
@@ -91,13 +84,37 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         setIsCategoryDialogOpen(false);
 
         const defaultOwnerId = isAdmin ? '' : String(user.id ?? '');
-        setFormData({
-            name: '',
-            description: '',
-            categoryId: String(categories[0]?.id ?? ''),
-            locationId: '',
-            ownerId: defaultOwnerId,
-        });
+
+        setCategoriesLoading(true);
+        listCategories()
+            .then((result) => {
+                if (!result.success) {
+                    setCategories([]);
+                    setFormData({
+                        name: '',
+                        description: '',
+                        categoryId: '',
+                        locationId: '',
+                        ownerId: defaultOwnerId,
+                    });
+                    return;
+                }
+
+                const categories = result.categories.map((cat) => ({
+                    id: cat.id,
+                    name: cat.name,
+                    parentId: cat.parentId,
+                }));
+                setCategories(categories);
+                setFormData({
+                    name: '',
+                    description: '',
+                    categoryId: String(categories[0]?.id ?? ''),
+                    locationId: '',
+                    ownerId: defaultOwnerId,
+                });
+            })
+            .finally(() => setCategoriesLoading(false));
 
         setLocationsLoading(true);
         listLocations({ limit: 100 })
@@ -136,7 +153,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                 }
             })
             .finally(() => setUsersLoading(false));
-    }, [isOpen, categories, clearError, isAdmin, user?.id, listUsers, listLocations]);
+    }, [isOpen, clearError, isAdmin, user?.id, listUsers, listLocations, listCategories]);
 
     const handleAddCategory = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -236,26 +253,26 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>{t('addAssetModal.category')} *</Label>
-                                <div className={isAdmin ? 'flex gap-2' : ''}>
-                                    <Select value={formData.categoryId} onValueChange={(categoryId) => setFormData((current) => ({ ...current, categoryId }))}>
-                                        <SelectTrigger className={isAdmin ? undefined : 'w-full'}><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {indentedCategories.map((category) => (
-                                                <SelectItem key={category.id} value={String(category.id)}>
-                                                    {'— '.repeat(category.depth)}{category.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {isAdmin && (
-                                        <Button type="button" variant="outline" size="icon" onClick={() => setIsCategoryDialogOpen(true)} aria-label={t('addAssetModal.addNewCategory')}>
-                                            <Plus />
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
+                        <div className="space-y-2">
+                                 <Label>{t('addAssetModal.category')} *</Label>
+                                 <div className={isAdmin ? 'flex gap-2' : ''}>
+                                     <Select value={formData.categoryId} onValueChange={(categoryId) => setFormData((current) => ({ ...current, categoryId }))} disabled={categoriesLoading}>
+                                         <SelectTrigger className={isAdmin ? undefined : 'w-full'}><SelectValue /></SelectTrigger>
+                                         <SelectContent>
+                                             {indentedCategories.map((category) => (
+                                                 <SelectItem key={category.id} value={String(category.id)}>
+                                                     {'— '.repeat(category.depth)}{category.name}
+                                                 </SelectItem>
+                                             ))}
+                                         </SelectContent>
+                                     </Select>
+                                     {isAdmin && (
+                                         <Button type="button" variant="outline" size="icon" onClick={() => setIsCategoryDialogOpen(true)} aria-label={t('addAssetModal.addNewCategory')} disabled={categoriesLoading}>
+                                             <Plus />
+                                         </Button>
+                                     )}
+                                 </div>
+                             </div>
                             <div className="space-y-2">
                                 <Label>{t('addAssetModal.owner')} *</Label>
                                 {isAdmin ? (
@@ -308,11 +325,11 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                     </form>
 
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>{t('addAssetModal.cancel')}</Button>
-                        <Button type="submit" form="add-asset-form" disabled={isLoading || locationsLoading || locations.length === 0 || (isAdmin && usersLoading)}>
-                            {isLoading ? t('addAssetModal.saving') : t('addAssetModal.save')}
-                        </Button>
-                    </DialogFooter>
+                         <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || categoriesLoading}>{t('addAssetModal.cancel')}</Button>
+                         <Button type="submit" form="add-asset-form" disabled={isLoading || locationsLoading || locations.length === 0 || (isAdmin && usersLoading) || categoriesLoading || categories.length === 0 || !formData.categoryId}>
+                             {isLoading ? t('addAssetModal.saving') : t('addAssetModal.save')}
+                         </Button>
+                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 

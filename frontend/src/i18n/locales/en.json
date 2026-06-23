@@ -2,6 +2,8 @@
   "welcome": {
     "faculty": "Faculty of Physics and Applied Computer Science",
     "language": "Language",
+    "switchToEnglish": "Switch to English",
+    "switchToPolish": "Switch to Polish",
     "systemLabel": "A comprehensive system for managing measurement equipment",
     "productName": "WFiIS Equipment",
     "conciseDescription": "Equipment, location and loan records in one place.",
@@ -32,10 +34,14 @@
     "welcome": "Welcome",
     "role": "Role",
     "logout": "Sign Out",
+    "mainPanel": "Main Dashboard",
     "tabInventory": "Inventory",
     "tabUsers": "Users",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
+    "locationsAndCategories": "Locations and Categories",
+    "loans": "Rental Center",
+    "loansPlaceholder": "Rental center section - here you will be able to submit equipment rental requests",
     "totalAssets": "Total Assets",
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
@@ -57,9 +63,10 @@
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",
     "userReqTitle": "Local Registration Management",
     "userReqDesc": "Accounts created outside of AGH SSO require your verification and manual role assignment.",
-    "approveBtn": "Approve",
-    "rejectBtn": "Reject",
-    "itemStatuses": {
+     "approveBtn": "Approve",
+     "rejectBtn": "Reject",
+     "refresh": "Refresh",
+     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
@@ -67,11 +74,30 @@
       "broken": "Broken"
     }
   },
+  "rentalCenter": {
+    "openRequestForm": "Submit request",
+    "requestTitle": "New rental request",
+    "requestDescription": "Fill in the form to submit an equipment rental request",
+    "itemLabel": "Equipment",
+    "itemPlaceholder": "Select equipment",
+    "selectDueDate": "Planned return date",
+    "requestInfo": "After submission, the request will appear in the rental history as pending.",
+    "noAvailableInDialog": "No equipment is available for borrowing.",
+    "cancel": "Cancel",
+    "submitting": "Submitting...",
+    "submitRequest": "Submit request",
+    "myRequests": "My requests",
+    "requests": "requests",
+    "dueDate": "Due date",
+    "requested": "Requested",
+    "noRequests": "No requests"
+  },
   "categoryManager": {
-    "title": "Category Hierarchy Management",
-    "desc": "Add, edit, and remove equipment categories. The structure supports infinite nesting.",
+    "title": "Categories",
+    "desc": "Hierarchy of equipment categories",
     "addTitle": "Add New Category",
     "addDesc": "Create a root category or assign it to an existing branch.",
+    "addButton": "Add category",
     "nameLabel": "Category Name",
     "namePlaceholder": "e.g., Computers, Monitors, Peripherals",
     "parentLabel": "Parent Category (Optional)",
@@ -101,12 +127,14 @@
     "errorTitle": "Operation failed"
   },
   "locationManager": {
-    "treeTitle": "Location Structure",
+    "treeTitle": "Locations",
+    "treeDesc": "Location hierarchy",
     "emptyTree": "No locations returned by the API.",
     "loading": "Loading locations...",
     "refresh": "Refresh",
     "addTitle": "Add Location",
     "addDesc": "Create a building, room, cabinet, or shelf and optionally assign a parent location.",
+    "addButton": "Add location",
     "nameLabel": "Location Name",
     "namePlaceholder": "e.g., D10, Room 204, Cabinet A",
     "typeLabel": "Location Type",
@@ -302,9 +330,27 @@
     "passwordTooShort": "Password must be at least 8 characters long.",
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
-    "registerErrorTitle": "Registration failed",
-    "registerSuccessTitle": "Registration successful",
-    "registering": "Creating account...",
-    "emailAlreadyExists": "An account with this email already exists"
-  }
-}
+     "registerErrorTitle": "Registration failed",
+     "registerSuccessTitle": "Registration successful",
+     "registering": "Creating account...",
+     "emailAlreadyExists": "An account with this email already exists"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Available Equipment",
+     "itemsAvailable": "items available",
+     "action": "Action",
+     "requestBorrow": "Borrow",
+     "noAvailable": "No equipment available",
+     "myRequests": "My Requests",
+     "requests": "requests",
+     "dueDate": "Due Date",
+     "requested": "Requested",
+     "noRequests": "No requests submitted",
+     "requestTitle": "Submit Rental Request",
+     "selectDueDate": "Select Due Date",
+     "requestInfo": "Your request will be sent to the equipment owner. The owner will approve or reject the request.",
+     "cancel": "Cancel",
+     "submitting": "Submitting...",
+     "submitRequest": "Submit Request"
+   }
+ }

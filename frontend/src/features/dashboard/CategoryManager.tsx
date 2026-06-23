@@ -88,6 +88,7 @@ export default function CategoryManager() {
     const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
     const [replacementCategoryId, setReplacementCategoryId] = useState('');
     const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(() => new Set());
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
     const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
     const parentOptions = useMemo(() => getParentOptions(categories), [categories]);
@@ -252,6 +253,9 @@ export default function CategoryManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
+                            <Plus />
+                        </Button>
                         <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
                             <Pencil />
                         </Button>
@@ -268,13 +272,23 @@ export default function CategoryManager() {
     };
 
     return (
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="">
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-sm">{t('categoryManager.addTitle')}</CardTitle>
-                    <CardDescription className="text-xs">{t('categoryManager.addDesc')}</CardDescription>
+                <CardHeader className="flex-row items-start justify-between gap-4">
+                    <div>
+                        <CardTitle className="text-sm">Kategorie</CardTitle>
+                        <CardDescription className="text-xs">Hierarchia kategorii sprzętu</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon-sm" onClick={() => void refreshCategories()} disabled={isLoading} aria-label={t('categoryManager.refresh')}>
+                            <RefreshCw className={isLoading ? 'animate-spin' : ''} />
+                        </Button>
+                        <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_CATEGORY); setNewCategoryName(''); }}>
+                            <Plus className="mr-2" /> Dodaj kategorię
+                        </Button>
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent>
                     {error && (
                         <Alert variant="destructive">
                             <AlertCircle />
@@ -284,7 +298,21 @@ export default function CategoryManager() {
                         </Alert>
                     )}
 
-                    <form onSubmit={(event) => void handleCreateCategory(event)} className="space-y-4">
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
+                        {categoryTree.length > 0
+                            ? categoryTree.map((node) => renderCategoryNode(node))
+                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('categoryManager.loading') : t('categoryManager.emptyTree')}</p>}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Add Category dialog */}
+            <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => !open && setIsAddDialogOpen(false)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>{t('categoryManager.addTitle')}</DialogTitle>
+                    </DialogHeader>
+                    <form id="add-category-form" onSubmit={(event) => { void handleCreateCategory(event); setIsAddDialogOpen(false); }} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="new-category-name">{t('categoryManager.nameLabel')}</Label>
                             <Input
@@ -298,7 +326,7 @@ export default function CategoryManager() {
 
                         <div className="space-y-2">
                             <Label>{t('categoryManager.parentLabel')}</Label>
-                            <Select value={selectedParentId} onValueChange={setSelectedParentId}>
+                                <Select value={selectedParentId} onValueChange={(v: string) => setSelectedParentId(v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={ROOT_CATEGORY}>{t('categoryManager.rootLevel')}</SelectItem>
@@ -308,35 +336,17 @@ export default function CategoryManager() {
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        <Button type="submit" className="w-full" disabled={isLoading || !newCategoryName.trim()}>
-                            <Plus />
+                    </form>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>{t('categoryManager.cancel')}</Button>
+                        <Button type="submit" form="add-category-form" disabled={isLoading || !newCategoryName.trim()}>
                             {isLoading ? t('categoryManager.saving') : t('categoryManager.addBtn')}
                         </Button>
-                    </form>
-                </CardContent>
-            </Card>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-            <Card className="lg:col-span-2">
-                <CardHeader className="flex-row items-start justify-between gap-4">
-                    <div>
-                        <CardTitle className="text-sm">{t('categoryManager.treeTitle')}</CardTitle>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => void refreshCategories()} disabled={isLoading}>
-                        <RefreshCw className={isLoading ? 'animate-spin' : ''} />
-                        {t('categoryManager.refresh')}
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
-                        {categoryTree.length > 0
-                            ? categoryTree.map((node) => renderCategoryNode(node))
-                            : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('categoryManager.loading') : t('categoryManager.emptyTree')}</p>}
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Dialog open={Boolean(editingCategory && editForm)} onOpenChange={(open) => !open && closeEditDialog()}>
+            <Dialog open={Boolean(editingCategory && editForm)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('categoryManager.editTitle')}</DialogTitle>
@@ -355,7 +365,7 @@ export default function CategoryManager() {
 
                             <div className="space-y-2">
                                 <Label>{t('categoryManager.parentLabel')}</Label>
-                                <Select value={editForm.parentId} onValueChange={(parentId) => setEditForm({ ...editForm, parentId })}>
+                                <Select value={editForm.parentId} onValueChange={(parentId: string) => setEditForm({ ...editForm, parentId })}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value={ROOT_CATEGORY}>{t('categoryManager.rootLevel')}</SelectItem>
@@ -376,7 +386,7 @@ export default function CategoryManager() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(deletingCategory)} onOpenChange={(open) => !open && setDeletingCategory(null)}>
+            <Dialog open={Boolean(deletingCategory)} onOpenChange={(open: boolean) => !open && setDeletingCategory(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t('categoryManager.deleteTitle')}</DialogTitle>

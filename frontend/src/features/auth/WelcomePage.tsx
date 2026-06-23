@@ -15,6 +15,7 @@ export default function WelcomePage({
     setIsDarkMode,
 }: WelcomePageProps) {
     const { t, i18n } = useTranslation();
+    const currentLanguage = i18n.language?.toUpperCase() === 'PL' ? 'PL' : 'EN';
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
@@ -26,16 +27,16 @@ export default function WelcomePage({
                 <section className="relative isolate h-full min-h-0 overflow-hidden rounded-[1.75rem] bg-emerald-900 px-7 py-8 text-white shadow-xl shadow-emerald-950/15 dark:bg-[#052e2b] sm:rounded-[2rem] sm:px-10 sm:py-10 lg:px-14 lg:py-12">
                     <button
                         type="button"
-                        onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'PL' : 'EN')}
+                        onClick={() => void i18n.changeLanguage(currentLanguage === 'PL' ? 'EN' : 'PL')}
                         className="absolute -right-10 -top-10 z-20 flex h-44 w-44 items-end justify-start rounded-full bg-amber-400 pb-10 pl-10 text-left text-amber-950 shadow-lg transition hover:bg-amber-300 focus:outline-none focus:ring-4 focus:ring-white/70 sm:-right-8 sm:-top-12 sm:h-56 sm:w-56 sm:pb-14 sm:pl-14"
-                        aria-label={i18n.language === 'PL' ? 'Switch to English' : 'Przełącz na polski'}
+                        aria-label={currentLanguage === 'PL' ? t('welcome.switchToEnglish') : t('welcome.switchToPolish')}
                     >
                         <span className="flex flex-col">
                             <span className="text-[9px] font-bold uppercase tracking-[0.18em] opacity-70">
                                 {t('welcome.language')}
                             </span>
                             <span className="text-lg font-black tracking-tight sm:text-xl">
-                                {i18n.language === 'PL' ? 'EN' : 'PL'}
+                                {currentLanguage === 'PL' ? 'EN' : 'PL'}
                             </span>
                         </span>
                     </button>
