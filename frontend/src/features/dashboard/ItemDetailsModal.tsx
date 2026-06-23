@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import {
+    AlertCircle,
     CalendarDays,
     ChevronDown,
     ChevronUp,
@@ -27,6 +28,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
 import { useItemAttachments } from '../inventory/useItemAttachments';
 import { ITEM_HISTORY_PAGE_LIMIT, useInventory } from '../inventory/useInventory';
+import { useLocations } from '../locations/useLocations';
 
 type HistoryEntry = {
     id: string | number;
@@ -54,6 +56,7 @@ type ItemDetailsModalProps = {
         borrower?: string | null,
         dueDate?: string | null,
     ) => void;
+    onLocationChanged?: (itemId: string | number, location: { id: number; path: string }) => void;
 };
 
 export default function ItemDetailsModal({
@@ -62,9 +65,22 @@ export default function ItemDetailsModal({
     item,
     user,
     onUpdateStatus,
+    onLocationChanged,
 }: ItemDetailsModalProps) {
     const { t, i18n } = useTranslation();
-    const { getItemHistory, isLoading: isHistoryLoading } = useInventory();
+    const {
+        getItemHistory,
+        updateItem,
+        isLoading: isInventoryLoading,
+        error: itemUpdateError,
+        clearError: clearItemUpdateError,
+    } = useInventory();
+    const {
+        createLocation,
+        isLoading: isLocationCreating,
+        error: locationCreateError,
+        clearError: clearLocationCreateError,
+    } = useLocations();
     const [returnDate, setReturnDate] = useState('');
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -73,6 +89,10 @@ export default function ItemDetailsModal({
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [historyPagination, setHistoryPagination] = useState<HistoryPagination | null>(null);
     const [historyError, setHistoryError] = useState<string | null>(null);
+    const [isRemoteLocationDialogOpen, setIsRemoteLocationDialogOpen] = useState(false);
+    const [remoteLocationName, setRemoteLocationName] = useState('');
+    const [remoteLocationAddress, setRemoteLocationAddress] = useState('');
+    const [remoteLocationDescription, setRemoteLocationDescription] = useState('');
 
     const itemId = item?.id ?? null;
     const {
@@ -98,6 +118,12 @@ export default function ItemDetailsModal({
         setHistory([]);
         setHistoryPagination(null);
         setHistoryError(null);
+        setIsRemoteLocationDialogOpen(false);
+        setRemoteLocationName('');
+        setRemoteLocationAddress('');
+        setRemoteLocationDescription('');
+        clearLocationCreateError();
+        clearItemUpdateError();
     }, [isOpen, item]);
 
     if (!item) return null;
@@ -141,6 +167,39 @@ export default function ItemDetailsModal({
     const historyTotal = historyPagination?.total ?? history.length;
     const hasMoreHistory = history.length < historyTotal;
 
+    const handleCreateRemoteLocation = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!remoteLocationName.trim()) return;
+
+        clearLocationCreateError();
+        clearItemUpdateError();
+
+        const createdLocation = await createLocation({
+            name: remoteLocationName.trim(),
+            type: 'remote',
+            parentId: null,
+            description: remoteLocationDescription.trim() || null,
+            address: remoteLocationAddress.trim() || null,
+        });
+
+        if (!createdLocation.success || !createdLocation.location) return;
+
+        const updatedItem = await updateItem(item.id, {
+            locationId: createdLocation.location.id,
+        });
+
+        if (!updatedItem.success) return;
+
+        onLocationChanged?.(item.id, {
+            id: createdLocation.location.id,
+            path: createdLocation.location.path,
+        });
+        setIsRemoteLocationDialogOpen(false);
+        setRemoteLocationName('');
+        setRemoteLocationAddress('');
+        setRemoteLocationDescription('');
+    };
+
     const renderDescription = (text: string) => {
         const urlPattern = /(https?:\/\/[^\s]+)/g;
         return text.split(urlPattern).map((part, index) => part.match(/^https?:\/\//) ? (
@@ -163,6 +222,29 @@ export default function ItemDetailsModal({
                         <CardDescription>{t('itemDetailsModal.ownerDesc')}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+                            <div className="mb-3 flex items-start gap-3">
+                                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                                    <MapPin className="size-4" />
+                                </div>
+                                <div>
+                                    <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.remoteLocationTitle')}</strong>
+                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.remoteLocationDesc')}</p>
+                                </div>
+                            </div>
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                    clearLocationCreateError();
+                                    clearItemUpdateError();
+                                    setIsRemoteLocationDialogOpen(true);
+                                }}
+                            >
+                                <MapPin className="size-4" />
+                                {t('itemDetailsModal.remoteLocationAction')}
+                            </Button>
+                        </div>
                         {item.status === 'oczekuje akceptacji' && (
                             <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
                                 <strong className="text-sm text-amber-700 dark:text-amber-300">{t('itemDetailsModal.reqPending')}</strong>
@@ -229,7 +311,11 @@ export default function ItemDetailsModal({
         );
     };
 
+    const remoteLocationError = locationCreateError || itemUpdateError;
+    const isRemoteLocationSaving = isLocationCreating || isInventoryLoading;
+
     return (
+        <>
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
                 <DialogHeader>
@@ -310,7 +396,7 @@ export default function ItemDetailsModal({
                                                 <AlertDescription>{historyError}</AlertDescription>
                                             </Alert>
                                         )}
-                                        {isHistoryLoading && history.length === 0 ? (
+                                        {isInventoryLoading && history.length === 0 ? (
                                             <p className="text-xs text-slate-500">{t('itemDetailsModal.historyLoading')}</p>
                                         ) : history.length > 0 ? (
                                             <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
@@ -339,10 +425,10 @@ export default function ItemDetailsModal({
                                                 variant="outline"
                                                 size="sm"
                                                 className="w-full"
-                                                disabled={isHistoryLoading}
+                                                disabled={isInventoryLoading}
                                                 onClick={() => loadHistory((historyPagination?.page ?? 0) + 1)}
                                             >
-                                                {isHistoryLoading
+                                                {isInventoryLoading
                                                     ? t('itemDetailsModal.historyLoading')
                                                     : t('itemDetailsModal.historyShowMore')}
                                             </Button>
@@ -370,5 +456,67 @@ export default function ItemDetailsModal({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        <Dialog open={isRemoteLocationDialogOpen} onOpenChange={setIsRemoteLocationDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{t('itemDetailsModal.remoteLocationTitle')}</DialogTitle>
+                </DialogHeader>
+                <form className="space-y-4" onSubmit={handleCreateRemoteLocation}>
+                    {remoteLocationError && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="size-4" />
+                            <AlertTitle>{t('itemDetailsModal.remoteLocationErrorTitle')}</AlertTitle>
+                            <AlertDescription>{remoteLocationError}</AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="space-y-2">
+                        <Label htmlFor="remote-location-name">{t('itemDetailsModal.remoteLocationName')}</Label>
+                        <Input
+                            id="remote-location-name"
+                            value={remoteLocationName}
+                            onChange={(event) => setRemoteLocationName(event.target.value)}
+                            placeholder={t('itemDetailsModal.remoteLocationNamePlaceholder')}
+                            maxLength={255}
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="remote-location-address">{t('itemDetailsModal.remoteLocationAddress')}</Label>
+                        <Input
+                            id="remote-location-address"
+                            value={remoteLocationAddress}
+                            onChange={(event) => setRemoteLocationAddress(event.target.value)}
+                            placeholder={t('itemDetailsModal.remoteLocationAddressPlaceholder')}
+                            maxLength={255}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="remote-location-description">{t('itemDetailsModal.remoteLocationDescription')}</Label>
+                        <Textarea
+                            id="remote-location-description"
+                            value={remoteLocationDescription}
+                            onChange={(event) => setRemoteLocationDescription(event.target.value)}
+                            placeholder={t('itemDetailsModal.remoteLocationDescriptionPlaceholder')}
+                            maxLength={500}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setIsRemoteLocationDialogOpen(false)}
+                        >
+                            {t('itemDetailsModal.cancel')}
+                        </Button>
+                        <Button type="submit" disabled={isRemoteLocationSaving || !remoteLocationName.trim()}>
+                            {isRemoteLocationSaving
+                                ? t('itemDetailsModal.remoteLocationSaving')
+                                : t('itemDetailsModal.remoteLocationSubmit')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

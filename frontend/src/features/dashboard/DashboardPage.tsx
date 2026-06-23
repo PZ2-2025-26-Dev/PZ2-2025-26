@@ -304,6 +304,20 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setIsQrScannerOpen(false);
     };
 
+    const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
+        setItems((current) => current.map((item) => item.id === itemId ? {
+            ...item,
+            location: location.path,
+            locationId: location.id,
+        } : item));
+        setSelectedItem((current) => current?.id === itemId ? {
+            ...current,
+            location: location.path,
+            locationId: location.id,
+        } : current);
+        void refreshItems();
+    };
+
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
     // Menu items with role-based visibility
@@ -549,7 +563,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 ) : (
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                        <LocationManager canManage={false} />
+                        <LocationManager canManage={false} canCreateRemote={user.role === 'user'} />
                     </div>
                 );
             
@@ -689,7 +703,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onSave={() => refreshItems()}
                 user={user}
             />
-            <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
+            <ItemDetailsModal
+                isOpen={isDetailsModalOpen}
+                onClose={() => setIsDetailsModalOpen(false)}
+                item={selectedItem}
+                user={user}
+                onUpdateStatus={handleUpdateItemStatus}
+                onLocationChanged={handleItemLocationChanged}
+            />
             <QrScannerDialog
                 isOpen={isQrScannerOpen}
                 onClose={() => setIsQrScannerOpen(false)}

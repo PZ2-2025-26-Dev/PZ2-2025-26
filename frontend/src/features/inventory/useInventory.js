@@ -148,6 +148,39 @@ export const useInventory = () => {
         }
     }, []);
 
+    const updateItem = useCallback(async (itemId, itemData) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), cleanParams({
+                name: itemData.name,
+                category_id: itemData.categoryId,
+                location_id: itemData.locationId,
+                owner_id: itemData.ownerId,
+                description: itemData.description,
+                parameters: itemData.parameters,
+            }));
+
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     /**
      * Pobiera historię zmian przedmiotu
      * @param {number|string} itemId - ID przedmiotu
@@ -265,6 +298,7 @@ export const useInventory = () => {
 
     return {
         createItem,
+        updateItem,
         listItems,
         isLoading,
         error,
