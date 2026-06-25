@@ -17,6 +17,7 @@ import {
     X,
     ChevronDown,
     ChevronRight,
+    UserPlus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -38,6 +39,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
 import UserManager from '../users/UserManager';
+import UserDirectory from '../guests/UserDirectory';
 import LocationManager from '../locations/LocationManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
@@ -51,12 +53,12 @@ type CategoryOption = {
     path: string;
 };
 
-type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'users';
+type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
 function isMenuSection(value: string | null): value is MenuSection {
-    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'users';
+    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
 }
 
 type DashboardPageProps = {
@@ -302,6 +304,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
+        { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
@@ -536,6 +539,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     </RoleGuard>
                 );
             
+            case 'directory':
+                return (
+                    <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
+                        <UserDirectory user={user} />
+                    </RoleGuard>
+                );
+
             case 'users':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>

@@ -15,7 +15,7 @@ class Loan(Base):
     item_id: Mapped[int] = mapped_column(ForeignKey("item.id", ondelete="RESTRICT"), index=True)
 
     user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"), index=True)
-    guest_id: Mapped[int | None] = mapped_column(ForeignKey("guest.id", ondelete="RESTRICT"), index=True)
+    guest_id: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"), index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime)
 

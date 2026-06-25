@@ -40,6 +40,14 @@ def get_or_create_google_user(
                     "message": "UserAccount exists but User is missing",
                 },
             )
+        if user.role == UserRole.GUEST:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": ErrorCode.FORBIDDEN,
+                    "message": "Konta gości nie mogą się logować.",
+                },
+            )
         return user
 
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
@@ -80,6 +88,14 @@ def register_user(
     existing_user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
     if existing_user:
+        if existing_user.role == UserRole.GUEST:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": ErrorCode.FORBIDDEN,
+                    "message": "Konta gości nie mogą się rejestrować.",
+                },
+            )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -127,6 +143,15 @@ def login_user(
             detail={
                 "code": ErrorCode.INVALID_CREDENTIALS,
                 "message": "Nieprawidłowy email lub hasło.",
+            },
+        )
+
+    if user.role == UserRole.GUEST:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": ErrorCode.FORBIDDEN,
+                "message": "Konta gości nie mogą się logować.",
             },
         )
 
