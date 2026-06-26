@@ -3,6 +3,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from src.config import config
 from src.constants import Environment
@@ -16,10 +17,18 @@ def test_database_schema() -> Iterator[None]:
     if config.env == Environment.PROD:
         raise RuntimeError("Integration tests cannot recreate the schema when PZ_ENV=prod.")
 
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+
     yield
-    Base.metadata.drop_all(bind=engine)
+
+    with engine.begin() as conn:
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+        Base.metadata.drop_all(bind=engine)
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
 
 
 @pytest.fixture()

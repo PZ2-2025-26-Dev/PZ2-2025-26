@@ -69,14 +69,13 @@ class ItemSearch(BaseModel):
     status: ItemStatus | None = None
 
     borrower_id: UserID | None = None
-    search: SearchStr | None = None  
+    search: SearchStr | None = None
 
     sort_by: ItemSortField = "name"
     sort_order: SortOrder = "asc"
 
     page: Annotated[int, Field(ge=1)] = 1
     limit: Annotated[int, Field(ge=1, le=100)] = 20
-    
 
 
 class ItemSearchResponse(BaseModel):

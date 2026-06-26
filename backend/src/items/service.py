@@ -3,12 +3,10 @@ from uuid import UUID, uuid7
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from src.categories.models import Category
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
-from src.categories.models import Category
-from src.locations.models import Location
-from src.users.models import User
 from src.items.schemas import (
     ItemCategory,
     ItemCreate,
@@ -26,6 +24,8 @@ from src.items.schemas import (
     ItemUpdate,
     ItemUpdateResponse,
 )
+from src.locations.models import Location
+from src.users.models import User
 from src.utils import now
 
 
@@ -212,20 +212,14 @@ class ItemService:
             )
         print("uuidddddd")
         print(data)
-            
+
         if data.uuid:
             stmt = stmt.where(Item.uuid == data.uuid)
         if data.name:
-            stmt = stmt.where(
-                func.lower(Item.name).like(f"%{data.name.lower()}%")
-            )
+            stmt = stmt.where(func.lower(Item.name).like(f"%{data.name.lower()}%"))
 
         if data.description:
-            stmt = stmt.where(
-                func.lower(func.coalesce(Item.description, "")).like(
-                    f"%{data.description.lower()}%"
-                )
-            )
+            stmt = stmt.where(func.lower(func.coalesce(Item.description, "")).like(f"%{data.description.lower()}%"))
 
         if data.category_id:
             stmt = stmt.where(Item.category_id == data.category_id)
@@ -275,10 +269,11 @@ class ItemService:
 
         sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        if data.sort_order == "desc":
-            stmt = stmt.order_by(sort_column.desc())
-        else:
-            stmt = stmt.order_by(sort_column.asc())
+        stmt = (
+            stmt.order_by(sort_column.desc())
+            if data.sort_order == "desc"
+            else stmt.order_by(sort_column.asc())
+        )
 
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
@@ -295,15 +290,21 @@ class ItemService:
                 category=ItemCategory(
                     id=item.category.id,
                     name=item.category.name,
-                ) if item.category else None,  # Zabezpieczenie przed None
+                )
+                if item.category
+                else None,  # Zabezpieczenie przed None
                 location=ItemLocation(
                     id=item.location.id,
                     path=build_location_path(item.location),
-                ) if item.location else None,  # Zabezpieczenie przed None
+                )
+                if item.location
+                else None,  # Zabezpieczenie przed None
                 owner=ItemOwner(
                     id=item.owner.id,
                     name=self._owner_display_name(item.owner),
-                ) if item.owner else None,  # Zabezpieczenie przed None
+                )
+                if item.owner
+                else None,  # Zabezpieczenie przed None
                 description=item.description,
             )
             for item in results
@@ -317,7 +318,7 @@ class ItemService:
                 total=total,
             ),
         )
-    
+
     def get_item_history(self, item_id: UUID) -> ItemHistoryGetResponse:
         item = self._get_item_by_uuid(item_id)
 
