@@ -14,7 +14,6 @@ from src.categories.models import Category
 from src.config import config
 from src.constants import Environment
 from src.database import Base, SessionLocal, engine
-from src.guests import models as guest_models  # noqa: F401
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory
 from src.loans import models as loan_models  # noqa: F401
@@ -60,6 +59,8 @@ class SeedIds:
     laptop_history: int = 50_001
     projector_history: int = 50_002
     adapter_history: int = 50_003
+
+    guest_user: int = 60_001
 
 
 SEED_IDS = SeedIds()
@@ -350,6 +351,22 @@ def seed_database(session: Session) -> SeedIds:
             change_type=ItemChangeLogType.CREATED,
             description=description,
         )
+
+    _upsert(
+        session,
+        User,
+        SEED_IDS.guest_user,
+        select(User).where(
+            User.role == UserRole.GUEST,
+            User.first_name == "Grzegorz",
+            User.last_name == "Gość",
+        ),
+        email="guest.seed@example.com",
+        first_name="Grzegorz",
+        last_name="Gość",
+        role=UserRole.GUEST,
+        status=UserStatus.ACTIVE,
+    )
 
     session.flush()
     return SEED_IDS

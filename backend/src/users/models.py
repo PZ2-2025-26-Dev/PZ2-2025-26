@@ -19,7 +19,7 @@ class User(Base):
 
     last_name: Mapped[str | None] = mapped_column(String(LAST_NAME_MAX_LENGTH))
 
-    email: Mapped[str] = mapped_column(
+    email: Mapped[str | None] = mapped_column(
         String(EMAIL_MAX_LENGTH),
         unique=True,
     )

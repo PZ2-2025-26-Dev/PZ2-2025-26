@@ -37,6 +37,7 @@
     "mainPanel": "Main Dashboard",
     "tabInventory": "Inventory",
     "tabUsers": "Users",
+    "tabDirectory": "People directory",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
     "locationsAndCategories": "Locations and Categories",
@@ -279,7 +280,8 @@
     "roles": {
       "admin": "Administrator",
       "user": "User",
-      "observer": "Observer"
+      "observer": "Observer",
+      "guest": "Guest"
     },
     "statuses": {
       "active": "Active",
@@ -352,5 +354,28 @@
      "cancel": "Cancel",
      "submitting": "Submitting...",
      "submitRequest": "Submit Request"
+   },
+   "guests": {
+     "title": "Users and guests directory",
+     "desc": "Browse people in the system and add guest accounts for lending.",
+     "tabList": "List",
+     "tabCreate": "New guest",
+     "search": "Search",
+     "searchPlaceholder": "First name, last name or email...",
+     "addTitle": "Add guest",
+     "firstName": "First name",
+     "lastName": "Last name",
+     "email": "Email",
+     "emailOptional": "Optional",
+     "actions": "Actions",
+     "edit": "Edit",
+     "editDesc": "Update guest account details.",
+     "delete": "Delete",
+     "deleteConfirm": "Are you sure you want to delete guest {{name}}?",
+     "cancel": "Cancel",
+     "save": "Save",
+     "saving": "Saving...",
+     "noResults": "No results match the criteria.",
+     "readOnly": "Read only"
    }
  }

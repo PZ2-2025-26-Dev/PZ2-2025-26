@@ -37,6 +37,7 @@
     "mainPanel": "Panel główny",
     "tabInventory": "Inwentarz",
     "tabUsers": "Użytkownicy",
+    "tabDirectory": "Katalog osób",
     "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
     "locationsAndCategories": "Lokalizacje i Kategorie",
@@ -279,7 +280,8 @@
     "roles": {
       "admin": "Administrator",
       "user": "Użytkownik",
-      "observer": "Obserwator"
+      "observer": "Obserwator",
+      "guest": "Gość"
     },
     "statuses": {
       "active": "Aktywny",
@@ -352,5 +354,28 @@
      "cancel": "Anuluj",
      "submitting": "Wysyłanie...",
      "submitRequest": "Złóż wniosek"
+   },
+   "guests": {
+     "title": "Katalog użytkowników i gości",
+     "desc": "Przeglądaj osoby w systemie oraz dodawaj konta gości do wypożyczeń.",
+     "tabList": "Lista",
+     "tabCreate": "Nowy gość",
+     "search": "Szukaj",
+     "searchPlaceholder": "Imię, nazwisko lub e-mail...",
+     "addTitle": "Dodaj gościa",
+     "firstName": "Imię",
+     "lastName": "Nazwisko",
+     "email": "E-mail",
+     "emailOptional": "Opcjonalnie",
+     "actions": "Akcje",
+     "edit": "Edytuj",
+     "editDesc": "Zaktualizuj dane konta gościa.",
+     "delete": "Usuń",
+     "deleteConfirm": "Czy na pewno usunąć gościa {{name}}?",
+     "cancel": "Anuluj",
+     "save": "Zapisz",
+     "saving": "Zapisywanie...",
+     "noResults": "Brak wyników spełniających kryteria.",
+     "readOnly": "Tylko podgląd"
    }
  }

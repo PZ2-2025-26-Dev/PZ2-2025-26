@@ -48,5 +48,6 @@ select = [
 
 [tool.pytest]
 markers = [
-    "integration: integration tests that require a running database"
+    "integration: integration tests that require a running database",
+    "unit: fast unit tests without external services",
 ]
