@@ -37,5 +37,9 @@ export const ENDPOINTS = {
         BROWSE: '/users/browse',
         GUESTS: '/users/guests',
         DETAILS: (id) => `/users/${id}`,
+    },
+    EXPORT: {
+        BASE: '/exports',
+        ITEMS_XLSX: '/exports/items/xlsx',
     }
 };

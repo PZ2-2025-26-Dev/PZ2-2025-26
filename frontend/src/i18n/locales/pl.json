@@ -64,15 +64,76 @@
     "accessDeniedDesc": "Twoje konto nie posiada uprawnień odczytu. Oczekuj na konfigurację ról przez Administratora.",
     "userReqTitle": "Zarządzanie rejestracjami lokalnymi",
     "userReqDesc": "Konta utworzone poza AGH SSO wymagają Twojej weryfikacji i ręcznego nadania uprawnień.",
-     "approveBtn": "Zatwierdź",
-     "rejectBtn": "Odrzuć",
-     "refresh": "Odśwież",
-     "itemStatuses": {
+    "approveBtn": "Zatwierdź",
+    "rejectBtn": "Odrzuć",
+    "refresh": "Odśwież",
+    "itemStatuses": {
       "available": "Dostępny",
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
       "broken": "Uszkodzony"
+    },
+    "filters":{
+      "advancedFilters": "Zawansowane filtrowanie",
+      "ads":"wedsa"
+    }
+  },
+  "inventoryFilters": {
+    "searchPlaceholder": "Szukaj po nazwie, opisie, ID...",
+
+    "labels": {
+      "advancedFilters": "Filtry zaawansowane"
+    },
+
+    "sections": {
+      "deviceData": "Dane urządzenia",
+      "locationTree": "Drzewo lokalizacji",
+      "users": "Użytkownicy"
+    },
+
+    "fields": {
+      "deviceId": "ID urządzenia",
+      "deviceName": "Nazwa urządzenia",
+      "category": "Kategoria",
+      "status": "Status",
+      "location": "Lokalizacja",
+      "owner": "Właściciel (Assigned Owner)",
+      "borrower": "Wypożyczający (Current Borrower)"
+    },
+
+    "placeholders": {
+      "category": "Wybierz kategorię",
+      "status": "Wszystkie statusy",
+      "location": "Wybierz lokalizację",
+      "owner": "np. Dr. Kowalski",
+      "borrower": "np. Zieliński"
+    },
+
+    "options": {
+      "allCategories": "Wszystkie kategorie",
+      "allStatuses": "Wszystkie statusy",
+      "allLocations": "Wszystkie lokalizacje",
+      "allOwners": "Wszyscy właściciele",
+      "allBorrowers": "Wszyscy wypożyczający"
+    },
+
+    "status": {
+      "available": "Dostępny",
+      "reserved": "Zarezerwowany",
+      "loaned": "Wypożyczony",
+      "pendingApproval": "Oczekuje",
+      "broken": "Uszkodzony"
+    },
+
+    "buttons": {
+      "addParam": "Dodaj kryterium parametru"
+    },
+
+    "parameters": {
+      "title": "Parametry techniczne",
+      "keyPlaceholder": "Nazwa parametru (np. Producent)",
+      "valuePlaceholder": "Wartość (np. Rigol)"
     }
   },
   "rentalCenter": {

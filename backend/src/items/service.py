@@ -1,11 +1,14 @@
 from uuid import UUID, uuid7
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
+from src.categories.models import Category
+from src.locations.models import Location
+from src.users.models import User
 from src.items.schemas import (
     ItemCategory,
     ItemCreate,
@@ -195,38 +198,94 @@ class ItemService:
         return ItemDeleteResponse(deleted=True)
 
     def search_items(self, data: ItemSearch) -> ItemsPaged:
-        stmt = select(Item).options(
+        # 1. Tworzymy bazowe zapytanie TYLKO z filtrami (bez ładowania relacji i stronicowania)
+        stmt = select(Item)
+
+        if data.search:
+            q = f"%{data.search.lower()}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(Item.name).like(q),
+                    func.lower(func.coalesce(Item.description, "")).like(q),
+                    func.lower(func.coalesce(Item.oldID, "")).like(q),
+                )
+            )
+        print("uuidddddd")
+        print(data)
+            
+        if data.uuid:
+            stmt = stmt.where(Item.uuid == data.uuid)
+        if data.name:
+            stmt = stmt.where(
+                func.lower(Item.name).like(f"%{data.name.lower()}%")
+            )
+
+        if data.description:
+            stmt = stmt.where(
+                func.lower(func.coalesce(Item.description, "")).like(
+                    f"%{data.description.lower()}%"
+                )
+            )
+
+        if data.category_id:
+            stmt = stmt.where(Item.category_id == data.category_id)
+
+        if data.location_id:
+            stmt = stmt.where(Item.location_id == data.location_id)
+
+        if data.owner_id:
+            stmt = stmt.where(Item.owner_id == data.owner_id)
+
+        if data.borrower_id:
+            stmt = stmt.where(Item.borrower_id == data.borrower_id)
+
+        if data.status:
+            stmt = stmt.where(Item.status == data.status)
+
+        # 2. Obliczamy TOTAL na "czystym" zapytaniu z filtrami (działa bezbłędnie)
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = self.db.execute(count_stmt).scalar_one()
+
+        # 3. Dopiero teraz do zapytania o dane dorzucamy sortowanie, stronicowanie i ładowanie relacji
+        stmt = stmt.options(
             selectinload(Item.category),
             selectinload(Item.location),
             selectinload(Item.owner),
         )
 
-        if data.owner_id is not None:
-            stmt = stmt.where(Item.owner_id == data.owner_id)
+        sort_field_map = {
+            "id": Item.id,
+            "name": Item.name,
+            "status": Item.status,
+            "category": Category.name,
+            "location": Location.name,
+            "owner": User.last_name,
+        }
 
-        if data.category_id is not None:
-            stmt = stmt.where(Item.category_id == data.category_id)
+        sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        if data.location_id is not None:
-            stmt = stmt.where(Item.location_id == data.location_id)
+        if data.sort_by == "category":
+            stmt = stmt.join(Item.category)
 
-        if data.status is not None:
-            stmt = stmt.where(Item.status == data.status)
+        elif data.sort_by == "location":
+            stmt = stmt.join(Item.location)
 
-        if data.name is not None:
-            stmt = stmt.where(Item.name.ilike(f"%{data.name}%"))
+        elif data.sort_by == "owner":
+            stmt = stmt.join(Item.owner)
 
-        if data.description is not None:
-            stmt = stmt.where(Item.description.ilike(f"%{data.description}%"))
+        sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = self.db.execute(count_stmt).scalar_one()
+        if data.sort_order == "desc":
+            stmt = stmt.order_by(sort_column.desc())
+        else:
+            stmt = stmt.order_by(sort_column.asc())
 
-        stmt = stmt.order_by(Item.id)
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
 
         results = self.db.execute(stmt).scalars().all()
+
+        # 4. Mapowanie obiektów na schemy wyjściowe (bez zmian)
         items = [
             ItemSearchResponse(
                 id=item.uuid,
@@ -236,22 +295,29 @@ class ItemService:
                 category=ItemCategory(
                     id=item.category.id,
                     name=item.category.name,
-                ),
+                ) if item.category else None,  # Zabezpieczenie przed None
                 location=ItemLocation(
                     id=item.location.id,
                     path=build_location_path(item.location),
-                ),
+                ) if item.location else None,  # Zabezpieczenie przed None
                 owner=ItemOwner(
                     id=item.owner.id,
                     name=self._owner_display_name(item.owner),
-                ),
+                ) if item.owner else None,  # Zabezpieczenie przed None
                 description=item.description,
             )
             for item in results
         ]
-        pagination = ItemPagination(page=data.page, limit=data.limit, total=total)
-        return ItemsPaged(items=items, pagination=pagination)
 
+        return ItemsPaged(
+            items=items,
+            pagination=ItemPagination(
+                page=data.page,
+                limit=data.limit,
+                total=total,
+            ),
+        )
+    
     def get_item_history(self, item_id: UUID) -> ItemHistoryGetResponse:
         item = self._get_item_by_uuid(item_id)
 

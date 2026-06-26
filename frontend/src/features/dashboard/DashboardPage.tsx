@@ -18,6 +18,9 @@ import {
     ChevronDown,
     ChevronRight,
     UserPlus,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -28,7 +31,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -38,6 +40,7 @@ import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
+import { useExport } from '@/features/exports/useExport';
 import UserManager from '../users/UserManager';
 import UserDirectory from '../guests/UserDirectory';
 import LocationManager from '../locations/LocationManager';
@@ -45,6 +48,9 @@ import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
+import InventoryFilters, { InventoryFiltersState } from '../inventory/InventoryFilters';
+import { useUsers } from '../users/useUsers';
+import { useLocations } from '../locations/useLocations';
 
 type CategoryOption = {
     id: number;
@@ -70,25 +76,72 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, isLoading, error, clearError } = useInventory();
+    const { listItems, error, clearError } = useInventory();
     const { listCategories } = useCategories();
+    const { exportItemsXlsx } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
-    const [totalCount, setTotalCount] = useState(0);
+    const [total, setTotal] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Dodane brakujące stany dla filtrów (pobierane docelowo z API)
+    const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
+    const [users, setUsers] = useState<Array<{ id: number; name: string }>>([]);
+    const { listUsers } = useUsers();
+    const { listLocations } = useLocations();
+
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [categoryFilter, setCategoryFilter] = useState('all');
-    const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+    
+    const [filters, setFilters] = useState<InventoryFiltersState>({
+        uuid: '',
+        name: '',
+        description: '',
+        status: '',
+        categoryId: '',
+        locationId: '',
+        ownerId: '',
+        borrowerId: '',
+        search: '',
+        sort_by: 'name',
+        sort_order: 'asc',
+        page: 1,
+        limit: 15,
+        parameters: undefined,
+    });
+
+    const [stats, setStats] = useState({
+        total: 0,
+        loaned: 0,
+        pending: 0,
+        broken: 0,
+    });
+
     const [activeSection, setActiveSection] = useState<MenuSection>(() => {
         const storedSection = localStorage.getItem(DASHBOARD_ACTIVE_SECTION_KEY);
         return isMenuSection(storedSection) ? storedSection : 'dashboard';
     });
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    type SortField = "id" | "name" | "category" | "location" | "status" | "owner";
+
+    const columns: Array<{
+        label: React.ReactNode;
+        field?: SortField;
+        sortable?: boolean;
+    }> = [
+        { label: "ID", field: "id", sortable: true },
+        { label: t('dashboard.thName'), field: "name", sortable: true },
+        { label: t('dashboard.tabCategories'), field: "category", sortable: true },
+        { label: t('dashboard.tabLocations'), field: "location", sortable: true },
+        { label: t('dashboard.thStatus'), field: "status", sortable: true },
+        { label: t('addAssetModal.owner'), field: "owner", sortable: true },
+    ];
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
@@ -108,12 +161,26 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [activeSection, user]);
 
     const refreshItems = useCallback(async () => {
-        const result = await listItems({ limit: 50 });
+        setIsLoading(true);
+        console.log(filters)
+        const result = await listItems({ ...filters, limit: 50 });
         if (result.success) {
             setItems(result.items);
-            setTotalCount(result.total);
+            setTotal(result.total);
+            
+            // Wyliczenie statystyk na żywo z pobranych przedmiotów
+            const computedStats = { total: result.total, loaned: 0, pending: 0, broken: 0 };
+                result.items.forEach((item: InventoryItem) => {
+                    if (item.status === 'loaned') computedStats.loaned++;
+                    else if (item.status === 'pending_approval') computedStats.pending++;
+                    else if (item.status === 'broken') computedStats.broken++;
+                });
+            setStats(computedStats);
+            console.log(result)
         }
-    }, [listItems]);
+
+        setIsLoading(false);
+    }, [listItems, filters]);
 
     const refreshCategories = useCallback(async () => {
         const result = await listCategories();
@@ -127,402 +194,218 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         }
     }, [listCategories]);
 
+    const refreshUsers = useCallback(async () => {
+        const result = await listUsers({ status: 'active', limit: 100 });
+
+        if (result.success) {
+            setUsers(
+                result.users.map(u => ({
+                    id: u.id,
+                    name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
+                }))
+            );
+        }
+    }, [listUsers]);
+
+    const refreshLocations = useCallback(async () => {
+        const result = await listLocations();
+
+        if (result.success) {
+            setLocations(result.locations);
+        }
+    }, [listLocations]);
+
     useEffect(() => {
         if (!canViewList) return;
+
         refreshItems();
         refreshCategories();
-    }, [canViewList, refreshItems, refreshCategories]);
+        refreshUsers();
+        refreshLocations();
+    }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations, filters]);
 
-    const categoryTree = useMemo(() => {
-        const emptyResult = {
-            rows: [] as Array<{ id: number; name: string; depth: number; count: number }>,
-            totalCount: 0,
-            descendantCategoryNamesById: new Map<number, Set<string>>(),
-            childrenByParent: new Map<number | null, CategoryOption[]>(),
-        };
+    const handleSort = (field: SortField) => {
+        setFilters(prev => {
+            const isSameField = prev.sort_by === field;
+            const nextOrder = isSameField && prev.sort_order === "asc" ? "desc" : "asc";
 
-        if (!canViewList) return emptyResult;
-
-        const query = searchQuery.toLowerCase();
-        const baseFilteredItems = items.filter((item) => {
-            const matchesSearch = !query || [
-                item.name,
-                String(item.id),
-                item.inventory_number,
-                item.description,
-                item.category,
-                item.location,
-                item.owner,
-            ].some((value) => value?.toLowerCase().includes(query));
-
-            const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-            return matchesSearch && matchesStatus;
+            return {
+                ...prev,
+                sort_by: field,
+                sort_order: nextOrder,
+                page: 1,
+            };
         });
-
-        const categoryById = new Map(categories.map((category) => [category.id, category]));
-        const childrenByParent = new Map<number | null, CategoryOption[]>();
-
-        categories.forEach((category) => {
-            const parentKey = category.parentId !== null && categoryById.has(category.parentId)
-                ? category.parentId
-                : null;
-            const siblings = childrenByParent.get(parentKey) ?? [];
-            siblings.push(category);
-            childrenByParent.set(parentKey, siblings);
-        });
-
-        childrenByParent.forEach((siblings) => {
-            siblings.sort((left, right) => left.name.localeCompare(right.name));
-        });
-
-        const categoryIdsByName = new Map<string, number[]>();
-        categories.forEach((category) => {
-            const ids = categoryIdsByName.get(category.name) ?? [];
-            ids.push(category.id);
-            categoryIdsByName.set(category.name, ids);
-        });
-
-        const directCountById = new Map<number, number>();
-        baseFilteredItems.forEach((item) => {
-            const matchingIds = categoryIdsByName.get(item.category) ?? [];
-            matchingIds.forEach((categoryId) => {
-                directCountById.set(categoryId, (directCountById.get(categoryId) ?? 0) + 1);
-            });
-        });
-
-        const subtreeCountById = new Map<number, number>();
-        const descendantCategoryNamesById = new Map<number, Set<string>>();
-
-        const computeSubtree = (category: CategoryOption): number => {
-            const children = childrenByParent.get(category.id) ?? [];
-            const descendantNames = new Set<string>([category.name]);
-            let total = directCountById.get(category.id) ?? 0;
-
-            children.forEach((child) => {
-                total += computeSubtree(child);
-                const childNames = descendantCategoryNamesById.get(child.id) ?? new Set<string>();
-                childNames.forEach((name) => descendantNames.add(name));
-            });
-
-            subtreeCountById.set(category.id, total);
-            descendantCategoryNamesById.set(category.id, descendantNames);
-            return total;
-        };
-
-        const roots = categories
-            .filter((category) => category.parentId === null || !categoryById.has(category.parentId))
-            .sort((left, right) => left.name.localeCompare(right.name));
-
-        roots.forEach((root) => {
-            computeSubtree(root);
-        });
-
-        const rows: Array<{ id: number; name: string; depth: number; count: number }> = [];
-
-        const appendRows = (category: CategoryOption, depth: number) => {
-            const count = subtreeCountById.get(category.id) ?? 0;
-            if (count <= 0) return;
-
-            rows.push({ id: category.id, name: category.name, depth, count });
-            (childrenByParent.get(category.id) ?? []).forEach((child) => appendRows(child, depth + 1));
-        };
-
-        roots.forEach((root) => appendRows(root, 0));
-
-        return {
-            rows,
-            totalCount: baseFilteredItems.length,
-            descendantCategoryNamesById,
-            childrenByParent,
-        };
-    }, [canViewList, categories, items, searchQuery, statusFilter]);
-
-    const selectedTreeCategoryId = useMemo(() => {
-        if (!categoryFilter.startsWith('tree:')) return null;
-        const parsedId = Number(categoryFilter.slice(5));
-        return Number.isFinite(parsedId) ? parsedId : null;
-    }, [categoryFilter]);
-
-    const filteredItems = useMemo(() => {
-        if (!canViewList) return [];
-
-        return items.filter((item) => {
-            const query = searchQuery.toLowerCase();
-            const matchesSearch = !query || [
-                item.name,
-                String(item.id),
-                item.inventory_number,
-                item.description,
-                item.category,
-                item.location,
-                item.owner,
-            ].some((value) => value?.toLowerCase().includes(query));
-
-            const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-
-            let matchesCategory = true;
-            if (categoryFilter !== 'all') {
-                if (selectedTreeCategoryId === null) {
-                    matchesCategory = item.category === categoryFilter;
-                } else {
-                    const allowedCategoryNames = categoryTree.descendantCategoryNamesById.get(selectedTreeCategoryId);
-                    matchesCategory = allowedCategoryNames?.has(item.category) ?? false;
-                }
-            }
-
-            return matchesSearch && matchesStatus && matchesCategory;
-        });
-    }, [canViewList, items, searchQuery, statusFilter, categoryFilter, selectedTreeCategoryId, categoryTree.descendantCategoryNamesById]);
-
-    const stats = useMemo(() => ({
-        total: totalCount,
-        borrowed: items.filter((item) => item.status === 'loaned').length,
-        pending: items.filter((item) => item.status === 'pending_approval').length,
-        damaged: items.filter((item) => item.status === 'broken').length,
-    }), [items, totalCount]);
-
-    const handleUpdateItemStatus = (
-        itemId: string | number,
-        newStatus: string,
-        clearBorrower = false,
-        newBorrower: string | null = null,
-        newDueDate: string | null = null,
-    ) => {
-        setItems((current) => current.map((item) => item.id === itemId ? {
-            ...item,
-            status: newStatus,
-            borrower: newBorrower ?? (clearBorrower ? null : item.borrower),
-            dueDate: newDueDate ?? (clearBorrower ? null : item.dueDate),
-        } : item));
-        setIsDetailsModalOpen(false);
     };
 
-    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
+    const renderSortIcon = (field: SortField ) => {
+        if (filters.sort_by !== field) return <ArrowUpDown className="ml-2 h-4 w-4 inline opacity-40" />;
+        return filters.sort_order === "asc" 
+            ? <ArrowUp className="ml-2 h-4 w-4 inline text-primary" />
+            : <ArrowDown className="ml-2 h-4 w-4 inline text-primary" />;
+    };
 
-    // Menu items with role-based visibility
-    const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
+
+
+    const handleExportXlsx = useCallback(async () => {
+        await exportItemsXlsx({
+            search: filters.search || searchQuery,
+            status: filters.status,
+            category: filters.categoryId,
+        });
+    }, [exportItemsXlsx, searchQuery, filters]);
+
+    const menuItems = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
+    
     ];
 
     const renderContent = () => {
         switch (activeSection) {
             case 'dashboard':
                 return (
-                    <div className="space-y-5">
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.mainPanel')}</h2>
-                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <div className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                             <StatCard title={t('dashboard.totalAssets')} value={stats.total} icon={Box} />
-                            <StatCard title={t('dashboard.borrowedAssets')} value={stats.borrowed} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
+                            <StatCard title={t('dashboard.borrowedAssets')} value={stats.loaned} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
                             <StatCard title={t('dashboard.pendingApprovals')} value={stats.pending} icon={Users} className="text-amber-600 dark:text-amber-400" />
-                            <StatCard title={t('dashboard.damagedAssets')} value={stats.damaged} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
+                            <StatCard title={t('dashboard.damagedAssets')} value={stats.broken} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
                         </div>
+                        {error && (
+                            <Alert variant="destructive">
+                                <AlertTriangle />
+                                <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                <AlertDescription className="flex items-center justify-between gap-3">
+                                    <span>{error}</span>
+                                    <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </div>
                 );
-            
             case 'inventory':
                 return (
-                    <div className="space-y-5">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.tabInventory')}</h2>
-                            <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
-                                <Button size="sm" onClick={() => setIsAddModalOpen(true)}><Plus className="size-4" />{t('dashboard.addAsset')}</Button>
-                            </RoleGuard>
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center gap-4 bg-card p-4 rounded-lg border shadow-sm">
+                            <div className="flex gap-2 items-center">
+                                <Search className="size-4 text-slate-400" />
+                                <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="max-w-xs" />
+                            </div>
+                            <div className="flex gap-2">
+                                <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
+                                    <Button size="sm" onClick={() => setIsAddModalOpen(true)}>
+                                        <Plus className="mr-2 size-4" /> {t('dashboard.addAsset')}
+                                    </Button>
+                                </RoleGuard>
+                                <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
+                                    <Button variant="secondary" size="sm" onClick={handleExportXlsx}>
+                                        <Download className="mr-2 size-4" /> {t('dashboard.exportXlsx')}
+                                    </Button>
+                                </RoleGuard>
+                            </div>
                         </div>
 
-                        <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                            <Card className="h-fit">
-                                <CardContent className="space-y-2 p-4">
-                                    <div className="pb-1 text-sm font-semibold text-slate-900 dark:text-white">{t('dashboard.filterCategory')}</div>
-                                    <button
-                                        onClick={() => setCategoryFilter('all')}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                                            categoryFilter === 'all'
-                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
-                                        }`}
-                                    >
-                                        <span>{t('dashboard.all')}</span>
-                                        <Badge variant="secondary" className="text-[10px]">{categoryTree.totalCount}</Badge>
-                                    </button>
+                        <InventoryFilters
+                            filters={filters}
+                            onChange={setFilters}
+                            categories={categories}
+                            locations={locations}
+                            users={users}
+                        />
 
-                                    {(() => {
-                                        const getCategoryCount = (categoryId: number) => 
-                                            categoryTree.rows.find((c) => c.id === categoryId)?.count ?? 0;
-                                        
-                                        const renderCategoryNode = (categoryId: number | null, depth = 0): React.ReactNode => {
-                                            const children = categoryTree.childrenByParent?.get(categoryId) ?? [];
-                                            
-                                            return children.map((category) => {
-                                                const isExpanded = expandedCategories.has(category.id);
-                                                const hasChildren = (categoryTree.childrenByParent?.get(category.id) ?? []).length > 0;
-                                                const count = getCategoryCount(category.id);
-                                                
-                                                return (
-                                                    <Collapsible
-                                                        key={category.id}
-                                                        open={isExpanded}
-                                                        onOpenChange={() => {
-                                                            setExpandedCategories((current) => {
-                                                                const next = new Set(current);
-                                                                if (next.has(category.id)) {
-                                                                    next.delete(category.id);
-                                                                } else {
-                                                                    next.add(category.id);
-                                                                }
-                                                                return next;
-                                                            });
-                                                        }}
-                                                        style={{ marginLeft: depth * 12 }}
-                                                    >
-                                                        <button
-                                                            onClick={() => setCategoryFilter(`tree:${category.id}`)}
-                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                                                                categoryFilter === `tree:${category.id}`
-                                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                                                                    : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
-                                                            }`}
-                                                        >
-                                                            <div className="flex flex-1 items-center gap-2">
-                                                                {hasChildren ? (
-                                                                    <CollapsibleTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon-sm"
-                                                                            className="-ml-2"
-                                                                        >
-                                                                            {isExpanded ? (
-                                                                                <ChevronDown className="size-4" />
-                                                                            ) : (
-                                                                                <ChevronRight className="size-4" />
-                                                                            )}
-                                                                        </Button>
-                                                                    </CollapsibleTrigger>
-                                                                ) : (
-                                                                    <span className="block size-7 shrink-0" />
-                                                                )}
-                                                                <span className="truncate pr-2">{category.name}</span>
-                                                            </div>
-                                                            <Badge variant="outline" className="text-[10px]">{count}</Badge>
-                                                        </button>
-
-                                                        {hasChildren && (
-                                                            <CollapsibleContent className="space-y-0">
-                                                                {renderCategoryNode(category.id, depth + 1)}
-                                                            </CollapsibleContent>
-                                                        )}
-                                                    </Collapsible>
-                                                );
-                                            });
-                                        };
-                                        
-                                        return renderCategoryNode(null);
-                                    })()}
-
-                                    {categoryTree.rows.length === 0 && (
-                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-400 dark:border-slate-800">
-                                            {t('dashboard.noResults')}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            <div className="space-y-4">
-                                {error && (
-                                    <Alert variant="destructive">
-                                        <AlertTriangle />
-                                        <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                                        <AlertDescription className="flex items-center justify-between gap-3">
-                                            <span>{error}</span>
-                                            <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
-
-                                <Card>
-                                    <CardContent className="space-y-4 p-4">
-                                        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-                                            <div className="relative max-w-md flex-1">
-                                                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                                                <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                                                    <Button variant="secondary" size="sm"><Download />{t('dashboard.exportXlsx')}</Button>
-                                                </RoleGuard>
-                                            </div>
-                                        </div>
-                                        <div className="grid gap-3 border-t border-slate-100 pt-4 dark:border-slate-800 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="status-filter">{t('dashboard.filterStatus')}</Label>
-                                                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                                    <SelectTrigger id="status-filter"><SelectValue placeholder={t('dashboard.all')} /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="all">{t('dashboard.all')}</SelectItem>
-                                                        {ITEM_STATUSES.map((status) => (
-                                                            <SelectItem key={status} value={status}>{getStatusLabel(status)}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="overflow-hidden">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
-                                                <TableHead>{t('dashboard.thId')}</TableHead>
-                                                <TableHead>{t('dashboard.thName')}</TableHead>
-                                                <TableHead>{t('dashboard.thCategory')}</TableHead>
-                                                <TableHead>{t('dashboard.thLocation')}</TableHead>
-                                                <TableHead>{t('dashboard.thStatus')}</TableHead>
-                                                <TableHead>{t('dashboard.thOwner')}</TableHead>
+                        <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
+                                        {columns.map(col => (
+                                            <TableHead
+                                                key={String(col.field)}
+                                                className={col.sortable ? "cursor-pointer select-none" : ""}
+                                                onClick={() => col.sortable && col.field && handleSort(col.field)}
+                                            >
+                                                {col.label}
+                                                {col.sortable && col.field && renderSortIcon(col.field)}
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="py-10 text-center text-slate-400">
+                                                {t('common.loading')}
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : items.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="py-10 text-center text-slate-400">
+                                                Brak przedmiotów spełniających wybrane kryteria filtrowania.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        items.map((item) => (
+                                            <TableRow 
+                                                key={item.id} 
+                                                className="cursor-pointer hover:bg-muted/50"
+                                                onClick={() => {
+                                                    setSelectedItem(item);
+                                                    setIsDetailsModalOpen(true);
+                                                }}
+                                            >
+                                                <TableCell className="font-mono text-xs max-w-[120px] truncate">{item.id}</TableCell>
+                                                <TableCell>
+                                                    <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                                                    {item.description && (
+                                                        <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{item.category}</TableCell>
+                                                <TableCell>{item.location}</TableCell>
+                                                <TableCell><StatusBadge status={t(`dashboard.itemStatuses.${item.status}`)} /></TableCell>
+                                                <TableCell>{item.owner}</TableCell>
                                             </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {isLoading && filteredItems.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={6} className="py-10 text-center text-slate-400">
-                                                        {t('userManager.loading')}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ) : filteredItems.length > 0 ? filteredItems.map((item) => (
-                                                <TableRow key={item.id} className="cursor-pointer" onClick={() => { setSelectedItem(item); setIsDetailsModalOpen(true); }}>
-                                                    <TableCell className="font-mono text-xs text-slate-400">{item.inventory_number ?? item.id}</TableCell>
-                                                    <TableCell>
-                                                        <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
-                                                        {item.description && (
-                                                            <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-slate-600 dark:text-slate-400">{item.category}</TableCell>
-                                                    <TableCell className="max-w-[220px] whitespace-normal text-slate-600 dark:text-slate-400">{item.location}</TableCell>
-                                                    <TableCell>
-                                                        <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
-                                                        {item.borrower && <div className="mt-1 text-[9px] text-slate-400">{item.borrower} ({item.dueDate})</div>}
-                                                    </TableCell>
-                                                    <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
-                                                </TableRow>
-                                            )) : (
-                                                <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </Card>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Paginacja */}
+                        <div className="flex items-center justify-between space-x-2 py-4">
+                            <div className="text-sm text-muted-foreground">
+                                Pokazywane {items.length} z {total} przedmiotów
+                            </div>
+                            <div className="flex space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
+                                    disabled={filters.page === 1 || isLoading}
+                                >
+                                    {t('common.previous')}
+                                </Button>
+                                <div className="flex items-center justify-center text-sm font-medium px-2">
+                                    {t('common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
+                                    disabled={items.length < (filters.limit || 15) || isLoading}
+                                >
+                                    {t('common.next')}
+                                </Button>
                             </div>
                         </div>
                     </div>
                 );
-            
             case 'loans':
                 return <RentalCenter user={user} />;
-            
             case 'locations':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
@@ -552,7 +435,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <UserManager onPendingCountChange={setPendingUserCount} />
                     </RoleGuard>
                 );
-            
             default:
                 return null;
         }
@@ -587,11 +469,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <Button variant="ghost" size="sm" onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL')}>
                             {i18n.language === 'PL' ? 'EN' : 'PL'}
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
-                            {isDarkMode ? <Sun /> : <Moon />}
+                        <Button variant="ghost" size="icon" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
+                            {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
                         </Button>
                         <Button variant="destructive" size="sm" onClick={onLogout}>
-                            <LogOut />
+                            <LogOut className="size-4 mr-1" />
                             <span className="hidden sm:inline">{t('dashboard.logout')}</span>
                         </Button>
                     </div>
@@ -606,15 +488,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     }`}
                 >
                     <nav className="flex flex-col gap-1 overflow-y-auto px-2 py-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="w-full"
-                            aria-label="Przełącz menu boczne"
-                        >
-                            <Menu className="size-5" />
-                        </Button>
                         {menuItems.map((item) => {
                             const requiresPermission = item.requiresPermission ? hasPermission(user, item.requiresPermission) : true;
                             
@@ -672,10 +545,16 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             <AddAssetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                onSave={() => refreshItems()}
+                onSave={refreshItems}
                 user={user}
             />
-            <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
+            <ItemDetailsModal 
+                isOpen={isDetailsModalOpen} 
+                onClose={() => setIsDetailsModalOpen(false)} 
+                item={selectedItem} 
+                user={user} 
+                onUpdateStatus={handleUpdateItemStatus} 
+            />
         </div>
     );
 }
