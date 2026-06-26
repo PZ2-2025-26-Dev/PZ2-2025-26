@@ -245,7 +245,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             : <ArrowDown className="ml-2 h-4 w-4 inline text-primary" />;
     };
 
-
+    const handleUpdateItemStatus = () => {
+        refreshItems();
+    };
 
     const handleExportXlsx = useCallback(async () => {
         await exportItemsXlsx({
