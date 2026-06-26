@@ -200,7 +200,45 @@ export const useInventory = () => {
             setIsLoading(false);
         }
     }, []);
-    
+
+    /**
+     * Aktualizuje dane przedmiotu poprzez PATCH /items/{id}
+     * @param {string|number} itemId
+     * @param {Object} updates
+     * @returns {Promise<{success: boolean, data?: Object, error?: string, statusCode?: number}>}
+     */
+    const updateItem = useCallback(async (itemId, updates) => {
+        setIsLoading(true);
+        setError(null);
+
+        const payload = {};
+        if (updates.name !== undefined) payload.name = updates.name;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.locationId !== undefined) payload.location_id = updates.locationId;
+        if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
+        if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
+        if (updates.parameters !== undefined) payload.parameters = updates.parameters;
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -277,6 +315,7 @@ export const useInventory = () => {
     return {
         createItem,
         listItems,
+        updateItem,
         isLoading,
         error,
         clearError,

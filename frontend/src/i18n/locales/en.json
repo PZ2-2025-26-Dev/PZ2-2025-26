@@ -243,7 +243,38 @@
     "uploadFiles": "Upload files",
     "noAttachments": "No attachments",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Delete"
+    "deleteAttachment": "Delete",
+    "editName": "Edit name",
+    "editLocation": "Edit location",
+    "locationPlaceholder": "Select location",
+    "saveFailed": "Failed to save changes.",
+    "readOnlyTitle": "Read only",
+    "delegatedPanel": "Your delegated permissions",
+    "delegatedDesc": "You can edit selected fields of this item."
+  },
+  "itemAcl": {
+    "title": "Delegated permissions",
+    "description": "Grant other users selected permissions for this item.",
+    "empty": "No delegated permissions yet.",
+    "grantTitle": "Grant permission",
+    "userLabel": "User",
+    "userPlaceholder": "Select user",
+    "userIdLabel": "User ID",
+    "userIdPlaceholder": "e.g. 10003",
+    "userIdHint": "Enter the numeric user ID from the system (e.g. from the Users tab).",
+    "permissionLabel": "Permission",
+    "grantButton": "Grant permission",
+    "revoke": "Remove permission",
+    "userRequired": "Select a user or enter a valid ID.",
+    "grantFailed": "Failed to grant permission.",
+    "revokeFailed": "Failed to remove permission.",
+    "permissions": {
+      "auto_approved_loan": "Auto-approved loans",
+      "edit_location": "Edit location",
+      "edit_description": "Edit description",
+      "edit_parameters": "Edit parameters",
+      "edit_attachments": "Manage attachments"
+    }
   },
   "userManager": {
     "totalUsers": "Total users",

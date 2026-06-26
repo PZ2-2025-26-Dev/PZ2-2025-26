@@ -297,6 +297,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setIsDetailsModalOpen(false);
     };
 
+    const handleItemUpdated = (updatedItem: InventoryItem) => {
+        setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+        setSelectedItem(updatedItem);
+    };
+
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
     // Menu items with role-based visibility
@@ -675,7 +680,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onSave={() => refreshItems()}
                 user={user}
             />
-            <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
+            <ItemDetailsModal
+                isOpen={isDetailsModalOpen}
+                onClose={() => setIsDetailsModalOpen(false)}
+                item={selectedItem}
+                user={user}
+                onUpdateStatus={handleUpdateItemStatus}
+                onItemUpdated={handleItemUpdated}
+            />
         </div>
     );
 }

@@ -243,7 +243,38 @@
     "uploadFiles": "Dodaj pliki",
     "noAttachments": "Brak załączników",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Usuń"
+    "deleteAttachment": "Usuń",
+    "editName": "Edytuj nazwę",
+    "editLocation": "Edytuj lokalizację",
+    "locationPlaceholder": "Wybierz lokalizację",
+    "saveFailed": "Nie udało się zapisać zmian.",
+    "readOnlyTitle": "Tylko do odczytu",
+    "delegatedPanel": "Twoje delegowane uprawnienia",
+    "delegatedDesc": "Możesz edytować wybrane pola tego przedmiotu."
+  },
+  "itemAcl": {
+    "title": "Delegowane uprawnienia",
+    "description": "Nadaj innym użytkownikom wybrane uprawnienia do tego przedmiotu.",
+    "empty": "Brak delegowanych uprawnień.",
+    "grantTitle": "Nadaj uprawnienie",
+    "userLabel": "Użytkownik",
+    "userPlaceholder": "Wybierz użytkownika",
+    "userIdLabel": "ID użytkownika",
+    "userIdPlaceholder": "np. 10003",
+    "userIdHint": "Podaj numeryczne ID użytkownika z systemu (np. z zakładki Użytkownicy).",
+    "permissionLabel": "Uprawnienie",
+    "grantButton": "Nadaj uprawnienie",
+    "revoke": "Usuń uprawnienie",
+    "userRequired": "Wybierz użytkownika lub podaj poprawne ID.",
+    "grantFailed": "Nie udało się nadać uprawnienia.",
+    "revokeFailed": "Nie udało się usunąć uprawnienia.",
+    "permissions": {
+      "auto_approved_loan": "Automatyczna akceptacja wypożyczeń",
+      "edit_location": "Edycja lokalizacji",
+      "edit_description": "Edycja opisu",
+      "edit_parameters": "Edycja parametrów",
+      "edit_attachments": "Zarządzanie załącznikami"
+    }
   },
   "userManager": {
     "totalUsers": "Użytkownicy ogółem",
