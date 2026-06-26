@@ -2,6 +2,8 @@
   "welcome": {
     "faculty": "Wydział Fizyki i Informatyki Stosowanej",
     "language": "Język",
+    "switchToEnglish": "Przełącz na angielski",
+    "switchToPolish": "Przełącz na polski",
     "systemLabel": "System wewnętrzny",
     "productName": "Aparatura WFiIS",
     "conciseDescription": "Ewidencja sprzętu, lokalizacji i wypożyczeń w jednym miejscu.",
@@ -32,10 +34,14 @@
     "welcome": "Witaj",
     "role": "Rola",
     "logout": "Wyloguj",
+    "mainPanel": "Panel główny",
     "tabInventory": "Inwentarz",
     "tabUsers": "Użytkownicy",
     "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
+    "locationsAndCategories": "Lokalizacje i Kategorie",
+    "loans": "Centrum wypożyczeń",
+    "loansPlaceholder": "Sekcja centrum wypożyczeń - tu będzie można składać wnioski o wypożyczenie sprzętu",
     "totalAssets": "Zasoby ogółem",
     "borrowedAssets": "Wypożyczone",
     "pendingApprovals": "Oczekujące wnioski",
@@ -59,34 +65,137 @@
     "userReqDesc": "Konta utworzone poza AGH SSO wymagają Twojej weryfikacji i ręcznego nadania uprawnień.",
     "approveBtn": "Zatwierdź",
     "rejectBtn": "Odrzuć",
+    "refresh": "Odśwież",
     "itemStatuses": {
       "available": "Dostępny",
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
       "broken": "Uszkodzony"
+    },
+    "filters":{
+      "advancedFilters": "Zawansowane filtrowanie",
+      "ads":"wedsa"
     }
   },
+  "inventoryFilters": {
+    "searchPlaceholder": "Szukaj po nazwie, opisie, ID...",
+
+    "labels": {
+      "advancedFilters": "Filtry zaawansowane"
+    },
+
+    "sections": {
+      "deviceData": "Dane urządzenia",
+      "locationTree": "Drzewo lokalizacji",
+      "users": "Użytkownicy"
+    },
+
+    "fields": {
+      "deviceId": "ID urządzenia",
+      "deviceName": "Nazwa urządzenia",
+      "category": "Kategoria",
+      "status": "Status",
+      "location": "Lokalizacja",
+      "owner": "Właściciel (Assigned Owner)",
+      "borrower": "Wypożyczający (Current Borrower)"
+    },
+
+    "placeholders": {
+      "category": "Wybierz kategorię",
+      "status": "Wszystkie statusy",
+      "location": "Wybierz lokalizację",
+      "owner": "np. Dr. Kowalski",
+      "borrower": "np. Zieliński"
+    },
+
+    "options": {
+      "allCategories": "Wszystkie kategorie",
+      "allStatuses": "Wszystkie statusy",
+      "allLocations": "Wszystkie lokalizacje",
+      "allOwners": "Wszyscy właściciele",
+      "allBorrowers": "Wszyscy wypożyczający"
+    },
+
+    "status": {
+      "available": "Dostępny",
+      "reserved": "Zarezerwowany",
+      "loaned": "Wypożyczony",
+      "pendingApproval": "Oczekuje",
+      "broken": "Uszkodzony"
+    },
+
+    "buttons": {
+      "addParam": "Dodaj kryterium parametru"
+    },
+
+    "parameters": {
+      "title": "Parametry techniczne",
+      "keyPlaceholder": "Nazwa parametru (np. Producent)",
+      "valuePlaceholder": "Wartość (np. Rigol)"
+    }
+  },
+  "rentalCenter": {
+    "openRequestForm": "Złóż wniosek",
+    "requestTitle": "Nowy wniosek o wypożyczenie",
+    "requestDescription": "Wypełnij formularz, aby złożyć wniosek o wypożyczenie sprzętu",
+    "itemLabel": "Sprzęt",
+    "itemPlaceholder": "Wybierz sprzęt",
+    "selectDueDate": "Planowana data zwrotu",
+    "requestInfo": "Po wysłaniu wniosek trafi do historii wypożyczeń jako oczekujący.",
+    "noAvailableInDialog": "Brak dostępnego sprzętu do wypożyczenia.",
+    "cancel": "Anuluj",
+    "submitting": "Wysyłanie...",
+    "submitRequest": "Złóż wniosek",
+    "myRequests": "Moje wnioski",
+    "requests": "wniosków",
+    "dueDate": "Termin zwrotu",
+    "requested": "Zgłoszono",
+    "noRequests": "Brak wniosków"
+  },
   "categoryManager": {
-    "title": "Zarządzanie Hierarchią Kategorii",
-    "desc": "Dodawaj, edytuj i usuwaj kategorie sprzętu. Struktura wspiera nieskończone zagnieżdżenie.",
+    "title": "Kategorie",
+    "desc": "Hierarchia kategorii sprzętu",
     "addTitle": "Dodaj nową kategorię",
+    "addDesc": "Utwórz kategorię główną albo przypisz ją do istniejącej gałęzi.",
+    "addButton": "Dodaj kategorię",
     "nameLabel": "Nazwa kategorii",
+    "namePlaceholder": "np. Komputery, Monitory, Peryferia",
     "parentLabel": "Kategoria nadrzędna (Opcjonalnie)",
     "rootLevel": "-- Kategoria Główna (Brak nadrzędnej) --",
+    "descriptionLabel": "Opis",
+    "descriptionPlaceholder": "Opcjonalny opis kategorii",
     "addBtn": "Zapisz kategorię",
     "adding": "Zapisywanie...",
+    "saving": "Zapisywanie...",
     "treeTitle": "Drzewo Kategorii",
     "emptyTree": "Brak zdefiniowanych kategorii.",
-    "delete": "Usuń"
+    "loading": "Ładowanie kategorii...",
+    "refresh": "Odśwież",
+    "edit": "Edytuj",
+    "editTitle": "Edytuj kategorię",
+    "delete": "Usuń",
+    "deleteTitle": "Usuń kategorię",
+    "deleteDesc": "Czy na pewno usunąć kategorię \"{{name}}\" razem ze wszystkimi podkategoriami? Przedmioty z całej usuwanej gałęzi zostaną przeniesione do wskazanej kategorii zastępczej.",
+    "replacementLabel": "Kategoria zastępcza",
+    "replacementPlaceholder": "Wybierz kategorię",
+    "noReplacementTitle": "Brak kategorii zastępczej",
+    "noReplacementDesc": "Utwórz najpierw inną kategorię poza usuwaną gałęzią, żeby można było przenieść do niej przedmioty.",
+    "confirmDelete": "Usuń kategorię",
+    "deleting": "Usuwanie...",
+    "cancel": "Anuluj",
+    "save": "Zapisz zmiany",
+    "errorTitle": "Nie udało się wykonać operacji"
   },
   "locationManager": {
-    "treeTitle": "Struktura lokalizacji",
+    "treeTitle": "Lokalizacje",
+    "treeDesc": "Hierarchia lokalizacji",
     "emptyTree": "Brak lokalizacji zwróconych przez API.",
     "loading": "Ładowanie lokalizacji...",
     "refresh": "Odśwież",
     "addTitle": "Dodaj lokalizację",
     "addDesc": "Utwórz budynek, salę, szafę albo półkę i wskaż opcjonalnego rodzica.",
+    "addButton": "Dodaj lokalizację",
     "nameLabel": "Nazwa lokalizacji",
     "namePlaceholder": "np. D10, Sala 204, Szafa A",
     "typeLabel": "Typ lokalizacji",
@@ -282,9 +391,27 @@
     "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków",
     "firstNameRequired": "Imię jest wymagane",
     "lastNameRequired": "Nazwisko jest wymagane",
-    "registerErrorTitle": "Rejestracja nie powiodła się",
-    "registerSuccessTitle": "Rejestracja zakończona sukcesem",
-    "registering": "Tworzenie konta...",
-    "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
-  }
-}
+     "registerErrorTitle": "Rejestracja nie powiodła się",
+     "registerSuccessTitle": "Rejestracja zakończona sukcesem",
+     "registering": "Tworzenie konta...",
+     "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Dostępny sprzęt",
+     "itemsAvailable": "elementów dostępnych",
+     "action": "Akcja",
+     "requestBorrow": "Wypożycz",
+     "noAvailable": "Brak dostępnego sprzętu",
+     "myRequests": "Moje wnioski",
+     "requests": "wniosków",
+     "dueDate": "Data zwrotu",
+     "requested": "Złożono",
+     "noRequests": "Brak złożonych wniosków",
+     "requestTitle": "Złóż wniosek o wypożyczenie",
+     "selectDueDate": "Wybierz datę zwrotu",
+     "requestInfo": "Twój wniosek będzie wysłany do opiekuna sprzętu. Opiekun zatwierdzi lub odrzuci żądanie.",
+     "cancel": "Anuluj",
+     "submitting": "Wysyłanie...",
+     "submitRequest": "Złóż wniosek"
+   }
+ }

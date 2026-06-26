@@ -2,6 +2,8 @@
   "welcome": {
     "faculty": "Faculty of Physics and Applied Computer Science",
     "language": "Language",
+    "switchToEnglish": "Switch to English",
+    "switchToPolish": "Switch to Polish",
     "systemLabel": "A comprehensive system for managing measurement equipment",
     "productName": "WFiIS Equipment",
     "conciseDescription": "Equipment, location and loan records in one place.",
@@ -32,10 +34,14 @@
     "welcome": "Welcome",
     "role": "Role",
     "logout": "Sign Out",
+    "mainPanel": "Main Dashboard",
     "tabInventory": "Inventory",
     "tabUsers": "Users",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
+    "locationsAndCategories": "Locations and Categories",
+    "loans": "Rental Center",
+    "loansPlaceholder": "Rental center section - here you will be able to submit equipment rental requests",
     "totalAssets": "Total Assets",
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
@@ -57,9 +63,10 @@
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",
     "userReqTitle": "Local Registration Management",
     "userReqDesc": "Accounts created outside of AGH SSO require your verification and manual role assignment.",
-    "approveBtn": "Approve",
-    "rejectBtn": "Reject",
-    "itemStatuses": {
+     "approveBtn": "Approve",
+     "rejectBtn": "Reject",
+     "refresh": "Refresh",
+     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
@@ -67,26 +74,67 @@
       "broken": "Broken"
     }
   },
+  "rentalCenter": {
+    "openRequestForm": "Submit request",
+    "requestTitle": "New rental request",
+    "requestDescription": "Fill in the form to submit an equipment rental request",
+    "itemLabel": "Equipment",
+    "itemPlaceholder": "Select equipment",
+    "selectDueDate": "Planned return date",
+    "requestInfo": "After submission, the request will appear in the rental history as pending.",
+    "noAvailableInDialog": "No equipment is available for borrowing.",
+    "cancel": "Cancel",
+    "submitting": "Submitting...",
+    "submitRequest": "Submit request",
+    "myRequests": "My requests",
+    "requests": "requests",
+    "dueDate": "Due date",
+    "requested": "Requested",
+    "noRequests": "No requests"
+  },
   "categoryManager": {
-    "title": "Category Hierarchy Management",
-    "desc": "Add, edit, and remove equipment categories. The structure supports infinite nesting.",
+    "title": "Categories",
+    "desc": "Hierarchy of equipment categories",
     "addTitle": "Add New Category",
+    "addDesc": "Create a root category or assign it to an existing branch.",
+    "addButton": "Add category",
     "nameLabel": "Category Name",
+    "namePlaceholder": "e.g., Computers, Monitors, Peripherals",
     "parentLabel": "Parent Category (Optional)",
     "rootLevel": "-- Root Category (None) --",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Optional category description",
     "addBtn": "Save Category",
     "adding": "Saving...",
+    "saving": "Saving...",
     "treeTitle": "Category Tree",
     "emptyTree": "No categories defined yet.",
-    "delete": "Delete"
+    "loading": "Loading categories...",
+    "refresh": "Refresh",
+    "edit": "Edit",
+    "editTitle": "Edit Category",
+    "delete": "Delete",
+    "deleteTitle": "Delete Category",
+    "deleteDesc": "Are you sure you want to delete \"{{name}}\" together with all subcategories? Items from the whole deleted branch will be moved to the selected replacement category.",
+    "replacementLabel": "Replacement Category",
+    "replacementPlaceholder": "Select category",
+    "noReplacementTitle": "No replacement category",
+    "noReplacementDesc": "Create another category outside the deleted branch first so items can be moved there.",
+    "confirmDelete": "Delete Category",
+    "deleting": "Deleting...",
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "errorTitle": "Operation failed"
   },
   "locationManager": {
-    "treeTitle": "Location Structure",
+    "treeTitle": "Locations",
+    "treeDesc": "Location hierarchy",
     "emptyTree": "No locations returned by the API.",
     "loading": "Loading locations...",
     "refresh": "Refresh",
     "addTitle": "Add Location",
     "addDesc": "Create a building, room, cabinet, or shelf and optionally assign a parent location.",
+    "addButton": "Add location",
     "nameLabel": "Location Name",
     "namePlaceholder": "e.g., D10, Room 204, Cabinet A",
     "typeLabel": "Location Type",
@@ -196,6 +244,63 @@
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
     "deleteAttachment": "Delete"
   },
+  "inventoryFilters": {
+    "searchPlaceholder": "Search by name, description, ID...",
+
+    "labels": {
+      "advancedFilters": "Advanced filters"
+    },
+
+    "sections": {
+      "deviceData": "Device data",
+      "locationTree": "Location tree",
+      "users": "Users"
+    },
+
+    "fields": {
+      "deviceId": "Device ID",
+      "deviceName": "Device name",
+      "category": "Category",
+      "status": "Status",
+      "location": "Location",
+      "owner": "Owner (Assigned Owner)",
+      "borrower": "Borrower (Current Borrower)"
+    },
+
+    "placeholders": {
+      "category": "Select category",
+      "status": "All statuses",
+      "location": "Select location",
+      "owner": "e.g. Dr. Smith",
+      "borrower": "e.g. Johnson"
+    },
+
+    "options": {
+      "allCategories": "All categories",
+      "allStatuses": "All statuses",
+      "allLocations": "All locations",
+      "allOwners": "All owners",
+      "allBorrowers": "All borrowers"
+    },
+
+    "status": {
+      "available": "Available",
+      "reserved": "Reserved",
+      "loaned": "Loaned",
+      "pendingApproval": "Pending approval",
+      "broken": "Broken"
+    },
+
+    "buttons": {
+      "addParam": "Add parameter filter"
+    },
+
+    "parameters": {
+      "title": "Technical parameters",
+      "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
+      "valuePlaceholder": "Value (e.g. Rigol)"
+    }
+  },
   "userManager": {
     "totalUsers": "Total users",
     "pendingUsers": "Pending accounts",
@@ -282,9 +387,27 @@
     "passwordTooShort": "Password must be at least 8 characters long.",
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
-    "registerErrorTitle": "Registration failed",
-    "registerSuccessTitle": "Registration successful",
-    "registering": "Creating account...",
-    "emailAlreadyExists": "An account with this email already exists"
-  }
-}
+     "registerErrorTitle": "Registration failed",
+     "registerSuccessTitle": "Registration successful",
+     "registering": "Creating account...",
+     "emailAlreadyExists": "An account with this email already exists"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Available Equipment",
+     "itemsAvailable": "items available",
+     "action": "Action",
+     "requestBorrow": "Borrow",
+     "noAvailable": "No equipment available",
+     "myRequests": "My Requests",
+     "requests": "requests",
+     "dueDate": "Due Date",
+     "requested": "Requested",
+     "noRequests": "No requests submitted",
+     "requestTitle": "Submit Rental Request",
+     "selectDueDate": "Select Due Date",
+     "requestInfo": "Your request will be sent to the equipment owner. The owner will approve or reject the request.",
+     "cancel": "Cancel",
+     "submitting": "Submitting...",
+     "submitRequest": "Submit Request"
+   }
+ }
