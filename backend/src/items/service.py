@@ -269,11 +269,7 @@ class ItemService:
 
         sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        stmt = (
-            stmt.order_by(sort_column.desc())
-            if data.sort_order == "desc"
-            else stmt.order_by(sort_column.asc())
-        )
+        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
 
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
