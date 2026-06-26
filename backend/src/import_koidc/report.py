@@ -224,9 +224,7 @@ def preview_load(sql_path: Path, *, clear_existing: bool) -> StagePreview:
         "Tabele stagingowe do utworzenia m.in.: " + ", ".join(LEGACY_TABLES),
     ]
     if clear_existing:
-        summary.append(
-            "UWAGA: --clear-existing usunie istniejące user/location/category/item przed importem."
-        )
+        summary.append("UWAGA: --clear-existing usunie istniejące user/location/category/item przed importem.")
     return StagePreview(stage=ImportStage.LOAD, summary_lines=summary)
 
 
@@ -395,7 +393,9 @@ def build_locations_result(
                 INNER JOIN inv_budynki AS b ON b.id = p.id_budynku
                 """
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     }
     all_ids = building_ids | room_ids
     inserted = len(all_ids - existing_before)
@@ -428,7 +428,9 @@ def build_items_result(connection: Connection, *, existing_before: set[int]) -> 
                 WHERE COALESCE(d.id_pokoju, 0) > 0
                 """
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     inserted = len(importable_ids - existing_before)
     updated = len(importable_ids & existing_before)

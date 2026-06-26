@@ -55,11 +55,11 @@ def prepare_item_uuid_staging(connection: Connection) -> None:
         )
     )
 
-    device_ids = connection.execute(
-        text(
-            f"SELECT d.id {_importable_devices_join_sql()} {_importable_devices_where_sql()}"
-        )
-    ).scalars().all()
+    device_ids = (
+        connection.execute(text(f"SELECT d.id {_importable_devices_join_sql()} {_importable_devices_where_sql()}"))
+        .scalars()
+        .all()
+    )
 
     if not device_ids:
         return
@@ -354,9 +354,7 @@ def migrate_items(connection: Connection) -> int:
             "status_available": ItemStatus.AVAILABLE.name,
         },
     )
-    return connection.execute(
-        text(f"SELECT COUNT(*) {joins} {where_clause}")
-    ).scalar_one()
+    return connection.execute(text(f"SELECT COUNT(*) {joins} {where_clause}")).scalar_one()
 
 
 def migrate_item_history(connection: Connection) -> None:

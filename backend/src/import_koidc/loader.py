@@ -118,10 +118,7 @@ def legacy_tables_present(connection: Connection) -> list[str]:
 
 def snapshot_table_names(connection: Connection) -> set[str]:
     rows = connection.execute(
-        text(
-            "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema = DATABASE()"
-        )
+        text("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()")
     ).scalars()
     return set(rows)
 
