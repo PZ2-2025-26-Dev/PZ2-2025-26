@@ -16,7 +16,6 @@ from src.categories import models as categories_models  # noqa: F401
 from src.categories.router import router as categories_router
 from src.config import config
 from src.database import Base, engine
-from src.guests import models as guests_models  # noqa: F401
 from src.items import models as items_models  # noqa: F401
 from src.items.router import router as items_router
 from src.loans import models as loans_models  # noqa: F401

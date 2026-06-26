@@ -14,7 +14,6 @@ from src.categories.models import Category
 from src.config import config
 from src.constants import Environment
 from src.database import Base, SessionLocal, engine
-from src.guests import models as guest_models  # noqa: F401
 from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
 from src.items.models import Item, ItemACL, ItemHistory
 from src.loans import models as loan_models  # noqa: F401
@@ -63,6 +62,8 @@ class SeedIds:
 
     projector_acl_edit_attachments: int = 60_001
     projector_acl_auto_approved_loan: int = 60_002
+
+    guest_user: int = 60_001
 
 
 SEED_IDS = SeedIds()
@@ -353,6 +354,23 @@ def seed_database(session: Session) -> SeedIds:
             change_type=ItemChangeLogType.CREATED,
             description=description,
         )
+
+    _upsert(
+        session,
+        User,
+        SEED_IDS.guest_user,
+        select(User).where(
+            User.role == UserRole.GUEST,
+            User.first_name == "Grzegorz",
+            User.last_name == "Gość",
+        ),
+        email="guest.seed@example.com",
+        first_name="Grzegorz",
+        last_name="Gość",
+        role=UserRole.GUEST,
+        status=UserStatus.ACTIVE,
+    )
+
 
     item_acl_entries = (
         (
