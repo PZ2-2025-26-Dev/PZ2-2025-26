@@ -154,8 +154,8 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                                     <div className="text-xs text-slate-400">{user.email}</div>
                                     <div className="font-mono text-[10px] text-slate-400">ID: {user.id}</div>
                                 </TableCell>
-                                <TableCell className="text-slate-600 dark:text-slate-400">{t(`userManager.roles.${user.role}`, { defaultValue: user.role })}</TableCell>
-                                <TableCell><StatusBadge status={user.status} label={t(`userManager.statuses.${user.status}`, { defaultValue: user.status })} /></TableCell>
+                                <TableCell className="text-slate-600 dark:text-slate-400">{t(`userManager.roles.${user.role}`)}</TableCell>
+                                <TableCell><StatusBadge status={user.status} label={t(`userManager.statuses.${user.status}`)} /></TableCell>
                                 <TableCell>
                                     <div className="flex flex-wrap justify-end gap-2">
                                         {user.status === 'pending_approval' && (

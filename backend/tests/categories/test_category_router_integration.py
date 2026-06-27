@@ -131,15 +131,50 @@ def test_delete_category_endpoint_reassigns_items(api_client: TestClient, seeded
     assert seeded_db.get(Item, SEED_IDS.adapter).category_id == SEED_IDS.electronics
 
 
-def test_delete_category_endpoint_blocks_category_with_children(api_client: TestClient, seeded_db: Session):
+def test_delete_category_endpoint_removes_subcategories_and_reassigns_items(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    replacement = Category(name="Archiwum", parent_id=None)
+    seeded_db.add(replacement)
+    seeded_db.commit()
+    seeded_db.refresh(replacement)
+
+    response = api_client.delete(
+        f"/categories/{SEED_IDS.electronics}",
+        params={"replacement_category_id": replacement.id},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "deleted_category_id": SEED_IDS.electronics,
+        "replacement_category_id": replacement.id,
+        "moved_items_count": 3,
+    }
+    assert seeded_db.get(Category, SEED_IDS.electronics) is None
+    assert seeded_db.get(Category, SEED_IDS.computers) is None
+    assert seeded_db.get(Category, SEED_IDS.accessories) is None
+    assert seeded_db.get(Item, SEED_IDS.projector).category_id == replacement.id
+    assert seeded_db.get(Item, SEED_IDS.laptop).category_id == replacement.id
+    assert seeded_db.get(Item, SEED_IDS.adapter).category_id == replacement.id
+
+
+def test_delete_category_endpoint_rejects_replacement_from_deleted_tree(
+    api_client: TestClient,
+    seeded_db: Session,
+):
     response = api_client.delete(
         f"/categories/{SEED_IDS.electronics}",
         params={"replacement_category_id": SEED_IDS.computers},
         headers=admin_headers(),
     )
 
-    assert response.status_code == 409
-    assert response.json() == {"code": 409, "detail": "Category has child categories"}
+    assert response.status_code == 400
+    assert response.json() == {
+        "code": 400,
+        "detail": "Replacement category cannot be inside deleted category tree",
+    }
 
 
 def test_delete_category_endpoint_rejects_same_replacement(api_client: TestClient, seeded_db: Session):
