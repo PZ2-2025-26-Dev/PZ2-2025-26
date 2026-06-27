@@ -747,11 +747,12 @@ def test_non_owner_cannot_grant_item_acl(api_client: TestClient, seeded_db: Sess
 
 
 def test_delegated_user_sees_only_own_acl_entries(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
     seeded_db.add_all(
         [
             ItemACL(
                 item_id=SEED_IDS.projector,
-                user_id=SEED_IDS.regular_user,
+                user_id=delegate.id,
                 permission=ItemPermissionType.EDIT_DESCRIPTION,
             ),
             ItemACL(
@@ -765,13 +766,14 @@ def test_delegated_user_sees_only_own_acl_entries(api_client: TestClient, seeded
 
     response = api_client.get(
         f"/items/{SEED_IDS.projector_uuid}/acl",
-        headers=auth_headers(SEED_IDS.regular_user),
+        headers=auth_headers(delegate.id),
     )
 
     assert response.status_code == 200
     body = response.json()
     assert len(body["entries"]) == 1
-    assert body["entries"][0]["user_id"] == SEED_IDS.regular_user
+    assert body["entries"][0]["user_id"] == delegate.id
+    assert body["entries"][0]["permission"] == ItemPermissionType.EDIT_DESCRIPTION.value
 
 
 def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db: Session):
