@@ -31,6 +31,7 @@ export const normalizeItem = (item) => ({
     id: item.id,
     name: item.name,
     category: item.category?.name ?? '',
+    categoryPath: item.category?.path ?? '',
     categoryId: item.category?.id,
     location: item.location?.path ?? '',
     locationId: item.location?.id,
