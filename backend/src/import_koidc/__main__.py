@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from src.import_koidc.loader import default_sql_file
+from src.import_koidc.prompts import ImportDataConflictError
 from src.import_koidc.report import default_report_file, format_import_report, write_import_report
 from src.import_koidc.service import import_koidc_from_sql
 
@@ -57,12 +58,16 @@ def main() -> None:
     args = _build_parser().parse_args()
 
     if args.command == "import":
-        report = import_koidc_from_sql(
-            args.sql_file,
-            clear_existing=args.clear_existing,
-            dry_run=args.dry_run,
-            auto_approve=args.yes,
-        )
+        try:
+            report = import_koidc_from_sql(
+                args.sql_file,
+                clear_existing=args.clear_existing,
+                dry_run=args.dry_run,
+                auto_approve=args.yes,
+            )
+        except ImportDataConflictError as exc:
+            print(f"Błąd importu: {exc}", file=sys.stderr)
+            sys.exit(1)
 
         report_path = args.report_file or default_report_file()
         report_text = format_import_report(report)

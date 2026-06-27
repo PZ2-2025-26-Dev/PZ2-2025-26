@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from src.auth.constants import UserRole, UserStatus
+from src.import_koidc.loader import legacy_table
 from src.items.constants import ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
 from src.locations.constants import LocationType
 
@@ -29,13 +30,13 @@ def _legacy_placeholder_email_sql(column: str = "id") -> str:
 
 
 def _importable_devices_join_sql() -> str:
-    return """
-        FROM inv_urzadzenia AS d
-        INNER JOIN inv_modele AS m ON m.id = d.id_modelu
-        LEFT JOIN inv_producenci AS pr ON pr.id = m.id_producenta
-        LEFT JOIN inv_typy_urz AS t ON t.id = m.id_typu
-        INNER JOIN inv_pokoje AS pok ON pok.id = d.id_pokoju
-        INNER JOIN inv_budynki AS b ON b.id = pok.id_budynku
+    return f"""
+        FROM {legacy_table("inv_urzadzenia")} AS d
+        INNER JOIN {legacy_table("inv_modele")} AS m ON m.id = d.id_modelu
+        LEFT JOIN {legacy_table("inv_producenci")} AS pr ON pr.id = m.id_producenta
+        LEFT JOIN {legacy_table("inv_typy_urz")} AS t ON t.id = m.id_typu
+        INNER JOIN {legacy_table("inv_pokoje")} AS pok ON pok.id = d.id_pokoju
+        INNER JOIN {legacy_table("inv_budynki")} AS b ON b.id = pok.id_budynku
     """
 
 
@@ -125,6 +126,7 @@ def ensure_legacy_owner(connection: Connection) -> None:
 
 def migrate_users(connection: Connection) -> int:
     placeholder_email = _legacy_placeholder_email_sql()
+    pracownicy = legacy_table("pracownicy")
     connection.execute(
         text(
             f"""
@@ -149,7 +151,7 @@ def migrate_users(connection: Connection) -> int:
                 ),
                 :role,
                 :status
-            FROM pracownicy AS p
+            FROM {pracownicy} AS p
             INNER JOIN (
                 SELECT
                     id,
@@ -164,13 +166,13 @@ def migrate_users(connection: Connection) -> int:
                         )
                         ORDER BY id
                     ) AS rn
-                FROM pracownicy
+                FROM {pracownicy}
             ) AS dup ON dup.id = p.id
             ON DUPLICATE KEY UPDATE
-                first_name = VALUES(first_name),
-                last_name = VALUES(last_name),
-                email = VALUES(email),
-                status = VALUES(status)
+                first_name = IF(user.id = VALUES(id), VALUES(first_name), user.first_name),
+                last_name = IF(user.id = VALUES(id), VALUES(last_name), user.last_name),
+                email = IF(user.id = VALUES(id), VALUES(email), user.email),
+                status = IF(user.id = VALUES(id), VALUES(status), user.status)
             """
         ),
         {
@@ -178,19 +180,20 @@ def migrate_users(connection: Connection) -> int:
             "status": UserStatus.INACTIVE.name,
         },
     )
-    return connection.execute(text("SELECT COUNT(*) FROM pracownicy")).scalar_one()
+    return connection.execute(text(f"SELECT COUNT(*) FROM {pracownicy}")).scalar_one()
 
 
 def migrate_categories(connection: Connection) -> int:
+    inv_typy_urz = legacy_table("inv_typy_urz")
     connection.execute(
         text(
-            """
+            f"""
             INSERT INTO category (id, name, parent_id)
             SELECT
                 t.id,
                 LEFT(COALESCE(NULLIF(TRIM(t.nazwa), ''), CONCAT('Typ ', t.id)), 100),
                 NULL
-            FROM inv_typy_urz AS t
+            FROM {inv_typy_urz} AS t
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 parent_id = NULL
@@ -207,13 +210,15 @@ def migrate_categories(connection: Connection) -> int:
         ),
         {"category_id": FALLBACK_CATEGORY_ID},
     )
-    return connection.execute(text("SELECT COUNT(*) FROM inv_typy_urz")).scalar_one() + 1
+    return connection.execute(text(f"SELECT COUNT(*) FROM {inv_typy_urz}")).scalar_one() + 1
 
 
 def migrate_locations(connection: Connection) -> int:
+    inv_budynki = legacy_table("inv_budynki")
+    inv_pokoje = legacy_table("inv_pokoje")
     connection.execute(
         text(
-            """
+            f"""
             INSERT INTO location (id, name, type, description, parent_id, is_active)
             SELECT
                 b.id,
@@ -222,7 +227,7 @@ def migrate_locations(connection: Connection) -> int:
                 NULLIF(TRIM(b.opis), ''),
                 NULL,
                 1
-            FROM inv_budynki AS b
+            FROM {inv_budynki} AS b
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 type = VALUES(type),
@@ -233,7 +238,7 @@ def migrate_locations(connection: Connection) -> int:
         ),
         {"building_type": LocationType.BUILDING.name},
     )
-    buildings_count = connection.execute(text("SELECT COUNT(*) FROM inv_budynki")).scalar_one()
+    buildings_count = connection.execute(text(f"SELECT COUNT(*) FROM {inv_budynki}")).scalar_one()
 
     connection.execute(
         text(
@@ -249,8 +254,8 @@ def migrate_locations(connection: Connection) -> int:
                 NULLIF(TRIM(p.opis), ''),
                 p.id_budynku,
                 1
-            FROM inv_pokoje AS p
-            INNER JOIN inv_budynki AS b ON b.id = p.id_budynku
+            FROM {inv_pokoje} AS p
+            INNER JOIN {inv_budynki} AS b ON b.id = p.id_budynku
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 type = VALUES(type),
@@ -263,10 +268,10 @@ def migrate_locations(connection: Connection) -> int:
     )
     rooms_count = connection.execute(
         text(
-            """
+            f"""
             SELECT COUNT(*)
-            FROM inv_pokoje AS p
-            INNER JOIN inv_budynki AS b ON b.id = p.id_budynku
+            FROM {inv_pokoje} AS p
+            INNER JOIN {inv_budynki} AS b ON b.id = p.id_budynku
             """
         )
     ).scalar_one()
@@ -277,6 +282,7 @@ def migrate_items(connection: Connection) -> int:
     prepare_item_uuid_staging(connection)
     joins = _importable_devices_join_sql()
     where_clause = _importable_devices_where_sql()
+    pracownicy = legacy_table("pracownicy")
     connection.execute(
         text(
             f"""
@@ -313,7 +319,7 @@ def migrate_items(connection: Connection) -> int:
                 END,
                 CASE
                     WHEN COALESCE(d.id_pracownika, 0) > 0
-                        AND EXISTS (SELECT 1 FROM pracownicy AS emp WHERE emp.id = d.id_pracownika)
+                        AND EXISTS (SELECT 1 FROM {pracownicy} AS emp WHERE emp.id = d.id_pracownika)
                         THEN d.id_pracownika
                     ELSE {LEGACY_OWNER_ID}
                 END,
@@ -358,9 +364,13 @@ def migrate_items(connection: Connection) -> int:
 
 
 def migrate_item_history(connection: Connection) -> None:
+    inv_urzadzenia = legacy_table("inv_urzadzenia")
+    inv_modele = legacy_table("inv_modele")
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
     connection.execute(
         text(
-            """
+            f"""
             INSERT INTO item_history (item_id, updated_at, updated_by, change_type, description)
             SELECT
                 i.id,
@@ -371,10 +381,10 @@ def migrate_item_history(connection: Connection) -> None:
             FROM item AS i
             WHERE i.id IN (
                 SELECT d.id
-                FROM inv_urzadzenia AS d
-                INNER JOIN inv_modele AS m ON m.id = d.id_modelu
-                INNER JOIN inv_pokoje AS pok ON pok.id = d.id_pokoju
-                INNER JOIN inv_budynki AS b ON b.id = pok.id_budynku
+                FROM {inv_urzadzenia} AS d
+                INNER JOIN {inv_modele} AS m ON m.id = d.id_modelu
+                INNER JOIN {inv_pokoje} AS pok ON pok.id = d.id_pokoju
+                INNER JOIN {inv_budynki} AS b ON b.id = pok.id_budynku
                 WHERE COALESCE(d.id_pokoju, 0) > 0
             )
             AND NOT EXISTS (

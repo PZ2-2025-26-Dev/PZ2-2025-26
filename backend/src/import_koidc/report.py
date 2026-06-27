@@ -9,8 +9,14 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from src.import_koidc.constants import ImportStage
-from src.import_koidc.loader import LEGACY_TABLES, find_repo_root
+from src.import_koidc.constants import LEGACY_STAGING_TABLE_PREFIX, ImportStage
+from src.import_koidc.loader import (
+    LEGACY_TABLES,
+    find_repo_root,
+    legacy_table,
+    staging_table_name,
+    staging_table_names,
+)
 from src.import_koidc.sql_migrate import LEGACY_EMAIL_DOMAIN
 
 ISSUE_MISSING_EMAIL = "brak_email"
@@ -204,7 +210,7 @@ def _format_issues_section(
 
 
 def _legacy_row_count(connection: Connection, table: str) -> int:
-    return connection.execute(text(f"SELECT COUNT(*) FROM `{table}`")).scalar_one()
+    return connection.execute(text(f"SELECT COUNT(*) FROM {legacy_table(table)}")).scalar_one()
 
 
 def fetch_existing_ids(connection: Connection, table: str) -> set[int]:
@@ -212,7 +218,7 @@ def fetch_existing_ids(connection: Connection, table: str) -> set[int]:
 
 
 def _source_ids(connection: Connection, table: str) -> set[int]:
-    return set(connection.execute(text(f"SELECT id FROM `{table}`")).scalars().all())
+    return set(connection.execute(text(f"SELECT id FROM {legacy_table(table)}")).scalars().all())
 
 
 def preview_load(sql_path: Path, *, clear_existing: bool) -> StagePreview:
@@ -221,6 +227,7 @@ def preview_load(sql_path: Path, *, clear_existing: bool) -> StagePreview:
         f"Plik zrzutu: {sql_path}",
         f"Rozmiar: {size_kb:.1f} KiB",
         f"Czyszczenie istniejących danych PZ2: {'TAK' if clear_existing else 'NIE'}",
+        f"Prefiks tabel stagingowych legacy: {LEGACY_STAGING_TABLE_PREFIX}",
         "Tabele stagingowe do utworzenia m.in.: " + ", ".join(LEGACY_TABLES),
     ]
     if clear_existing:
@@ -228,12 +235,17 @@ def preview_load(sql_path: Path, *, clear_existing: bool) -> StagePreview:
     return StagePreview(stage=ImportStage.LOAD, summary_lines=summary)
 
 
-def preview_after_load(connection: Connection, loaded_tables: set[str]) -> list[str]:
-    lines = [f"Utworzono tabel ze zrzutu: {len(loaded_tables)}"]
+def preview_after_load(connection: Connection) -> list[str]:
+    loaded_tables = staging_table_names(connection)
+    lines = [
+        f"Prefiks tabel stagingowych: {LEGACY_STAGING_TABLE_PREFIX}",
+        f"Utworzono tabel ze zrzutu: {len(loaded_tables)}",
+    ]
     for table in LEGACY_TABLES:
-        if table in loaded_tables:
+        staged_name = staging_table_name(table)
+        if staged_name in loaded_tables:
             lines.append(f"  • {table}: {_legacy_row_count(connection, table)} rekordów")
-    extra = sorted(loaded_tables - set(LEGACY_TABLES))
+    extra = sorted(loaded_tables - {staging_table_name(table) for table in LEGACY_TABLES})
     if extra:
         lines.append(f"Dodatkowe tabele ze zrzutu (zostaną usunięte): {', '.join(extra)}")
     return lines
@@ -278,12 +290,14 @@ def preview_categories(connection: Connection) -> StagePreview:
 def preview_locations(connection: Connection) -> StagePreview:
     buildings = _legacy_row_count(connection, "inv_budynki")
     rooms = _legacy_row_count(connection, "inv_pokoje")
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
     importable_rooms = connection.execute(
         text(
-            """
+            f"""
             SELECT COUNT(*)
-            FROM inv_pokoje AS p
-            INNER JOIN inv_budynki AS b ON b.id = p.id_budynku
+            FROM {inv_pokoje} AS p
+            INNER JOIN {inv_budynki} AS b ON b.id = p.id_budynku
             """
         )
     ).scalar_one()
@@ -305,14 +319,18 @@ def preview_locations(connection: Connection) -> StagePreview:
 
 def preview_items(connection: Connection) -> StagePreview:
     total = _legacy_row_count(connection, "inv_urzadzenia")
+    inv_urzadzenia = legacy_table("inv_urzadzenia")
+    inv_modele = legacy_table("inv_modele")
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
     importable = connection.execute(
         text(
-            """
+            f"""
             SELECT COUNT(*)
-            FROM inv_urzadzenia AS d
-            INNER JOIN inv_modele AS m ON m.id = d.id_modelu
-            INNER JOIN inv_pokoje AS pok ON pok.id = d.id_pokoju
-            INNER JOIN inv_budynki AS b ON b.id = pok.id_budynku
+            FROM {inv_urzadzenia} AS d
+            INNER JOIN {inv_modele} AS m ON m.id = d.id_modelu
+            INNER JOIN {inv_pokoje} AS pok ON pok.id = d.id_pokoju
+            INNER JOIN {inv_budynki} AS b ON b.id = pok.id_budynku
             WHERE COALESCE(d.id_pokoju, 0) > 0
             """
         )
@@ -331,13 +349,14 @@ def preview_items(connection: Connection) -> StagePreview:
     )
 
 
-def preview_cleanup(loaded_tables: set[str]) -> StagePreview:
+def preview_cleanup(staging_tables: set[str]) -> StagePreview:
     summary = [
-        f"Tabel stagingowych do usunięcia: {len(loaded_tables)}",
+        f"Prefiks tabel stagingowych do usunięcia: {LEGACY_STAGING_TABLE_PREFIX}",
+        f"Tabel stagingowych: {len(staging_tables)}",
         "Po tym etapie zostaną tylko dane w tabelach PZ2.",
     ]
-    if loaded_tables:
-        summary.append("Tabele: " + ", ".join(sorted(loaded_tables)))
+    if staging_tables:
+        summary.append("Tabele: " + ", ".join(sorted(staging_tables)))
     return StagePreview(stage=ImportStage.CLEANUP, summary_lines=summary)
 
 
@@ -383,14 +402,16 @@ def build_locations_result(
     existing_before: set[int],
 ) -> StageResult:
     building_ids = _source_ids(connection, "inv_budynki")
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
     room_ids = {
         room_id + 10_000
         for room_id in connection.execute(
             text(
-                """
+                f"""
                 SELECT p.id
-                FROM inv_pokoje AS p
-                INNER JOIN inv_budynki AS b ON b.id = p.id_budynku
+                FROM {inv_pokoje} AS p
+                INNER JOIN {inv_budynki} AS b ON b.id = p.id_budynku
                 """
             )
         )
@@ -416,15 +437,19 @@ def build_locations_result(
 
 
 def build_items_result(connection: Connection, *, existing_before: set[int]) -> StageResult:
+    inv_urzadzenia = legacy_table("inv_urzadzenia")
+    inv_modele = legacy_table("inv_modele")
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
     importable_ids = set(
         connection.execute(
             text(
-                """
+                f"""
                 SELECT d.id
-                FROM inv_urzadzenia AS d
-                INNER JOIN inv_modele AS m ON m.id = d.id_modelu
-                INNER JOIN inv_pokoje AS pok ON pok.id = d.id_pokoju
-                INNER JOIN inv_budynki AS b ON b.id = pok.id_budynku
+                FROM {inv_urzadzenia} AS d
+                INNER JOIN {inv_modele} AS m ON m.id = d.id_modelu
+                INNER JOIN {inv_pokoje} AS pok ON pok.id = d.id_pokoju
+                INNER JOIN {inv_budynki} AS b ON b.id = pok.id_budynku
                 WHERE COALESCE(d.id_pokoju, 0) > 0
                 """
             )
@@ -451,22 +476,25 @@ def build_load_result(summary_lines: list[str]) -> StageResult:
     return StageResult(stage=ImportStage.LOAD, summary_lines=summary_lines, executed=True)
 
 
-def build_cleanup_result(dropped_tables: set[str]) -> StageResult:
+def build_cleanup_result(staging_tables: set[str]) -> StageResult:
     return StageResult(
         stage=ImportStage.CLEANUP,
-        summary_lines=[f"Usunięto tabel: {len(dropped_tables)}"],
+        summary_lines=[
+            f"Usunięto tabele stagingowe z prefiksem {LEGACY_STAGING_TABLE_PREFIX} ({len(staging_tables)} tabel)",
+        ],
         executed=True,
     )
 
 
 def _collect_user_issues(connection: Connection) -> list[ImportIssue]:
     issues: list[ImportIssue] = []
+    pracownicy = legacy_table("pracownicy")
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT id, COALESCE(NULLIF(TRIM(email), ''), '') AS email
-            FROM pracownicy
+            FROM {pracownicy}
             WHERE NULLIF(TRIM(email), '') IS NULL
             """
         )
@@ -482,9 +510,9 @@ def _collect_user_issues(connection: Connection) -> list[ImportIssue]:
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT id, COALESCE(NULLIF(TRIM(imie), ''), '') AS first_name
-            FROM pracownicy
+            FROM {pracownicy}
             WHERE NULLIF(TRIM(imie), '') IS NULL
             """
         )
@@ -499,12 +527,12 @@ def _collect_user_issues(connection: Connection) -> list[ImportIssue]:
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT
                 LOWER(TRIM(email)) AS email,
                 GROUP_CONCAT(id ORDER BY id) AS ids,
                 COUNT(*) AS duplicate_count
-            FROM pracownicy
+            FROM {pracownicy}
             WHERE NULLIF(TRIM(email), '') IS NOT NULL
             GROUP BY LOWER(TRIM(email))
             HAVING COUNT(*) > 1
@@ -522,13 +550,13 @@ def _collect_user_issues(connection: Connection) -> list[ImportIssue]:
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT
                 p.id AS legacy_id,
                 p.email AS legacy_email,
                 u.id AS existing_id,
                 u.email AS existing_email
-            FROM pracownicy AS p
+            FROM {pracownicy} AS p
             INNER JOIN user AS u ON LOWER(TRIM(p.email)) = LOWER(u.email)
             WHERE NULLIF(TRIM(p.email), '') IS NOT NULL
               AND p.id != u.id
@@ -552,11 +580,12 @@ def _collect_user_issues(connection: Connection) -> list[ImportIssue]:
 
 def _collect_category_issues(connection: Connection) -> list[ImportIssue]:
     issues: list[ImportIssue] = []
+    inv_typy_urz = legacy_table("inv_typy_urz")
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT id
-            FROM inv_typy_urz
+            FROM {inv_typy_urz}
             WHERE NULLIF(TRIM(nazwa), '') IS NULL
             """
         )
@@ -573,12 +602,14 @@ def _collect_category_issues(connection: Connection) -> list[ImportIssue]:
 
 def _collect_location_issues(connection: Connection) -> list[ImportIssue]:
     issues: list[ImportIssue] = []
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT p.id, p.id_budynku
-            FROM inv_pokoje AS p
-            WHERE NOT EXISTS (SELECT 1 FROM inv_budynki AS b WHERE b.id = p.id_budynku)
+            FROM {inv_pokoje} AS p
+            WHERE NOT EXISTS (SELECT 1 FROM {inv_budynki} AS b WHERE b.id = p.id_budynku)
             """
         )
     ).mappings():
@@ -595,13 +626,18 @@ def _collect_location_issues(connection: Connection) -> list[ImportIssue]:
 
 def _collect_item_issues(connection: Connection) -> list[ImportIssue]:
     issues: list[ImportIssue] = []
+    inv_urzadzenia = legacy_table("inv_urzadzenia")
+    inv_modele = legacy_table("inv_modele")
+    inv_pokoje = legacy_table("inv_pokoje")
+    inv_budynki = legacy_table("inv_budynki")
+    pracownicy = legacy_table("pracownicy")
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT d.id, d.id_modelu
-            FROM inv_urzadzenia AS d
-            WHERE NOT EXISTS (SELECT 1 FROM inv_modele AS m WHERE m.id = d.id_modelu)
+            FROM {inv_urzadzenia} AS d
+            WHERE NOT EXISTS (SELECT 1 FROM {inv_modele} AS m WHERE m.id = d.id_modelu)
             """
         )
     ).mappings():
@@ -616,9 +652,9 @@ def _collect_item_issues(connection: Connection) -> list[ImportIssue]:
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT d.id, d.id_pokoju
-            FROM inv_urzadzenia AS d
+            FROM {inv_urzadzenia} AS d
             WHERE COALESCE(d.id_pokoju, 0) <= 0
             """
         )
@@ -634,14 +670,14 @@ def _collect_item_issues(connection: Connection) -> list[ImportIssue]:
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT d.id, d.id_pokoju
-            FROM inv_urzadzenia AS d
+            FROM {inv_urzadzenia} AS d
             WHERE COALESCE(d.id_pokoju, 0) > 0
               AND NOT EXISTS (
                 SELECT 1
-                FROM inv_pokoje AS p
-                INNER JOIN inv_budynki AS b ON b.id = p.id_budynku
+                FROM {inv_pokoje} AS p
+                INNER JOIN {inv_budynki} AS b ON b.id = p.id_budynku
                 WHERE p.id = d.id_pokoju
               )
             """
@@ -658,11 +694,11 @@ def _collect_item_issues(connection: Connection) -> list[ImportIssue]:
 
     for row in connection.execute(
         text(
-            """
+            f"""
             SELECT d.id, d.id_pracownika
-            FROM inv_urzadzenia AS d
+            FROM {inv_urzadzenia} AS d
             WHERE COALESCE(d.id_pracownika, 0) <= 0
-               OR NOT EXISTS (SELECT 1 FROM pracownicy AS p WHERE p.id = d.id_pracownika)
+               OR NOT EXISTS (SELECT 1 FROM {pracownicy} AS p WHERE p.id = d.id_pracownika)
             """
         )
     ).mappings():

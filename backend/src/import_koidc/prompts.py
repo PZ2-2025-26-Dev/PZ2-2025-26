@@ -12,6 +12,10 @@ class ImportAbortedError(RuntimeError):
     """Administrator odrzucił etap importu."""
 
 
+class ImportDataConflictError(RuntimeError):
+    """Konflikt unikalnego klucza podczas importu (np. już zainicjalizowana baza)."""
+
+
 _CONFIRM_INPUTS = frozenset({"t", "tak", "y", "yes"})
 
 

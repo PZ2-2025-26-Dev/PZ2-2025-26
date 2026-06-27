@@ -6,6 +6,7 @@ from pathlib import Path
 
 from pymysql.constants import CLIENT
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.config import config
@@ -14,12 +15,12 @@ from src.import_koidc.loader import (
     assert_legacy_tables_loaded,
     cleanup_dump_staging,
     default_sql_file,
-    drop_tables,
-    extract_dump_table_names,
+    drop_legacy_staging_tables,
     load_sql_dump,
-    snapshot_table_names,
+    prepare_legacy_staging_tables,
+    staging_table_names,
 )
-from src.import_koidc.prompts import ImportAbortedError, approve_stage
+from src.import_koidc.prompts import ImportAbortedError, ImportDataConflictError, approve_stage
 from src.import_koidc.report import (
     ImportReport,
     StagePreview,
@@ -48,6 +49,12 @@ from src.import_koidc.sql_migrate import (
     migrate_users,
 )
 
+_IMPORT_CONFLICT_MESSAGE = (
+    "Wykryto konflikt unikalnego klucza podczas importu. "
+    "Czy baza docelowa została już wcześniej zainicjalizowana lub zawiera dane produkcyjne? "
+    "Rozważ użycie --clear-existing albo import na czystą bazę testową."
+)
+
 
 def _create_import_session() -> Session:
     engine = create_engine(
@@ -72,20 +79,18 @@ class KoidcImporter:
     ) -> ImportReport:
         report = empty_report(dry_run=self.dry_run)
         connection = self.session.connection()
-        loaded_tables: set[str] = set()
+        staging_tables: set[str] = set()
 
         try:
-            tables_before_load = snapshot_table_names(connection)
             if clear_existing:
                 clear_inventory_tables(connection)
 
-            dump_tables = extract_dump_table_names(sql_path)
-            drop_tables(connection, dump_tables)
+            prepare_legacy_staging_tables(connection)
             load_sql_dump(connection, sql_path)
             assert_legacy_tables_loaded(connection)
-            loaded_tables = snapshot_table_names(connection) - tables_before_load
+            staging_tables = staging_table_names(connection)
 
-            load_summary = preview_after_load(connection, loaded_tables)
+            load_summary = preview_after_load(connection)
             load_result = build_load_result(load_summary)
             report.stages.append(load_result)
             print(format_stage_result(load_result))
@@ -124,8 +129,8 @@ class KoidcImporter:
             report.stages.append(items_result)
             print(format_stage_result(items_result))
 
-            drop_tables(connection, loaded_tables)
-            cleanup_result = build_cleanup_result(loaded_tables)
+            drop_legacy_staging_tables(connection)
+            cleanup_result = build_cleanup_result(staging_tables)
             report.stages.append(cleanup_result)
             print(format_stage_result(cleanup_result))
 
@@ -137,13 +142,17 @@ class KoidcImporter:
                 report.committed = True
 
         except ImportAbortedError as exc:
-            cleanup_dump_staging(connection, sql_path, loaded_tables=loaded_tables)
+            cleanup_dump_staging(connection)
             self.session.rollback()
             report.aborted_at = _stage_from_message(str(exc))
             report.abort_reason = str(exc)
             report.committed = False
+        except IntegrityError as exc:
+            cleanup_dump_staging(connection)
+            self.session.rollback()
+            raise ImportDataConflictError(_IMPORT_CONFLICT_MESSAGE) from exc
         except Exception:
-            cleanup_dump_staging(connection, sql_path, loaded_tables=loaded_tables)
+            cleanup_dump_staging(connection)
             self.session.rollback()
             raise
 
