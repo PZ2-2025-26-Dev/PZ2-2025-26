@@ -371,7 +371,6 @@ def seed_database(session: Session) -> SeedIds:
         status=UserStatus.ACTIVE,
     )
 
-
     item_acl_entries = (
         (
             SEED_IDS.projector_acl_auto_approved_loan,
