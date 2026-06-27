@@ -3,19 +3,13 @@ from io import BytesIO
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
+from src.items.models import Category, Item
+from src.items.schemas import ItemSearch
+from src.items.service import ItemService
 from src.locations.models import Location
 from src.users.models import User
-from src.items.models import (
-    Item,
-    Category
-)
-from src.items.service import ItemService
-
-from src.items.schemas import (
-    ItemSearch
-    )
-
-from sqlalchemy.orm import selectinload
 
 
 class ExportService:
@@ -70,11 +64,7 @@ class ExportService:
 
         sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        stmt = (
-            stmt.order_by(sort_column.desc())
-            if data.sort_order == "desc"
-            else stmt.order_by(sort_column.asc())
-        )
+        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
 
         items = self.db.execute(stmt).scalars().all()
 

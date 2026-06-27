@@ -196,7 +196,7 @@ class ItemService:
         self.db.commit()
 
         return ItemDeleteResponse(deleted=True)
-    
+
     def _build_items_query(self, data: ItemSearch):
         stmt = select(Item)
 
@@ -217,11 +217,7 @@ class ItemService:
             stmt = stmt.where(func.lower(Item.name).like(f"%{data.name.lower()}%"))
 
         if data.description:
-            stmt = stmt.where(
-                func.lower(func.coalesce(Item.description, "")).like(
-                    f"%{data.description.lower()}%"
-                )
-            )
+            stmt = stmt.where(func.lower(func.coalesce(Item.description, "")).like(f"%{data.description.lower()}%"))
 
         if data.category_id:
             stmt = stmt.where(Item.category_id == data.category_id)
@@ -273,10 +269,7 @@ class ItemService:
 
         sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        if data.sort_order == "desc":
-            stmt = stmt.order_by(sort_column.desc())
-        else:
-            stmt = stmt.order_by(sort_column.asc())
+        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
 
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
