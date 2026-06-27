@@ -37,5 +37,14 @@ export const ENDPOINTS = {
         BROWSE: '/users/browse',
         GUESTS: '/users/guests',
         DETAILS: (id) => `/users/${id}`,
-    }
+    },
+    LOANS: {
+        BASE: '/loans',
+        EXTERNAL: '/loans/external',
+        DETAILS: (id) => `/loans/${id}`,
+        APPROVE: (id) => `/loans/${id}/approve`,
+        DENY: (id) => `/loans/${id}/deny`,
+        ACTIVATE: (id) => `/loans/${id}/activate`,
+        RETURN: (id) => `/loans/${id}/return`,
+    },
 };
