@@ -3,8 +3,19 @@ from io import BytesIO
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import select
+from src.locations.models import Location
+from src.users.models import User
+from src.items.models import (
+    Item,
+    Category
+)
+from src.items.service import ItemService
 
-from src.items.models import Item
+from src.items.schemas import (
+    ItemSearch
+    )
+
+from sqlalchemy.orm import selectinload
 
 
 class ExportService:
@@ -18,6 +29,7 @@ class ExportService:
         category: str | None = None,
     ):
         stmt = select(Item).order_by(Item.id)
+        print(stmt)
 
         if status:
             stmt = stmt.where(Item.status == status)
@@ -31,17 +43,40 @@ class ExportService:
 
         return self.db.execute(stmt).scalars().all()
 
-    def export_items_xlsx(
-        self,
-        search: str | None = None,
-        status: str | None = None,
-        category: str | None = None,
-    ):
-        items = self.get_items(
-            search=search,
-            status=status,
-            category=category,
+    def export_items_xlsx(self, data: ItemSearch):
+        stmt = ItemService(self.db)._build_items_query(data)
+
+        stmt = stmt.options(
+            selectinload(Item.category),
+            selectinload(Item.location),
+            selectinload(Item.owner),
         )
+
+        sort_field_map = {
+            "id": Item.id,
+            "name": Item.name,
+            "status": Item.status,
+            "category": Category.name,
+            "location": Location.name,
+            "owner": User.last_name,
+        }
+
+        if data.sort_by == "category":
+            stmt = stmt.join(Item.category)
+        elif data.sort_by == "location":
+            stmt = stmt.join(Item.location)
+        elif data.sort_by == "owner":
+            stmt = stmt.join(Item.owner)
+
+        sort_column = sort_field_map.get(data.sort_by, Item.id)
+
+        stmt = (
+            stmt.order_by(sort_column.desc())
+            if data.sort_order == "desc"
+            else stmt.order_by(sort_column.asc())
+        )
+
+        items = self.db.execute(stmt).scalars().all()
 
         workbook = Workbook()
         worksheet = workbook.active
@@ -65,12 +100,12 @@ class ExportService:
                 [
                     item.id,
                     item.name,
-                    str(item.oldID or ""),
-                    item.category.name,
-                    item.location.name,
-                    item.owner.first_name,
+                    item.oldID or "",
+                    item.category.name if item.category else "",
+                    item.location.name if item.location else "",
+                    item.owner.first_name if item.owner else "",
                     item.status.value,
-                    item.description,
+                    item.description or "",
                 ]
             )
 
@@ -81,5 +116,7 @@ class ExportService:
         return StreamingResponse(
             stream,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": 'attachment; filename="items.xlsx"'},
+            headers={
+                "Content-Disposition": 'attachment; filename="items.xlsx"',
+            },
         )

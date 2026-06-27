@@ -196,9 +196,8 @@ class ItemService:
         self.db.commit()
 
         return ItemDeleteResponse(deleted=True)
-
-    def search_items(self, data: ItemSearch) -> ItemsPaged:
-        # 1. Tworzymy bazowe zapytanie TYLKO z filtrami (bez ładowania relacji i stronicowania)
+    
+    def _build_items_query(self, data: ItemSearch):
         stmt = select(Item)
 
         if data.search:
@@ -210,16 +209,19 @@ class ItemService:
                     func.lower(func.coalesce(Item.oldID, "")).like(q),
                 )
             )
-        print("uuidddddd")
-        print(data)
 
         if data.uuid:
             stmt = stmt.where(Item.uuid == data.uuid)
+
         if data.name:
             stmt = stmt.where(func.lower(Item.name).like(f"%{data.name.lower()}%"))
 
         if data.description:
-            stmt = stmt.where(func.lower(func.coalesce(Item.description, "")).like(f"%{data.description.lower()}%"))
+            stmt = stmt.where(
+                func.lower(func.coalesce(Item.description, "")).like(
+                    f"%{data.description.lower()}%"
+                )
+            )
 
         if data.category_id:
             stmt = stmt.where(Item.category_id == data.category_id)
@@ -230,17 +232,23 @@ class ItemService:
         if data.owner_id:
             stmt = stmt.where(Item.owner_id == data.owner_id)
 
-        if data.borrower_id:
-            stmt = stmt.where(Item.borrower_id == data.borrower_id)
+        # TODO: odkomentować po dodaniu borrower_id do modelu
+        # if data.borrower_id:
+        #     stmt = stmt.where(Item.borrower_id == data.borrower_id)
 
         if data.status:
             stmt = stmt.where(Item.status == data.status)
 
-        # 2. Obliczamy TOTAL na "czystym" zapytaniu z filtrami (działa bezbłędnie)
+        return stmt
+
+    def search_items(self, data: ItemSearch) -> ItemsPaged:
+        stmt = self._build_items_query(data)
+
+        # liczba wszystkich wyników (bez paginacji)
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.execute(count_stmt).scalar_one()
 
-        # 3. Dopiero teraz do zapytania o dane dorzucamy sortowanie, stronicowanie i ładowanie relacji
+        # doładowanie relacji
         stmt = stmt.options(
             selectinload(Item.category),
             selectinload(Item.location),
@@ -256,27 +264,25 @@ class ItemService:
             "owner": User.last_name,
         }
 
-        sort_column = sort_field_map.get(data.sort_by, Item.id)
-
         if data.sort_by == "category":
             stmt = stmt.join(Item.category)
-
         elif data.sort_by == "location":
             stmt = stmt.join(Item.location)
-
         elif data.sort_by == "owner":
             stmt = stmt.join(Item.owner)
 
         sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
+        if data.sort_order == "desc":
+            stmt = stmt.order_by(sort_column.desc())
+        else:
+            stmt = stmt.order_by(sort_column.asc())
 
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
 
         results = self.db.execute(stmt).scalars().all()
 
-        # 4. Mapowanie obiektów na schemy wyjściowe (bez zmian)
         items = [
             ItemSearchResponse(
                 id=item.uuid,
@@ -288,19 +294,19 @@ class ItemService:
                     name=item.category.name,
                 )
                 if item.category
-                else None,  # Zabezpieczenie przed None
+                else None,
                 location=ItemLocation(
                     id=item.location.id,
                     path=build_location_path(item.location),
                 )
                 if item.location
-                else None,  # Zabezpieczenie przed None
+                else None,
                 owner=ItemOwner(
                     id=item.owner.id,
                     name=self._owner_display_name(item.owner),
                 )
                 if item.owner
-                else None,  # Zabezpieczenie przed None
+                else None,
                 description=item.description,
             )
             for item in results

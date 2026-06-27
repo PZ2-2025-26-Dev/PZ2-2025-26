@@ -30,7 +30,7 @@ export const useExport = () => {
                         status: filters.status,
                         category: filters.category,
                     }),
-                    responseType: 'blob', // 🔥 KLUCZOWE
+                    responseType: 'blob', 
                 }
             );
 

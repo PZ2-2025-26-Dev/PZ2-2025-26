@@ -80,7 +80,7 @@
     }
   },
   "inventoryFilters": {
-    "searchPlaceholder": "Szukaj po nazwie, opisie, ID...",
+    "searchPlaceholder": "Szukaj po nazwie, opisie...",
 
     "labels": {
       "advancedFilters": "Filtry zaawansowane"

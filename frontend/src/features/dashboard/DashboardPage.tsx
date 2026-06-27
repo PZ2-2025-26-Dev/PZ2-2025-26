@@ -61,6 +61,12 @@ type CategoryOption = {
 
 type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
 
+export type ApiUser = {
+    id: number;
+    firstName: string;
+    lastName: string;
+};
+
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
 function isMenuSection(value: string | null): value is MenuSection {
@@ -162,7 +168,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const refreshItems = useCallback(async () => {
         setIsLoading(true);
-        console.log(filters)
         const result = await listItems({ ...filters, limit: 50 });
         if (result.success) {
             setItems(result.items);
@@ -176,7 +181,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     else if (item.status === 'broken') computedStats.broken++;
                 });
             setStats(computedStats);
-            console.log(result)
         }
 
         setIsLoading(false);
@@ -251,11 +255,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const handleExportXlsx = useCallback(async () => {
         await exportItemsXlsx({
+            ...filters,
             search: filters.search || searchQuery,
-            status: filters.status,
-            category: filters.categoryId,
         });
-    }, [exportItemsXlsx, searchQuery, filters]);
+    }, [exportItemsXlsx, filters, searchQuery]);
 
     const menuItems = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },

@@ -246,7 +246,7 @@
     "deleteAttachment": "Delete"
   },
   "inventoryFilters": {
-    "searchPlaceholder": "Search by name, description, ID...",
+    "searchPlaceholder": "Search by name, description...",
 
     "labels": {
       "advancedFilters": "Advanced filters"

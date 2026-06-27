@@ -112,10 +112,9 @@ export const useInventory = () => {
         setError(null);
 
         try {
-            console.log (filters.categoryId, filters.sort_order, filters)
-            // Aktualizacja mapowania wewnątrz listItems w pliku hooka:
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
+                    uuid: filters.uuid,
                     name: filters.name,
                     description: filters.description,
                     search: filters.search,
