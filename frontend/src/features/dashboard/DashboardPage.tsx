@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     AlertTriangle,
     Box,
@@ -86,11 +86,47 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(
+        () => !(typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches),
+    );
+    const sidebarRef = useRef<HTMLElement>(null);
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
     }, [isDarkMode]);
+
+    // Keep the off-canvas sidebar out of the keyboard tab order on small screens.
+    useEffect(() => {
+        const aside = sidebarRef.current;
+        if (!aside) return undefined;
+
+        const mediaQuery = window.matchMedia('(max-width: 1023px)');
+        const syncInertState = () => {
+            const isOffCanvas = mediaQuery.matches && !isSidebarOpen;
+            if (isOffCanvas) {
+                aside.setAttribute('inert', '');
+                aside.setAttribute('aria-hidden', 'true');
+            } else {
+                aside.removeAttribute('inert');
+                aside.removeAttribute('aria-hidden');
+            }
+        };
+
+        syncInertState();
+        mediaQuery.addEventListener('change', syncInertState);
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && mediaQuery.matches && isSidebarOpen) {
+                setIsSidebarOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            mediaQuery.removeEventListener('change', syncInertState);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [isSidebarOpen]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
 
@@ -381,36 +417,42 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         }}
                                                         style={{ marginLeft: depth * 12 }}
                                                     >
-                                                        <button
-                                                            onClick={() => setCategoryFilter(`tree:${category.id}`)}
-                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                                        <div
+                                                            className={`flex w-full items-center gap-1 rounded-lg pr-3 transition-colors ${
                                                                 categoryFilter === `tree:${category.id}`
                                                                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                                                                     : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
                                                             }`}
                                                         >
-                                                            <div className="flex flex-1 items-center gap-2">
-                                                                {hasChildren ? (
-                                                                    <CollapsibleTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon-sm"
-                                                                            className="-ml-2"
-                                                                        >
-                                                                            {isExpanded ? (
-                                                                                <ChevronDown className="size-4" />
-                                                                            ) : (
-                                                                                <ChevronRight className="size-4" />
-                                                                            )}
-                                                                        </Button>
-                                                                    </CollapsibleTrigger>
-                                                                ) : (
-                                                                    <span className="block size-7 shrink-0" />
-                                                                )}
+                                                            {hasChildren ? (
+                                                                <CollapsibleTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon-sm"
+                                                                        className="ml-1 shrink-0"
+                                                                        aria-label={t(isExpanded ? 'a11y.collapseCategory' : 'a11y.expandCategory', { name: category.name })}
+                                                                    >
+                                                                        {isExpanded ? (
+                                                                            <ChevronDown className="size-4" />
+                                                                        ) : (
+                                                                            <ChevronRight className="size-4" />
+                                                                        )}
+                                                                    </Button>
+                                                                </CollapsibleTrigger>
+                                                            ) : (
+                                                                <span className="block size-7 shrink-0" />
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setCategoryFilter(`tree:${category.id}`)}
+                                                                aria-pressed={categoryFilter === `tree:${category.id}`}
+                                                                aria-label={t('a11y.filterByCategory', { name: category.name })}
+                                                                className="flex flex-1 items-center justify-between gap-2 rounded-lg py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
+                                                            >
                                                                 <span className="truncate pr-2">{category.name}</span>
-                                                            </div>
-                                                            <Badge variant="outline" className="text-[10px]">{count}</Badge>
-                                                        </button>
+                                                                <Badge variant="outline" className="text-[10px]">{count}</Badge>
+                                                            </button>
+                                                        </div>
 
                                                         {hasChildren && (
                                                             <CollapsibleContent className="space-y-0">
@@ -440,7 +482,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                                         <AlertDescription className="flex items-center justify-between gap-3">
                                             <span>{error}</span>
-                                            <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
+                                            <Button variant="outline" size="sm" onClick={clearError} aria-label={t('a11y.dismiss')}><span aria-hidden="true">✕</span></Button>
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -449,8 +491,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     <CardContent className="space-y-4 p-4">
                                         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
                                             <div className="relative max-w-md flex-1">
-                                                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                                                <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
+                                                <Label htmlFor="inventory-search" className="sr-only">{t('dashboard.searchPlaceholder')}</Label>
+                                                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                                                <Input id="inventory-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
                                             </div>
                                             <div className="flex gap-2">
                                                 <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
@@ -494,6 +537,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         {t('userManager.loading')}
                                                     </TableCell>
                                                 </TableRow>
+<<<<<<< Updated upstream
                                             ) : filteredItems.length > 0 ? filteredItems.map((item) => (
                                                 <TableRow
                                                     key={item.id}
@@ -506,6 +550,22 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         if (event.key === 'Enter' || event.key === ' ') {
                                                             event.preventDefault();
                                                             openItemDetails(item);
+=======
+                                            ) : filteredItems.length > 0 ? filteredItems.map((item) => {
+                                                const openDetails = () => { setSelectedItem(item); setIsDetailsModalOpen(true); };
+                                                return (
+                                                <TableRow
+                                                    key={item.id}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-label={t('a11y.openItemDetails', { name: item.name })}
+                                                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
+                                                    onClick={openDetails}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            event.preventDefault();
+                                                            openDetails();
+>>>>>>> Stashed changes
                                                         }
                                                     }}
                                                 >
@@ -524,7 +584,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                     </TableCell>
                                                     <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
                                                 </TableRow>
-                                            )) : (
+                                                );
+                                            }) : (
                                                 <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
                                             )}
                                         </TableBody>
@@ -577,6 +638,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             size="icon"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="lg:hidden"
+                            aria-label={t('a11y.toggleSidebar')}
+                            aria-expanded={isSidebarOpen}
                         >
                             {isSidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
                         </Button>
@@ -592,10 +655,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
                     <div className="flex items-center gap-1 sm:gap-2">
                         <SystemClock lang={i18n.language} />
-                        <Button variant="ghost" size="sm" onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL')}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL')}
+                            aria-label={t('a11y.switchLanguage', { lang: i18n.language === 'PL' ? 'EN' : 'PL' })}
+                        >
                             {i18n.language === 'PL' ? 'EN' : 'PL'}
                         </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
+                        <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? t('a11y.lightMode') : t('a11y.darkMode')}>
                             {isDarkMode ? <Sun /> : <Moon />}
                         </Button>
                         <Button variant="destructive" size="sm" onClick={onLogout}>
@@ -607,8 +675,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             </header>
 
             <div className="flex flex-1 overflow-hidden">
+                {isSidebarOpen && (
+                    <button
+                        type="button"
+                        className="fixed inset-0 top-16 z-20 bg-slate-950/40 lg:hidden"
+                        aria-label={t('a11y.closeSidebar')}
+                        onClick={() => setIsSidebarOpen(false)}
+                    />
+                )}
                 {/* Sidebar */}
                 <aside
+                    ref={sidebarRef}
                     className={`fixed left-0 top-16 z-30 h-[calc(100vh-64px)] border-r border-slate-200 bg-white/95 backdrop-blur transition-all duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-950/95 lg:relative lg:top-0 lg:z-0 lg:translate-x-0 ${
                         isSidebarOpen ? 'w-64 translate-x-0' : 'w-16 -translate-x-full lg:translate-x-0'
                     }`}
@@ -619,7 +696,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             size="icon"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="w-full"
-                            aria-label="Przełącz menu boczne"
+                            aria-label={t('a11y.toggleSidebar')}
+                            aria-expanded={isSidebarOpen}
                         >
                             <Menu className="size-5" />
                         </Button>
@@ -636,8 +714,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     key={item.id}
                                     onClick={() => {
                                         setActiveSection(item.id);
+                                        if (window.matchMedia('(max-width: 1023px)').matches) {
+                                            setIsSidebarOpen(false);
+                                        }
                                     }}
-                                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
+                                    aria-current={isActive ? 'page' : undefined}
+                                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 ${
                                         isActive
                                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                                             : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'

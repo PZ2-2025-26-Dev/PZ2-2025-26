@@ -291,10 +291,10 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
                         <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                                 <Label>{t('addAssetModal.category')} *</Label>
+                                 <Label htmlFor="asset-category">{t('addAssetModal.category')} *</Label>
                                  <div className={isAdmin ? 'flex gap-2' : ''}>
                                      <Select value={formData.categoryId} onValueChange={(categoryId) => setFormData((current) => ({ ...current, categoryId }))} disabled={categoriesLoading}>
-                                         <SelectTrigger className={isAdmin ? undefined : 'w-full'}><SelectValue /></SelectTrigger>
+                                         <SelectTrigger id="asset-category" className={isAdmin ? undefined : 'w-full'}><SelectValue /></SelectTrigger>
                                          <SelectContent>
                                              {indentedCategories.map((category) => (
                                                  <SelectItem key={category.id} value={String(category.id)}>
@@ -311,14 +311,14 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                                  </div>
                              </div>
                             <div className="space-y-2">
-                                <Label>{t('addAssetModal.owner')} *</Label>
+                                <Label htmlFor="asset-owner">{t('addAssetModal.owner')} *</Label>
                                 {isAdmin ? (
                                     <Select
                                         value={formData.ownerId}
                                         onValueChange={(ownerId) => setFormData((current) => ({ ...current, ownerId }))}
                                         disabled={usersLoading}
                                     >
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectTrigger id="asset-owner"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {users.map((owner) => (
                                                 <SelectItem key={owner.id} value={String(owner.id)}>
@@ -389,13 +389,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                         <Separator />
 
                         <div className="space-y-2">
-                            <Label>{t('addAssetModal.building')} *</Label>
+                            <Label htmlFor="asset-location">{t('addAssetModal.building')} *</Label>
                             <Select
                                 value={formData.locationId}
                                 onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
                                 disabled={locationsLoading || locations.length === 0}
                             >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger id="asset-location"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     {locations.map((location) => (
                                         <SelectItem key={location.id} value={String(location.id)}>
@@ -431,9 +431,9 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                             <Input id="category-name" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder={t('addAssetModal.categoryPlaceholder')} required />
                         </div>
                         <div className="space-y-2">
-                            <Label>{t('addAssetModal.categoryParentLabel')}</Label>
+                            <Label htmlFor="asset-new-category-parent">{t('addAssetModal.categoryParentLabel')}</Label>
                             <Select value={newCategoryParentId} onValueChange={setNewCategoryParentId}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger id="asset-new-category-parent"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="root">{t('addAssetModal.noParent')}</SelectItem>
                                     {categories.filter((category) => !category.parentId).map((category) => <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>)}

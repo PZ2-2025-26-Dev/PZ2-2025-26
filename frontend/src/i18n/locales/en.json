@@ -17,7 +17,7 @@
     "localLogin": "Local Authentication",
     "registerLink": "Register local account (Requires admin approval)",
     "selectRoleTitle": "Select a system role (MVP Simulation):",
-    "backBtn": "Przejdź do strony głównej",
+    "backBtn": "Back to home",
     "card1Title": "Inventory & Statuses",
     "card1Desc": "Instant access to device parameters, calibration dates, and assigned supervisors.",
     "card2Title": "QR Codes & Quick Actions",
@@ -237,6 +237,7 @@
     "borrowDesc": "Specify your planned return date to submit a rental request to the owner.",
     "dateLabel": "Return Date",
     "btnSubmitReq": "Submit Rental Request",
+    "readOnly": "Read only",
     "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset.",
     "description": "Technical Description",
     "documentation": "Manufacturer Documentation",
@@ -284,6 +285,7 @@
     "save": "Save changes",
     "saving": "Saving...",
     "deleteConfirm": "Are you sure you want to delete {{name}}?",
+    "approvalRoleFor": "Select role for {{name}}",
     "roles": {
       "admin": "Administrator",
       "user": "User",
@@ -308,6 +310,8 @@
     "close": "Close scanner"
   },
   "auth": {
+    "appTitle": "AGH Apparatus",
+    "appSubtitle": "Integrated measurement equipment management system",
     "login": "Login",
     "register": "Register",
     "email": "Email",
@@ -360,5 +364,21 @@
      "cancel": "Cancel",
      "submitting": "Submitting...",
      "submitRequest": "Submit Request"
+   },
+   "common": {
+     "loading": "Loading..."
+   },
+   "a11y": {
+     "openItemDetails": "Open item details: {{name}}",
+     "expandCategory": "Expand category {{name}}",
+     "collapseCategory": "Collapse category {{name}}",
+     "filterByCategory": "Filter by category: {{name}}",
+     "toggleSidebar": "Toggle sidebar",
+     "lightMode": "Switch to light mode",
+     "darkMode": "Switch to dark mode",
+     "switchLanguage": "Change language to {{lang}}",
+     "dismiss": "Dismiss message",
+     "closeSidebar": "Close sidebar",
+     "close": "Close"
    }
  }

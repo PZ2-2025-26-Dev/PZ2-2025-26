@@ -237,6 +237,7 @@
     "borrowDesc": "Wskaż planowaną datę zwrotu, aby wysłać wniosek o wypożyczenie do właściciela urządzenia.",
     "dateLabel": "Data zwrotu",
     "btnSubmitReq": "Złóż wniosek o wypożyczenie",
+    "readOnly": "Tylko do odczytu",
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie.",
     "description": "Opis techniczny",
     "documentation": "Dokumentacja producenta",
@@ -284,6 +285,7 @@
     "save": "Zapisz zmiany",
     "saving": "Zapisywanie...",
     "deleteConfirm": "Czy na pewno usunąć użytkownika {{name}}?",
+    "approvalRoleFor": "Wybierz rolę dla {{name}}",
     "roles": {
       "admin": "Administrator",
       "user": "Użytkownik",
@@ -308,6 +310,8 @@
     "close": "Zamknij skaner"
   },
   "auth": {
+    "appTitle": "Aparatura AGH",
+    "appSubtitle": "Zintegrowany system zarządzania aparaturą pomiarową",
     "login": "Logowanie",
     "register": "Rejestracja",
     "email": "Email",
@@ -360,5 +364,21 @@
      "cancel": "Anuluj",
      "submitting": "Wysyłanie...",
      "submitRequest": "Złóż wniosek"
+   },
+   "common": {
+     "loading": "Ładowanie..."
+   },
+   "a11y": {
+     "openItemDetails": "Otwórz szczegóły przedmiotu: {{name}}",
+     "expandCategory": "Rozwiń kategorię {{name}}",
+     "collapseCategory": "Zwiń kategorię {{name}}",
+     "filterByCategory": "Filtruj według kategorii: {{name}}",
+     "toggleSidebar": "Przełącz menu boczne",
+     "lightMode": "Włącz jasny motyw",
+     "darkMode": "Włącz ciemny motyw",
+     "switchLanguage": "Zmień język na {{lang}}",
+     "dismiss": "Zamknij komunikat",
+     "closeSidebar": "Zamknij menu boczne",
+     "close": "Zamknij"
    }
  }

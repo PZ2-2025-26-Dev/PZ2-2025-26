@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,10 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }
->(({ className, children, showCloseButton = true, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, ...props }, ref) => {
+    const { t } = useTranslation();
+
+    return (
         <DialogPortal>
             <DialogOverlay />
             <DialogPrimitive.Content
@@ -46,13 +50,14 @@ const DialogContent = React.forwardRef<
                     <DialogPrimitive.Close asChild>
                         <Button variant="ghost" size="icon-sm" className="absolute right-3 top-3">
                             <X />
-                            <span className="sr-only">Close</span>
+                            <span className="sr-only">{t('a11y.close')}</span>
                         </Button>
                     </DialogPrimitive.Close>
                 )}
             </DialogPrimitive.Content>
         </DialogPortal>
-));
+    );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
