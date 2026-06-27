@@ -8,7 +8,7 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from src.import_koidc.constants import LEGACY_STAGING_TABLE_PREFIX
+from src.import_koidc.constants import LEGACY_STAGING_SCHEMA
 
 LEGACY_TABLES: tuple[str, ...] = (
     "inv_budynki",
@@ -62,43 +62,46 @@ def extract_dump_table_names(sql_path: Path) -> set[str]:
     return set(_CREATE_TABLE_PATTERN.findall(sql_text))
 
 
-def staging_table_name(legacy_name: str) -> str:
-    return f"{LEGACY_STAGING_TABLE_PREFIX}{legacy_name}"
-
-
 def legacy_table(table: str) -> str:
-    return f"`{staging_table_name(table)}`"
+    return f"`{LEGACY_STAGING_SCHEMA}`.`{table}`"
 
 
-def _prefix_dump_table_names(sql_text: str, table_names: set[str]) -> str:
-    for table in sorted(table_names, key=len, reverse=True):
-        sql_text = sql_text.replace(f"`{table}`", f"`{staging_table_name(table)}`")
-    return sql_text
+def current_database(connection: Connection) -> str:
+    database = connection.execute(text("SELECT DATABASE()")).scalar_one()
+    if not database:
+        raise RuntimeError("Połączenie nie ma ustawionej bazy danych.")
+    return database
 
 
-def prepare_legacy_staging_tables(connection: Connection) -> None:
-    """Usuwa tabele stagingowe z poprzedniego importu (prefiks _koidc_stg_)."""
-    drop_legacy_staging_tables(connection)
+def use_database(connection: Connection, database: str) -> None:
+    connection.execute(text(f"USE `{database}`"))
 
 
-def drop_legacy_staging_tables(connection: Connection) -> None:
-    drop_tables(connection, staging_table_names(connection))
+def prepare_legacy_staging_schema(connection: Connection) -> None:
+    """Usuwa i odtwarza schemat stagingowy — izolowany od tabel PZ2."""
+    connection.execute(text(f"DROP SCHEMA IF EXISTS `{LEGACY_STAGING_SCHEMA}`"))
+    connection.execute(text(f"CREATE SCHEMA `{LEGACY_STAGING_SCHEMA}`"))
+
+
+def drop_legacy_staging_schema(connection: Connection) -> None:
+    connection.execute(text(f"DROP SCHEMA IF EXISTS `{LEGACY_STAGING_SCHEMA}`"))
 
 
 def staging_table_names(connection: Connection) -> set[str]:
     rows = connection.execute(
         text(
             "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema = DATABASE() AND table_name LIKE :pattern"
+            "WHERE table_schema = :schema"
         ),
-        {"pattern": f"{LEGACY_STAGING_TABLE_PREFIX}%"},
+        {"schema": LEGACY_STAGING_SCHEMA},
     ).scalars()
     return set(rows)
 
 
-def cleanup_dump_staging(connection: Connection) -> None:
-    """Usuwa tabele stagingowe (np. po przerwaniu importu)."""
-    drop_legacy_staging_tables(connection)
+def cleanup_dump_staging(connection: Connection, main_database: str) -> None:
+    """Usuwa schemat stagingowy i przywraca domyślną bazę (np. po przerwaniu importu)."""
+    drop_legacy_staging_schema(connection)
+    use_database(connection, main_database)
 
 
 def _get_dbapi_connection(connection: Connection):
@@ -113,13 +116,12 @@ def _get_dbapi_connection(connection: Connection):
 
 
 def load_sql_dump(connection: Connection, sql_path: Path) -> None:
-    """Wykonuje plik SQL z tabelami legacy pod prefiksem stagingowym w bieżącej bazie."""
+    """Wykonuje plik SQL w osobnym schemacie stagingowym legacy."""
     sql_text = _strip_database_directives(sql_path.read_text(encoding="utf-8", errors="replace"))
     if not sql_text.strip():
         raise ValueError(f"Plik SQL jest pusty: {sql_path}")
 
-    dump_tables = set(_CREATE_TABLE_PATTERN.findall(sql_text))
-    sql_text = _prefix_dump_table_names(sql_text, dump_tables)
+    sql_text = f"USE `{LEGACY_STAGING_SCHEMA}`;\n{sql_text}"
 
     driver = _get_dbapi_connection(connection)
 
@@ -138,9 +140,9 @@ def legacy_tables_present(connection: Connection) -> list[str]:
         exists = connection.execute(
             text(
                 "SELECT COUNT(*) FROM information_schema.tables "
-                "WHERE table_schema = DATABASE() AND table_name = :table_name"
+                "WHERE table_schema = :schema AND table_name = :table_name"
             ),
-            {"table_name": staging_table_name(table)},
+            {"schema": LEGACY_STAGING_SCHEMA, "table_name": table},
         ).scalar_one()
         if not exists:
             missing.append(table)
@@ -160,7 +162,7 @@ def drop_tables(connection: Connection, table_names: set[str]) -> None:
 
 
 def drop_legacy_tables(connection: Connection) -> None:
-    drop_tables(connection, {staging_table_name(table) for table in LEGACY_TABLES})
+    drop_legacy_staging_schema(connection)
 
 
 def assert_legacy_tables_loaded(connection: Connection) -> None:

@@ -56,96 +56,31 @@ Flaga `-it` przy `docker compose exec` jest wymagana, aby móc zatwierdzać etap
 | `--yes` / `-y` | Pomiń interaktywne zatwierdzanie etapów migracji (tylko testy/automatyzacja) |
 | `--report-file <ścieżka>` | Własna ścieżka raportu `.txt` (domyślnie: `import_reports/koidc_import_report_<data>.txt`) |
 
-### Przykłady poszczególnych flag
 
-Domyślny import (zrzut z domyślnej ścieżki, zatwierdzanie etapów w terminalu):
+### Przykład  uruchomienia 
 
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import
-```
+**Ważne komende do przenoszenia danych należy uruchomić w trybie root**
 
-Własny plik zrzutu:
-
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql
-```
-
-Czyszczenie istniejących danych PZ2 przed importem:
-
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql --clear-existing
-```
-
-Podgląd bez zapisu do bazy (rollback na końcu):
-
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql --dry-run
-```
-
-Automatyczne zatwierdzanie etapów (bez pytań w terminalu):
-
-```powershell
-docker compose exec api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql --yes
-```
-
-Własna ścieżka raportu:
-
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql --report-file /app/import_reports/moj_raport.txt
-```
-
-### Przykład pełnego uruchomienia (wszystkie flagi)
-
-Automatyczny test importu ze wszystkimi opcjami (bez interakcji w terminalie — nie używaj `-it`):
-
-```powershell
-docker compose exec api uv run python -m src.import_koidc import `
-  --sql-file /app/sample_dump.sql `
-  --clear-existing `
-  --dry-run `
-  --yes `
-  --report-file /app/import_reports/koidc_import_2025.txt
-```
-
-Typowy scenariusz wdrożeniowy z ręcznym zatwierdzaniem etapów (bez `--yes`, wymaga `-it`):
-
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import `
-  --sql-file /app/sample_dump.sql `
-  --clear-existing `
-  --dry-run `
-  --report-file /app/import_reports/koidc_import_2025.txt
-```
-
-Gdy wynik `--dry-run` jest OK, uruchom import produkcyjny (bez `--dry-run`):
-
-```powershell
-docker compose exec -it api uv run python -m src.import_koidc import `
-  --sql-file /app/sample_dump.sql `
-  --clear-existing `
-  --report-file /app/import_reports/koidc_import_2025.txt
-```
-
-### Tryb dev
+1. Tryb dev
 
 Środowisko developerskie z montowaniem kodu (`compose.dev.yaml`):
 
 ```powershell
-docker compose -f compose.yaml -f compose.dev.yaml up --build -d
+docker compose -f compose.yaml -f compose.dev.yaml up --build 
 docker compose cp backend/sample_dump.sql api:/app/sample_dump.sql
-docker compose exec -it api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql
+docker compose exec -e PZ_DATABASE_URL="mysql+pymysql://root:root@db:3306/app_db" api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql
 ```
 
 Raport trafi do `/app/import_reports/` w kontenerze (przy mountcie `./backend:/app` pliki będą też widoczne lokalnie w `backend/import_reports/`).
 
-### Tryb klienta (produkcja / wdrożenie)
+2. Tryb klienta (produkcja / wdrożenie)
 
 Standardowy `compose.yaml` bez montowania kodu źródłowego:
 
 ```powershell
 docker compose up --build -d
 docker compose cp backend/sample_dump.sql api:/app/sample_dump.sql
-docker compose exec -it api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql
+docker compose exec -e PZ_DATABASE_URL="mysql+pymysql://root:root@db:3306/app_db" api uv run python -m src.import_koidc import --sql-file /app/sample_dump.sql
 ```
 
 Aby pobrać raport z kontenera:
@@ -154,13 +89,6 @@ Aby pobrać raport z kontenera:
 docker compose cp api:/app/import_reports/koidc_import_report_YYYYMMDD_HHMMSS.txt ./backend/import_reports/
 ```
 
-### Bez Dockera
-
-Z katalogu `backend/`, gdy `PZ_DATABASE_URL` wskazuje dostępną bazę:
-
-```powershell
-uv run python -m src.import_koidc import --sql-file sample_dump.sql --clear-existing
-```
 
 ---
 

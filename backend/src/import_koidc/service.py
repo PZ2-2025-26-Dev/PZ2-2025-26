@@ -14,11 +14,13 @@ from src.import_koidc.constants import STAGES_REQUIRING_APPROVAL, ImportStage
 from src.import_koidc.loader import (
     assert_legacy_tables_loaded,
     cleanup_dump_staging,
+    current_database,
     default_sql_file,
-    drop_legacy_staging_tables,
+    drop_legacy_staging_schema,
     load_sql_dump,
-    prepare_legacy_staging_tables,
+    prepare_legacy_staging_schema,
     staging_table_names,
+    use_database,
 )
 from src.import_koidc.prompts import ImportAbortedError, ImportDataConflictError, approve_stage
 from src.import_koidc.report import (
@@ -79,14 +81,16 @@ class KoidcImporter:
     ) -> ImportReport:
         report = empty_report(dry_run=self.dry_run)
         connection = self.session.connection()
+        main_database = current_database(connection)
         staging_tables: set[str] = set()
 
         try:
             if clear_existing:
                 clear_inventory_tables(connection)
 
-            prepare_legacy_staging_tables(connection)
+            prepare_legacy_staging_schema(connection)
             load_sql_dump(connection, sql_path)
+            use_database(connection, main_database)
             assert_legacy_tables_loaded(connection)
             staging_tables = staging_table_names(connection)
 
@@ -129,7 +133,7 @@ class KoidcImporter:
             report.stages.append(items_result)
             print(format_stage_result(items_result))
 
-            drop_legacy_staging_tables(connection)
+            drop_legacy_staging_schema(connection)
             cleanup_result = build_cleanup_result(staging_tables)
             report.stages.append(cleanup_result)
             print(format_stage_result(cleanup_result))
@@ -142,17 +146,17 @@ class KoidcImporter:
                 report.committed = True
 
         except ImportAbortedError as exc:
-            cleanup_dump_staging(connection)
+            cleanup_dump_staging(connection, main_database)
             self.session.rollback()
             report.aborted_at = _stage_from_message(str(exc))
             report.abort_reason = str(exc)
             report.committed = False
         except IntegrityError as exc:
-            cleanup_dump_staging(connection)
+            cleanup_dump_staging(connection, main_database)
             self.session.rollback()
             raise ImportDataConflictError(_IMPORT_CONFLICT_MESSAGE) from exc
         except Exception:
-            cleanup_dump_staging(connection)
+            cleanup_dump_staging(connection, main_database)
             self.session.rollback()
             raise
 

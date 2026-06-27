@@ -1,6 +1,6 @@
 from enum import Enum
 
-LEGACY_STAGING_TABLE_PREFIX = "_koidc_stg_"
+LEGACY_STAGING_SCHEMA = "koidc_staging"
 
 
 class ImportStage(Enum):

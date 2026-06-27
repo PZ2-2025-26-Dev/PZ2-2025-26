@@ -9,14 +9,8 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from src.import_koidc.constants import LEGACY_STAGING_TABLE_PREFIX, ImportStage
-from src.import_koidc.loader import (
-    LEGACY_TABLES,
-    find_repo_root,
-    legacy_table,
-    staging_table_name,
-    staging_table_names,
-)
+from src.import_koidc.constants import LEGACY_STAGING_SCHEMA, ImportStage
+from src.import_koidc.loader import LEGACY_TABLES, find_repo_root, legacy_table, staging_table_names
 from src.import_koidc.sql_migrate import LEGACY_EMAIL_DOMAIN
 
 ISSUE_MISSING_EMAIL = "brak_email"
@@ -227,7 +221,7 @@ def preview_load(sql_path: Path, *, clear_existing: bool) -> StagePreview:
         f"Plik zrzutu: {sql_path}",
         f"Rozmiar: {size_kb:.1f} KiB",
         f"Czyszczenie istniejących danych PZ2: {'TAK' if clear_existing else 'NIE'}",
-        f"Prefiks tabel stagingowych legacy: {LEGACY_STAGING_TABLE_PREFIX}",
+        f"Schemat stagingowy legacy: {LEGACY_STAGING_SCHEMA}",
         "Tabele stagingowe do utworzenia m.in.: " + ", ".join(LEGACY_TABLES),
     ]
     if clear_existing:
@@ -238,16 +232,15 @@ def preview_load(sql_path: Path, *, clear_existing: bool) -> StagePreview:
 def preview_after_load(connection: Connection) -> list[str]:
     loaded_tables = staging_table_names(connection)
     lines = [
-        f"Prefiks tabel stagingowych: {LEGACY_STAGING_TABLE_PREFIX}",
+        f"Schemat stagingowy: {LEGACY_STAGING_SCHEMA}",
         f"Utworzono tabel ze zrzutu: {len(loaded_tables)}",
     ]
     for table in LEGACY_TABLES:
-        staged_name = staging_table_name(table)
-        if staged_name in loaded_tables:
+        if table in loaded_tables:
             lines.append(f"  • {table}: {_legacy_row_count(connection, table)} rekordów")
-    extra = sorted(loaded_tables - {staging_table_name(table) for table in LEGACY_TABLES})
+    extra = sorted(loaded_tables - set(LEGACY_TABLES))
     if extra:
-        lines.append(f"Dodatkowe tabele ze zrzutu (zostaną usunięte): {', '.join(extra)}")
+        lines.append(f"Dodatkowe tabele ze zrzutu (zostaną usunięte ze schematem stagingowym): {', '.join(extra)}")
     return lines
 
 
@@ -351,8 +344,8 @@ def preview_items(connection: Connection) -> StagePreview:
 
 def preview_cleanup(staging_tables: set[str]) -> StagePreview:
     summary = [
-        f"Prefiks tabel stagingowych do usunięcia: {LEGACY_STAGING_TABLE_PREFIX}",
-        f"Tabel stagingowych: {len(staging_tables)}",
+        f"Schemat stagingowy do usunięcia: {LEGACY_STAGING_SCHEMA}",
+        f"Tabel w schemacie stagingowym: {len(staging_tables)}",
         "Po tym etapie zostaną tylko dane w tabelach PZ2.",
     ]
     if staging_tables:
@@ -480,7 +473,7 @@ def build_cleanup_result(staging_tables: set[str]) -> StageResult:
     return StageResult(
         stage=ImportStage.CLEANUP,
         summary_lines=[
-            f"Usunięto tabele stagingowe z prefiksem {LEGACY_STAGING_TABLE_PREFIX} ({len(staging_tables)} tabel)",
+            f"Usunięto schemat stagingowy {LEGACY_STAGING_SCHEMA} ({len(staging_tables)} tabel)",
         ],
         executed=True,
     )
