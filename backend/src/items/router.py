@@ -29,6 +29,7 @@ from src.items.schemas import (
     ItemCreateResponse,
     ItemGetResponse,
     ItemHistoryGetResponse,
+    ItemHistorySearch,
     ItemID,
     ItemSearch,
     ItemsPaged,
@@ -243,12 +244,13 @@ def delete_item(
 def read_item_history(
     item_id: ItemID,
     db: DBDep,
+    data: Annotated[ItemHistorySearch, Depends()],
     _reader: RequireItemReader,
 ) -> ItemHistoryGetResponse:
     service = ItemService(db)
 
     try:
-        return service.get_item_history(item_id)
+        return service.get_item_history(item_id, data)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
@@ -60,6 +61,7 @@ def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seede
     history = response.json()["entries"]
     assert len(history) == 1
     assert history[0]["updated_by"] == SEED_IDS.regular_user
+    assert response.json()["pagination"] == {"page": 1, "limit": 10, "total": 1}
     assert get_item_or_fail(seeded_db, created["id"]) is not None
 
 
@@ -263,10 +265,25 @@ def test_item_history_endpoint_returns_seed_history(api_client: TestClient, seed
     )
 
     assert response.status_code == 200
-    history = response.json()["entries"]
-    assert len(history) >= 1
-    assert history[0]["change_type"] == ItemChangeLogType.CREATED.value
-    assert history[0]["updated_by"] == SEED_IDS.regular_user
+    body = response.json()
+    assert len(body["entries"]) == 10
+    assert body["entries"][0]["change_type"] == ItemChangeLogType.LOANED.value
+    assert body["entries"][0]["updated_by"] == SEED_IDS.regular_user
+    assert body["pagination"]["total"] == 12
+
+
+def test_item_history_endpoint_supports_pagination_and_type_filter(api_client: TestClient, seeded_db: Session):
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/history",
+        params={"type": ItemChangeLogType.CREATED.value, "page": 1, "limit": 1},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["entries"]) == 1
+    assert body["entries"][0]["change_type"] == ItemChangeLogType.CREATED.value
+    assert body["pagination"] == {"page": 1, "limit": 1, "total": 1}
 
 
 def test_item_history_endpoint_returns_404_for_missing_item(api_client: TestClient, seeded_db: Session):
@@ -279,6 +296,13 @@ def test_item_history_endpoint_returns_404_for_missing_item(api_client: TestClie
 
 
 def test_update_item_endpoint_creates_history_on_category_change(api_client: TestClient, seeded_db: Session):
+    history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.CATEGORY_CHANGED,
+        )
+    )
+
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"category_id": SEED_IDS.accessories},
@@ -287,12 +311,13 @@ def test_update_item_endpoint_creates_history_on_category_change(api_client: Tes
 
     assert response.status_code == 200
 
-    history = (
-        seeded_db.query(ItemHistory)
-        .filter_by(item_id=SEED_IDS.laptop, change_type=ItemChangeLogType.CATEGORY_CHANGED)
-        .all()
+    updated_history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.CATEGORY_CHANGED,
+        )
     )
-    assert len(history) == 1
+    assert updated_history_count == history_count + 1
 
 
 def test_read_items_filters_by_category(api_client: TestClient, seeded_db: Session):
