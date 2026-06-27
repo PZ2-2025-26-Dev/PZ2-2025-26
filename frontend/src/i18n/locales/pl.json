@@ -127,7 +127,39 @@
     "denyComment": "Komentarz (opcjonalnie)",
     "returnComment": "Uwagi dotyczące zwrotu (opcjonalnie)",
     "returnIssuePlaceholder": "np. uszkodzony kabel...",
+    "owner": "Właściciel",
+    "statusFilter": "Filtr statusu",
+    "refresh": "Odśwież",
+    "noteLabel": "Notatka (opcjonalnie)",
+    "reportReturn": "Zgłoś zwrot",
+    "rejectReturn": "Odrzuć zwrot",
+    "returnCondition": "Stan przy zwrocie",
+    "addGuestInline": "Dodaj nowego gościa",
+    "addGuest": "Dodaj gościa",
+    "saveAction": "Zapisz",
+    "tabs": {
+      "my": "Moje wypożyczenia",
+      "owned": "Mój sprzęt",
+      "all": "Wszystkie wypożyczenia"
+    },
+    "actions": {
+      "reject": "Odrzucenie wniosku",
+      "return": "Zgłoszenie zwrotu",
+      "confirm-return": "Potwierdzenie zwrotu",
+      "reject-return": "Odrzucenie zgłoszonego zwrotu"
+    },
+    "conditions": {
+      "ok": "OK",
+      "broken": "Uszkodzony",
+      "missing": "Zaginiony"
+    },
     "statuses": {
+      "all": "Wszystkie statusy",
+      "pending_approval": "Oczekuje akceptacji",
+      "active": "Aktywne",
+      "return_pending_confirmation": "Zwrot do potwierdzenia",
+      "closed": "Zamknięte",
+      "rejected": "Odrzucone",
       "pending": "Oczekuje akceptacji",
       "approved": "Zatwierdzony",
       "denied": "Odrzucony",

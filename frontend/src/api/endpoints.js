@@ -44,7 +44,7 @@ export const ENDPOINTS = {
         DETAILS: (id) => `/loans/${id}`,
         APPROVE: (id) => `/loans/${id}/approve`,
         DENY: (id) => `/loans/${id}/deny`,
-        ACTIVATE: (id) => `/loans/${id}/activate`,
         RETURN: (id) => `/loans/${id}/return`,
+        CONFIRM_RETURN: (id) => `/loans/${id}/confirm-return`,
     },
 };

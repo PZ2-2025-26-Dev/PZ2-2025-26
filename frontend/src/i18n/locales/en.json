@@ -127,7 +127,39 @@
     "denyComment": "Comment (optional)",
     "returnComment": "Return notes (optional)",
     "returnIssuePlaceholder": "e.g. damaged cable...",
+    "owner": "Owner",
+    "statusFilter": "Status filter",
+    "refresh": "Refresh",
+    "noteLabel": "Note (optional)",
+    "reportReturn": "Report return",
+    "rejectReturn": "Reject return",
+    "returnCondition": "Return condition",
+    "addGuestInline": "Add new guest",
+    "addGuest": "Add guest",
+    "saveAction": "Save",
+    "tabs": {
+      "my": "My loans",
+      "owned": "My equipment",
+      "all": "All loans"
+    },
+    "actions": {
+      "reject": "Reject request",
+      "return": "Report return",
+      "confirm-return": "Confirm return",
+      "reject-return": "Reject reported return"
+    },
+    "conditions": {
+      "ok": "OK",
+      "broken": "Broken",
+      "missing": "Missing"
+    },
     "statuses": {
+      "all": "All statuses",
+      "pending_approval": "Pending approval",
+      "active": "Active",
+      "return_pending_confirmation": "Return pending confirmation",
+      "closed": "Closed",
+      "rejected": "Rejected",
       "pending": "Pending approval",
       "approved": "Approved",
       "denied": "Rejected",

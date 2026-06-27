@@ -14,6 +14,7 @@ export type Guest = {
 export type BasicUser = {
     firstName: string;
     lastName: string;
+    email?: string;
     role: string;
 };
 
@@ -49,8 +50,8 @@ const toUpdatePayload = (guest: Partial<Guest>) => {
     return payload;
 };
 
-export const getEntryName = (entry: Pick<DirectoryEntry, 'firstName' | 'lastName' | 'email' | 'role'> & { email?: string }) =>
-    `${entry.firstName} ${entry.lastName}`.trim() || (isGuest(entry as Guest) ? entry.email : '');
+export const getEntryName = (entry: DirectoryEntry) =>
+    `${entry.firstName} ${entry.lastName}`.trim() || (isGuest(entry as Guest) ? entry.email : '') || '';
 
 export const useGuests = () => {
     const [isLoading, setIsLoading] = useState(false);
