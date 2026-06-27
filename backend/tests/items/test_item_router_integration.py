@@ -209,6 +209,79 @@ def test_download_item_qr_png_endpoint_returns_png(
     assert response.content.startswith(b"\x89PNG")
 
 
+def test_download_item_qr_pdf_endpoint_returns_pdf(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/qr.pdf",
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+@pytest.mark.parametrize(
+    ("method", "path_suffix"),
+    [
+        ("GET", "qr.png"),
+        ("GET", "qr.pdf"),
+        ("POST", "label.pdf"),
+        ("POST", "label.png"),
+    ],
+)
+def test_item_asset_endpoints_allow_admin(
+    api_client: TestClient,
+    seeded_db: Session,
+    method: str,
+    path_suffix: str,
+):
+    response = api_client.request(
+        method,
+        f"/items/{SEED_IDS.laptop_uuid}/{path_suffix}",
+        headers=admin_headers(),
+        json={"fields": []},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("method", "path_suffix"),
+    [
+        ("GET", "qr.png"),
+        ("GET", "qr.pdf"),
+        ("POST", "label.pdf"),
+        ("POST", "label.png"),
+    ],
+)
+def test_item_asset_endpoints_reject_non_owner(
+    api_client: TestClient,
+    seeded_db: Session,
+    method: str,
+    path_suffix: str,
+):
+    response = api_client.request(
+        method,
+        f"/items/{SEED_IDS.projector_uuid}/{path_suffix}",
+        headers=auth_headers(),
+        json={"fields": []},
+    )
+
+    assert response.status_code == 403
+
+
+def test_item_asset_endpoint_requires_authentication(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/{SEED_IDS.laptop_uuid}/qr.png")
+
+    assert response.status_code == 401
+
+
 def test_download_item_label_pdf_endpoint_returns_pdf(
     api_client: TestClient,
     seeded_db: Session,
@@ -323,6 +396,61 @@ def test_download_item_label_endpoint_supports_parameters_fields(
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_endpoint_supports_nested_parameters_fields(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(
+            name="Serwer",
+            parameters={
+                "hardware": {"cpu": "AMD EPYC", "ram": {"size_gb": 128}},
+                "interfaces": [{"mac": "00:11:22:33:44:55"}],
+            },
+        ),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={
+            "fields": [
+                "parameters.hardware.cpu",
+                "parameters.hardware.ram.size_gb",
+                "parameters.interfaces.0.mac",
+            ]
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_endpoint_returns_400_for_missing_nested_parameter(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Serwer", parameters={"hardware": {"cpu": "AMD EPYC"}}),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.hardware.gpu"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "code": 400,
+        "detail": "Unsupported label parameter: hardware.gpu",
+    }
 
 
 def test_download_item_label_endpoint_returns_400_for_missing_parameter_key(

@@ -1,3 +1,4 @@
+import json
 from io import BytesIO
 from math import ceil
 from typing import Literal
@@ -37,6 +38,38 @@ def _load_font(size: int) -> LabelFont:
         return ImageFont.load_default(size=size)
 
 
+def _nested_parameter_value(parameters: dict, parameter_path: str):
+    if not parameter_path:
+        raise ValueError("Unsupported label parameter: ")
+
+    if parameter_path in parameters:
+        return parameters[parameter_path]
+
+    value = parameters
+    for path_part in parameter_path.split("."):
+        if isinstance(value, dict) and path_part in value:
+            value = value[path_part]
+            continue
+
+        if isinstance(value, list) and path_part.isdigit():
+            index = int(path_part)
+            if index < len(value):
+                value = value[index]
+                continue
+
+        raise ValueError(f"Unsupported label parameter: {parameter_path}")
+
+    return value
+
+
+def _format_parameter_value(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list, bool)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
+
+
 def _field_value(item: Item, field: str) -> tuple[str, str]:
     match field:
         case ItemLabelField.NAME:
@@ -56,12 +89,12 @@ def _field_value(item: Item, field: str) -> tuple[str, str]:
 
     parameter_prefix = "parameters."
     if field.startswith(parameter_prefix):
-        parameter_name = field.removeprefix(parameter_prefix)
-        if item.parameters is None or parameter_name not in item.parameters:
-            raise ValueError(f"Unsupported label parameter: {parameter_name}")
+        parameter_path = field.removeprefix(parameter_prefix)
+        if item.parameters is None:
+            raise ValueError(f"Unsupported label parameter: {parameter_path}")
 
-        value = item.parameters[parameter_name]
-        return parameter_name, "" if value is None else str(value)
+        value = _nested_parameter_value(item.parameters, parameter_path)
+        return parameter_path, _format_parameter_value(value)
 
     raise ValueError(f"Unsupported label field: {field}")
 
