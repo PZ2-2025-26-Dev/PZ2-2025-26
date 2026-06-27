@@ -135,6 +135,7 @@ def test_scan_item_endpoint_returns_seed_item_by_legacy_old_id(
 
 def test_scan_item_endpoint_returns_400_for_invalid_code(
     api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get("/items/scan/%20", headers=auth_headers())
 
@@ -144,6 +145,7 @@ def test_scan_item_endpoint_returns_400_for_invalid_code(
 
 def test_scan_item_endpoint_returns_400_for_non_canonical_uuid(
     api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get(
         "/items/scan/00000000000000000000000000040001",
@@ -156,6 +158,7 @@ def test_scan_item_endpoint_returns_400_for_non_canonical_uuid(
 
 def test_scan_item_endpoint_returns_404_for_missing_item(
     api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get(
         "/items/scan/018f6f23-5b56-7b88-9ac1-5a02c63c5c11",
@@ -168,6 +171,7 @@ def test_scan_item_endpoint_returns_404_for_missing_item(
 
 def test_scan_item_endpoint_returns_404_for_missing_legacy_old_id(
     api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get("/items/scan/LEG-MISSING-001", headers=auth_headers())
 
@@ -177,6 +181,7 @@ def test_scan_item_endpoint_returns_404_for_missing_legacy_old_id(
 
 def test_scan_item_endpoint_returns_400_for_code_exceeding_length_limit(
     api_client: TestClient,
+    seeded_db: Session,
 ):
     response = api_client.get(
         f"/items/scan/{'A' * (BASIC_LENGTH + 1)}",
