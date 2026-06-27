@@ -107,7 +107,7 @@ def test_browse_users_hides_details_for_regular_users(user_client: TestClient, s
 
     assert len(regular_users) >= 1
     for user in regular_users:
-        assert "id" not in user
+        assert "id" in user
         assert "email" not in user
         assert "first_name" in user
 

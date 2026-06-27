@@ -3,9 +3,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.auth.constants import UserRole, UserStatus
 from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
 from src.items.models import Item, ItemACL, ItemHistory
 from src.seed import SEED_IDS, SEED_LAPTOP_OLD_ID, SEED_LAPTOP_PARAMETERS
+from src.users.models import User
 from tests.helpers import (
     admin_headers,
     assert_item_created_with_history,
@@ -15,6 +17,19 @@ from tests.helpers import (
 )
 
 pytestmark = pytest.mark.integration
+
+
+def _create_delegate_user(db: Session) -> User:
+    user = User(
+        email="delegate.acl@test.example",
+        first_name="Delegat",
+        last_name="ACL",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+    )
+    db.add(user)
+    db.flush()
+    return user
 
 
 def test_create_item_endpoint_persists_item_and_history(api_client: TestClient, seeded_db: Session):
@@ -647,10 +662,11 @@ def test_owner_can_update_item_name(api_client: TestClient, seeded_db: Session):
 
 
 def test_owner_can_list_item_acl(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
     seeded_db.add(
         ItemACL(
             item_id=SEED_IDS.laptop,
-            user_id=SEED_IDS.observer_user,
+            user_id=delegate.id,
             permission=ItemPermissionType.EDIT_DESCRIPTION,
         )
     )
@@ -668,10 +684,12 @@ def test_owner_can_list_item_acl(api_client: TestClient, seeded_db: Session):
 
 
 def test_owner_can_grant_item_acl(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
+
     response = api_client.post(
         f"/items/{SEED_IDS.laptop_uuid}/acl",
         json={
-            "user_id": SEED_IDS.observer_user,
+            "user_id": delegate.id,
             "permission": ItemPermissionType.EDIT_LOCATION.value,
         },
         headers=auth_headers(SEED_IDS.regular_user),
@@ -679,14 +697,15 @@ def test_owner_can_grant_item_acl(api_client: TestClient, seeded_db: Session):
 
     assert response.status_code == 201
     body = response.json()
-    assert body["user_id"] == SEED_IDS.observer_user
+    assert body["user_id"] == delegate.id
     assert body["permission"] == ItemPermissionType.EDIT_LOCATION.value
 
 
 def test_owner_can_revoke_item_acl(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
     acl = ItemACL(
         item_id=SEED_IDS.laptop,
-        user_id=SEED_IDS.observer_user,
+        user_id=delegate.id,
         permission=ItemPermissionType.EDIT_PARAMETERS,
     )
     seeded_db.add(acl)
@@ -699,6 +718,19 @@ def test_owner_can_revoke_item_acl(api_client: TestClient, seeded_db: Session):
 
     assert response.status_code == 204
     assert seeded_db.execute(select(ItemACL).where(ItemACL.id == acl.id)).scalar_one_or_none() is None
+
+
+def test_cannot_grant_item_acl_to_observer(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        json={
+            "user_id": SEED_IDS.observer_user,
+            "permission": ItemPermissionType.EDIT_LOCATION.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 400
 
 
 def test_non_owner_cannot_grant_item_acl(api_client: TestClient, seeded_db: Session):
@@ -724,7 +756,7 @@ def test_delegated_user_sees_only_own_acl_entries(api_client: TestClient, seeded
             ),
             ItemACL(
                 item_id=SEED_IDS.projector,
-                user_id=SEED_IDS.observer_user,
+                user_id=SEED_IDS.admin_user,
                 permission=ItemPermissionType.EDIT_LOCATION,
             ),
         ]
@@ -743,10 +775,11 @@ def test_delegated_user_sees_only_own_acl_entries(api_client: TestClient, seeded
 
 
 def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
     seeded_db.add(
         ItemACL(
             item_id=SEED_IDS.laptop,
-            user_id=SEED_IDS.observer_user,
+            user_id=delegate.id,
             permission=ItemPermissionType.AUTO_APPROVED_LOAN,
         )
     )
@@ -755,7 +788,7 @@ def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db:
     response = api_client.post(
         f"/items/{SEED_IDS.laptop_uuid}/acl",
         json={
-            "user_id": SEED_IDS.observer_user,
+            "user_id": delegate.id,
             "permission": ItemPermissionType.AUTO_APPROVED_LOAN.value,
         },
         headers=auth_headers(SEED_IDS.regular_user),

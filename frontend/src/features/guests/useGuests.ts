@@ -12,6 +12,7 @@ export type Guest = {
 };
 
 export type BasicUser = {
+    id: number;
     firstName: string;
     lastName: string;
     role: string;
@@ -30,6 +31,7 @@ const normalizeGuest = (guest: Record<string, unknown>): Guest => ({
 });
 
 const normalizeBasicUser = (user: Record<string, unknown>): BasicUser => ({
+    id: Number(user.id),
     firstName: String(user.first_name ?? ''),
     lastName: String(user.last_name ?? ''),
     role: String(user.role ?? ''),
@@ -56,7 +58,7 @@ export const useGuests = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const browseUsers = useCallback(async (options: { search?: string; page?: number; limit?: number } = {}) => {
+    const browseUsers = useCallback(async (options: { search?: string; page?: number; limit?: number; role?: string } = {}) => {
         setIsLoading(true);
         setError(null);
 
@@ -66,6 +68,7 @@ export const useGuests = () => {
                     page: options.page ?? 1,
                     limit: options.limit ?? 100,
                     search: options.search || undefined,
+                    role: options.role || undefined,
                 },
             });
             const payload = response.data;

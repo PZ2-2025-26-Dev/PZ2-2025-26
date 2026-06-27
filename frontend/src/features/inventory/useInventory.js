@@ -38,6 +38,7 @@ export const normalizeItem = (item) => ({
     ownerId: item.owner?.id ?? 0,
     description: item.description ?? null,
     status: item.status,
+    parameters: item.parameters ?? null,
 });
 
 /**
@@ -202,6 +203,30 @@ export const useInventory = () => {
     }, []);
 
     /**
+     * Pobiera szczegóły przedmiotu z GET /items/{id}
+     * @param {string|number} itemId
+     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+     */
+    const getItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.DETAILS(itemId));
+            return {
+                success: true,
+                data: normalizeItem(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    /**
      * Aktualizuje dane przedmiotu poprzez PATCH /items/{id}
      * @param {string|number} itemId
      * @param {Object} updates
@@ -315,6 +340,7 @@ export const useInventory = () => {
     return {
         createItem,
         listItems,
+        getItem,
         updateItem,
         isLoading,
         error,

@@ -51,6 +51,9 @@ class ItemACLService:
         if user_id == item.owner_id:
             raise ValueError("Właściciel przedmiotu posiada już pełne uprawnienia.")
 
+        if target_user.role != UserRole.USER:
+            raise ValueError("Delegowane uprawnienia można nadawać wyłącznie użytkownikom z rolą user.")
+
         existing = self.db.execute(
             select(ItemACL).where(
                 ItemACL.item_id == item.id,

@@ -22,4 +22,5 @@ export type InventoryItem = {
     borrower?: string | null;
     dueDate?: string | null;
     description?: string;
+    parameters?: Record<string, unknown> | null;
 };

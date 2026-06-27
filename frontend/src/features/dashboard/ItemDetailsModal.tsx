@@ -75,7 +75,7 @@ export default function ItemDetailsModal({
     onItemUpdated,
 }: ItemDetailsModalProps) {
     const { t } = useTranslation();
-    const { getItemHistory, updateItem, isLoading: isSavingItem } = useInventory();
+    const { getItemHistory, getItem, updateItem, isLoading: isSavingItem } = useInventory();
     const { listAcl } = useItemAcl();
     const { listLocations } = useLocations();
 
@@ -89,6 +89,10 @@ export default function ItemDetailsModal({
     const [editedLocationId, setEditedLocationId] = useState('');
     const [locations, setLocations] = useState<LocationOption[]>([]);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [parameters, setParameters] = useState<Record<string, unknown> | null>(null);
+    const [isEditingParameters, setIsEditingParameters] = useState(false);
+    const [editedParametersJson, setEditedParametersJson] = useState('{}');
+    const [parametersError, setParametersError] = useState<string | null>(null);
     const [aclPermissions, setAclPermissions] = useState<string[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -110,17 +114,25 @@ export default function ItemDetailsModal({
         item && (item.ownerId === Number(user.id) || user.name === item.owner),
     );
     const isOwnerOrAdmin = isOwner || isAdmin;
+    const isObserver = user.role === ROLES.OBSERVER;
+    const canDelegate = !isObserver;
 
     const delegatedPermissions = useMemo(
-        () => aclPermissions.filter((permission) => permission !== 'auto_approved_loan'),
-        [aclPermissions],
+        () => (canDelegate ? aclPermissions.filter((permission) => permission !== 'auto_approved_loan') : []),
+        [aclPermissions, canDelegate],
     );
 
-    const canEditName = isOwnerOrAdmin;
-    const canEditLocation = isOwnerOrAdmin || aclPermissions.includes('edit_location');
-    const canEditDescription = isOwnerOrAdmin || aclPermissions.includes('edit_description');
-    const canManageAttachments = isOwnerOrAdmin || aclPermissions.includes('edit_attachments');
-    const canManageAcl = isOwnerOrAdmin;
+    const canEditName = !isObserver && isOwnerOrAdmin;
+    const canEditLocation = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_location'));
+    const canEditDescription = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_description'));
+    const canEditParameters = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_parameters'));
+    const canManageAttachments = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_attachments'));
+    const canManageAcl = !isObserver && isOwnerOrAdmin;
+
+    const parameterEntries = useMemo(
+        () => (parameters ? Object.entries(parameters) : []),
+        [parameters],
+    );
 
     useEffect(() => {
         if (!isOpen || !item) return;
@@ -137,10 +149,25 @@ export default function ItemDetailsModal({
         setIsDescriptionOpen(false);
         setIsHistoryOpen(false);
         setSaveError(null);
+        setParametersError(null);
+        setIsEditingParameters(false);
+        setParameters(item.parameters ?? null);
+        setEditedParametersJson(JSON.stringify(item.parameters ?? {}, null, 2));
     }, [isOpen, item]);
 
     useEffect(() => {
         if (!isOpen || !itemId) return;
+
+        getItem(itemId).then((result) => {
+            if (!result.success) return;
+            const nextParameters = result.data.parameters ?? null;
+            setParameters(nextParameters);
+            setEditedParametersJson(JSON.stringify(nextParameters ?? {}, null, 2));
+        });
+    }, [isOpen, itemId, getItem]);
+
+    useEffect(() => {
+        if (!isOpen || !itemId || isObserver) return;
 
         listAcl(itemId).then((result) => {
             if (!result.success) {
@@ -154,7 +181,7 @@ export default function ItemDetailsModal({
                 .map((entry) => entry.permission);
             setAclPermissions(permissions);
         });
-    }, [isOpen, itemId, user.id, listAcl]);
+    }, [isOpen, itemId, user.id, isObserver, listAcl]);
 
     useEffect(() => {
         if (!isOpen || !canEditLocation) return;
@@ -236,6 +263,38 @@ export default function ItemDetailsModal({
         setIsEditingLocation(false);
     };
 
+    const formatParameterValue = (value: unknown) => {
+        if (value === null || value === undefined) return '-';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+    };
+
+    const handleSaveParameters = async () => {
+        setParametersError(null);
+        let parsed: Record<string, unknown>;
+        try {
+            const raw = JSON.parse(editedParametersJson);
+            if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+                throw new Error('invalid');
+            }
+            parsed = raw as Record<string, unknown>;
+        } catch {
+            setParametersError(t('itemDetailsModal.invalidParametersJson'));
+            return;
+        }
+
+        setSaveError(null);
+        const result = await updateItem(item.id, { parameters: parsed });
+        if (!result.success) {
+            setSaveError(result.error ?? t('itemDetailsModal.saveFailed'));
+            return;
+        }
+
+        setParameters(parsed);
+        applyItemUpdate({ parameters: parsed });
+        setIsEditingParameters(false);
+    };
+
     const toggleHistory = async () => {
         const shouldOpen = !isHistoryOpen;
         setIsHistoryOpen(shouldOpen);
@@ -303,7 +362,6 @@ export default function ItemDetailsModal({
                             itemId={item.id}
                             ownerId={item.ownerId}
                             isOpen={isOpen}
-                            user={user}
                         />
                     )}
                 </div>
@@ -418,19 +476,63 @@ export default function ItemDetailsModal({
                 <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-5">
                         <Card>
-                            <CardHeader><CardTitle className="text-sm">{t('itemDetailsModal.techSpec')}</CardTitle></CardHeader>
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm">{t('itemDetailsModal.techSpec')}</CardTitle>
+                                {canEditParameters && !isEditingParameters && (
+                                    <Button variant="link" size="sm" onClick={() => setIsEditingParameters(true)}>
+                                        {t('itemDetailsModal.editParameters')}
+                                    </Button>
+                                )}
+                            </CardHeader>
                             <CardContent className="space-y-3 text-sm">
-                                {[
-                                    [t('itemDetailsModal.producer'), item.producer],
-                                    [t('itemDetailsModal.model'), item.model],
-                                    [t('itemDetailsModal.sn'), item.serialNumber],
-                                    [t('itemDetailsModal.category'), item.category],
-                                ].map(([label, value]) => (
-                                    <div key={label} className="flex justify-between gap-4">
-                                        <span className="text-slate-500">{label}</span>
-                                        <span className="text-right font-medium">{value || '-'}</span>
+                                <div className="flex justify-between gap-4">
+                                    <span className="text-slate-500">{t('itemDetailsModal.category')}</span>
+                                    <span className="text-right font-medium">{item.category || '-'}</span>
+                                </div>
+                                <Separator />
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                    {t('itemDetailsModal.parameters')}
+                                </p>
+                                {isEditingParameters ? (
+                                    <div className="space-y-3">
+                                        <Textarea
+                                            value={editedParametersJson}
+                                            onChange={(event) => setEditedParametersJson(event.target.value)}
+                                            className="min-h-[160px] font-mono text-xs"
+                                            spellCheck={false}
+                                        />
+                                        {parametersError && (
+                                            <p className="text-xs text-red-600 dark:text-red-400">{parametersError}</p>
+                                        )}
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setIsEditingParameters(false);
+                                                    setEditedParametersJson(JSON.stringify(parameters ?? {}, null, 2));
+                                                    setParametersError(null);
+                                                }}
+                                            >
+                                                {t('itemDetailsModal.cancel')}
+                                            </Button>
+                                            <Button size="sm" disabled={isSavingItem} onClick={handleSaveParameters}>
+                                                {t('itemDetailsModal.save')}
+                                            </Button>
+                                        </div>
                                     </div>
-                                ))}
+                                ) : parameterEntries.length > 0 ? (
+                                    parameterEntries.map(([key, value]) => (
+                                        <div key={key} className="flex justify-between gap-4">
+                                            <span className="text-slate-500">{key}</span>
+                                            <span className="max-w-[60%] break-all text-right font-medium">
+                                                {formatParameterValue(value)}
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-500">{t('itemDetailsModal.noParameters')}</p>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -500,7 +602,7 @@ export default function ItemDetailsModal({
                                     <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                                         <MapPin className="size-4 text-emerald-500" />
                                         {isEditingLocation ? (
-                                            <Select value={editedLocationId} onValueChange={setEditedLocationId}>
+                                            <Select modal={false} value={editedLocationId || undefined} onValueChange={setEditedLocationId}>
                                                 <SelectTrigger className="h-8 min-w-[12rem]">
                                                     <SelectValue placeholder={t('itemDetailsModal.locationPlaceholder')} />
                                                 </SelectTrigger>

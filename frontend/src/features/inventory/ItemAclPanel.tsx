@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -13,16 +12,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { AppUser } from '@/types';
-import { PERMISSIONS, ROLES, hasPermission } from '../auth/permissions';
-import { useUsers } from '../users/useUsers';
+import AclUserPicker from './AclUserPicker';
 import { ITEM_ACL_PERMISSIONS, useItemAcl } from './useItemAcl';
 
 type ItemAclPanelProps = {
     itemId: string | number;
     ownerId: number;
     isOpen: boolean;
-    user: AppUser;
 };
 
 type AclEntry = {
@@ -32,26 +28,12 @@ type AclEntry = {
     user: { id: number; name: string };
 };
 
-type ApiUser = {
-    id: number;
-    firstName: string;
-    lastName: string;
-};
-
-const getUserLabel = (user: Pick<ApiUser, 'firstName' | 'lastName' | 'id'>) =>
-    `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || `#${user.id}`;
-
-export default function ItemAclPanel({ itemId, ownerId, isOpen, user }: ItemAclPanelProps) {
+export default function ItemAclPanel({ itemId, ownerId, isOpen }: ItemAclPanelProps) {
     const { t } = useTranslation();
     const { listAcl, grantAcl, revokeAcl, isLoading, error, clearError } = useItemAcl();
-    const { listUsers } = useUsers();
-
-    const isAdmin = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE) || user.role === ROLES.ADMIN;
 
     const [entries, setEntries] = useState<AclEntry[]>([]);
-    const [users, setUsers] = useState<ApiUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState('');
-    const [manualUserId, setManualUserId] = useState('');
     const [selectedPermission, setSelectedPermission] = useState(ITEM_ACL_PERMISSIONS[1]);
     const [actionError, setActionError] = useState<string | null>(null);
 
@@ -64,28 +46,13 @@ export default function ItemAclPanel({ itemId, ownerId, isOpen, user }: ItemAclP
         if (!isOpen || !itemId) return;
         clearError();
         setActionError(null);
+        setSelectedUserId('');
         loadEntries();
-
-        if (isAdmin) {
-            listUsers({ limit: 100, status: 'active' }).then((result) => {
-                if (result.success) {
-                    setUsers(
-                        result.users
-                            .filter((u: ApiUser & { role: string }) => u.id !== ownerId && u.role !== ROLES.ADMIN)
-                            .map((u: ApiUser & { role: string }) => ({
-                                id: u.id,
-                                firstName: u.firstName,
-                                lastName: u.lastName,
-                            })),
-                    );
-                }
-            });
-        }
-    }, [isOpen, itemId, isAdmin, ownerId]);
+    }, [isOpen, itemId, clearError]);
 
     const handleGrant = async () => {
         setActionError(null);
-        const userId = isAdmin ? Number(selectedUserId) : Number(manualUserId);
+        const userId = Number(selectedUserId);
         if (!userId || Number.isNaN(userId)) {
             setActionError(t('itemAcl.userRequired'));
             return;
@@ -98,7 +65,6 @@ export default function ItemAclPanel({ itemId, ownerId, isOpen, user }: ItemAclP
         }
 
         setSelectedUserId('');
-        setManualUserId('');
         await loadEntries();
     };
 
@@ -160,40 +126,16 @@ export default function ItemAclPanel({ itemId, ownerId, isOpen, user }: ItemAclP
                         {t('itemAcl.grantTitle')}
                     </p>
 
-                    {isAdmin ? (
-                        <div className="space-y-2">
-                            <Label htmlFor="acl-user">{t('itemAcl.userLabel')}</Label>
-                            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                                <SelectTrigger id="acl-user">
-                                    <SelectValue placeholder={t('itemAcl.userPlaceholder')} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {users.map((u) => (
-                                        <SelectItem key={u.id} value={String(u.id)}>
-                                            {getUserLabel(u)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            <Label htmlFor="acl-user-id">{t('itemAcl.userIdLabel')}</Label>
-                            <Input
-                                id="acl-user-id"
-                                type="number"
-                                min={1}
-                                value={manualUserId}
-                                onChange={(event) => setManualUserId(event.target.value)}
-                                placeholder={t('itemAcl.userIdPlaceholder')}
-                            />
-                            <p className="text-xs text-slate-500">{t('itemAcl.userIdHint')}</p>
-                        </div>
-                    )}
+                    <AclUserPicker
+                        ownerId={ownerId}
+                        value={selectedUserId}
+                        onChange={setSelectedUserId}
+                        disabled={isLoading}
+                    />
 
                     <div className="space-y-2">
                         <Label htmlFor="acl-permission">{t('itemAcl.permissionLabel')}</Label>
-                        <Select value={selectedPermission} onValueChange={setSelectedPermission}>
+                        <Select modal={false} value={selectedPermission} onValueChange={setSelectedPermission}>
                             <SelectTrigger id="acl-permission">
                                 <SelectValue />
                             </SelectTrigger>

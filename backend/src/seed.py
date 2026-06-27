@@ -376,7 +376,7 @@ def seed_database(session: Session) -> SeedIds:
         (
             SEED_IDS.projector_acl_auto_approved_loan,
             SEED_IDS.projector,
-            SEED_IDS.observer_user,
+            SEED_IDS.regular_user,
             ItemPermissionType.AUTO_APPROVED_LOAN,
         ),
     )
