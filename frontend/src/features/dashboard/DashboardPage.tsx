@@ -22,6 +22,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
+import QrScannerDialog from '@/components/QrScannerDialog';
 import { StatusBadge } from '@/components/StatusBadge';
 import SystemClock from '@/components/SystemClock';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -85,6 +86,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         return isMenuSection(storedSection) ? storedSection : 'dashboard';
     });
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
@@ -297,6 +299,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setIsDetailsModalOpen(false);
     };
 
+    const handleQrScan = (decodedText: string) => {
+        setSearchQuery(decodedText);
+        setIsQrScannerOpen(false);
+    };
+
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
     // Menu items with role-based visibility
@@ -438,7 +445,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                                         <AlertDescription className="flex items-center justify-between gap-3">
                                             <span>{error}</span>
-                                            <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
+                                            <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -451,6 +458,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                 <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
                                             </div>
                                             <div className="flex gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => setIsQrScannerOpen(true)} aria-label={t('qrScanner.button')}>
+                                                    <Search />
+                                                    {t('qrScanner.button')}
+                                                </Button>
                                                 <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
                                                     <Button variant="secondary" size="sm"><Download />{t('dashboard.exportXlsx')}</Button>
                                                 </RoleGuard>
@@ -676,6 +687,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 user={user}
             />
             <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
+            <QrScannerDialog
+                isOpen={isQrScannerOpen}
+                onClose={() => setIsQrScannerOpen(false)}
+                onScan={handleQrScan}
+            />
         </div>
     );
 }
