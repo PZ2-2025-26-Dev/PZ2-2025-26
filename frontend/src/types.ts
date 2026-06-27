@@ -14,6 +14,7 @@ export type InventoryItem = {
     serialNumber?: string;
     status: string;
     category: string;
+    categoryPath?: string;
     location: string;
     owner: string;
     ownerId: number;

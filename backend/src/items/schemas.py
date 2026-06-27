@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
-from src.categories.schemas import CategoryID, CategoryName
+from src.categories.schemas import CategoryID, CategoryName, CategoryPath
 from src.items.constants import (
     ATTACHMENT_FILENAME_MAX_LENGTH,
     ATTACHMENT_MIME_TYPE_MAX_LENGTH,
@@ -43,6 +43,7 @@ class ItemCreateResponse(ItemCreate):
 class ItemCategory(BaseModel):
     id: CategoryID
     name: CategoryName
+    path: CategoryPath
 
 
 class ItemLocation(BaseModel):

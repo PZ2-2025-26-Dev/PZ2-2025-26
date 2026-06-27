@@ -213,7 +213,7 @@ export default function ItemDetailsModal({
                                     [t('itemDetailsModal.producer'), item.producer],
                                     [t('itemDetailsModal.model'), item.model],
                                     [t('itemDetailsModal.sn'), item.serialNumber],
-                                    [t('itemDetailsModal.category'), item.category],
+                                    [t('itemDetailsModal.category'), item.categoryPath || '-'],                                  
                                 ].map(([label, value]) => (
                                     <div key={label} className="flex justify-between gap-4">
                                         <span className="text-slate-500">{label}</span>
