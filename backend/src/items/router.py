@@ -40,7 +40,7 @@ from src.items.schemas import (
     ItemUpdate,
     ItemUpdateResponse,
 )
-from src.items.service import ItemService
+from src.items.service import InvalidScanCodeError, ItemService
 from src.schemas import ErrorResponse
 from src.users.models import User
 
@@ -149,15 +149,9 @@ def scan_item(
     _reader: RequireItemReader,
 ) -> ItemGetResponse | JSONResponse:
     try:
-        item_uuid = UUID(code)
-    except ValueError:
+        return ItemService(db).get_item_by_scan_code(code)
+    except InvalidScanCodeError:
         return error_response(status.HTTP_400_BAD_REQUEST, "Invalid QR code")
-
-    if code != str(item_uuid):
-        return error_response(status.HTTP_400_BAD_REQUEST, "Invalid QR code")
-
-    try:
-        return ItemService(db).get_item_by_qr_code(item_uuid)
     except ValueError:
         return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
 

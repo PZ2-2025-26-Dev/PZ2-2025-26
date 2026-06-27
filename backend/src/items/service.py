@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.categories.service import build_category_path
-from src.items.constants import ItemChangeLogType, ItemStatus
+from src.items.constants import BASIC_LENGTH, ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
 from src.items.schemas import (
@@ -26,6 +26,10 @@ from src.items.schemas import (
     ItemUpdateResponse,
 )
 from src.utils import now
+
+
+class InvalidScanCodeError(ValueError):
+    pass
 
 
 class ItemService:
@@ -177,8 +181,28 @@ class ItemService:
 
         return item
 
-    def get_item_by_qr_code(self, code: UUID) -> ItemGetResponse:
-        item = self._get_item_by_uuid_with_relations(code)
+    def get_item_by_scan_code(self, code: str) -> ItemGetResponse:
+        if not code.strip() or len(code) > BASIC_LENGTH:
+            raise InvalidScanCodeError("Invalid QR code")
+
+        try:
+            item_uuid = UUID(code)
+        except ValueError:
+            criterion = Item.oldID == code
+        else:
+            if code != str(item_uuid):
+                raise InvalidScanCodeError("Invalid QR code")
+            criterion = Item.uuid == item_uuid
+
+        item = self.db.execute(
+            select(Item)
+            .where(criterion)
+            .options(
+                selectinload(Item.category),
+                selectinload(Item.location),
+                selectinload(Item.owner),
+            )
+        ).scalar_one_or_none()
 
         if item is None:
             raise ValueError("Item not found")
