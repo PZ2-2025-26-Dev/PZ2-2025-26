@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi import status as http_status
 
@@ -75,7 +77,7 @@ def create_external_loan(
 def list_loans(
     db: DBDep,
     user: RequireUserOrAdmin,
-    loan_status: LoanStatus | None = Query(default=None, alias="status"),
+    loan_status: Annotated[LoanStatus | None, Query(alias="status")] = None,
 ) -> LoanListResponse:
     loans = LoanService(db).list_loans(user, loan_status=loan_status)
     return LoanListResponse(loans=loans)
