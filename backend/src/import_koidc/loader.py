@@ -89,10 +89,7 @@ def drop_legacy_staging_schema(connection: Connection) -> None:
 
 def staging_table_names(connection: Connection) -> set[str]:
     rows = connection.execute(
-        text(
-            "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema = :schema"
-        ),
+        text("SELECT table_name FROM information_schema.tables WHERE table_schema = :schema"),
         {"schema": LEGACY_STAGING_SCHEMA},
     ).scalars()
     return set(rows)
