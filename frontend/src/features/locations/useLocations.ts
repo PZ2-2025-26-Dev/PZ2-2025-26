@@ -11,6 +11,7 @@ export type Location = {
     name: string;
     type: LocationType;
     parentId: number | null;
+    ownerId: number | null;
     description: string | null;
     address: string | null;
     isActive: boolean;
@@ -23,6 +24,8 @@ type LocationApiResponse = {
     type: LocationType;
     parent_id?: number | null;
     parentId?: number | null;
+    owner_id?: number | null;
+    ownerId?: number | null;
     description?: string | null;
     address?: string | null;
     is_active?: boolean;
@@ -57,6 +60,7 @@ const normalizeLocation = (location: LocationApiResponse): Location => ({
     name: location.name,
     type: location.type,
     parentId: location.parentId ?? location.parent_id ?? null,
+    ownerId: location.ownerId ?? location.owner_id ?? null,
     description: location.description ?? null,
     address: location.address ?? null,
     isActive: location.isActive ?? location.is_active ?? true,

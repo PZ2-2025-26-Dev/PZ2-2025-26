@@ -4,6 +4,7 @@ import { ENDPOINTS } from '../../api/endpoints';        // 2. Słownik ścieżek
 import { parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
 
 export const ITEM_STATUSES = ['available', 'pending_approval', 'reserved', 'loaned', 'broken'];
+export const ITEM_HISTORY_PAGE_LIMIT = 10;
 
 const cleanParams = (params) => Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '' && value !== 'all')
@@ -46,7 +47,7 @@ export const normalizeItem = (item) => ({
 });
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -157,45 +158,65 @@ export const useInventory = () => {
         }
     }, []);
 
-    /**
-     * Pobiera historię zmian przedmiotu
-     * @param {number} itemId - ID przedmiotu
-     * @returns {Promise<{success: boolean, data?: Array, error?: string, statusCode?: number}>}
-     */
-
-    const getItemHistory = useCallback(async (itemId) => {
+    const updateItem = useCallback(async (itemId, itemData) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            // TODO: replace with GET /items/{itemId}/history
-            console.log(`Zmockowane pobieranie historii dla przedmiotu ID: ${itemId}`);
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), cleanParams({
+                name: itemData.name,
+                category_id: itemData.categoryId,
+                location_id: itemData.locationId,
+                owner_id: itemData.ownerId,
+                description: itemData.description,
+                parameters: itemData.parameters,
+            }));
 
             return {
                 success: true,
-                data: [
-                    {
-                        id: 1,
-                        updated_at: '2026-06-14T10:15:00',
-                        updated_by: 'Jan Kowalski',
-                        change_type: 'CREATED',
-                        description: 'Utworzenie przedmiotu',
-                    },
-                    {
-                        id: 2,
-                        updated_at: '2026-06-15T12:30:00',
-                        updated_by: 'Anna Nowak',
-                        change_type: 'LOCATION_CHANGED',
-                        description: 'Zmiana lokalizacji',
-                    },
-                    {
-                        id: 3,
-                        updated_at: '2026-06-20T09:05:00',
-                        updated_by: 'Piotr Wiśniewski',
-                        change_type: 'OWNER_CHANGED',
-                        description: 'Zmiana właściciela',
-                    },
-                ],
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    /**
+     * Pobiera historię zmian przedmiotu
+     * @param {number|string} itemId - ID przedmiotu
+     * @param {number} [page=1] - Numer strony
+     * @param {number} [limit=ITEM_HISTORY_PAGE_LIMIT] - Liczba wpisów na stronie
+     * @returns {Promise<{success: boolean, data?: Array, pagination?: Object, error?: string, statusCode?: number}>}
+     */
+
+    const getItemHistory = useCallback(async (itemId, page = 1, limit = ITEM_HISTORY_PAGE_LIMIT) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.HISTORY(itemId), {
+                params: { page, limit },
+            });
+            const entries = response.data.entries ?? [];
+
+            return {
+                success: true,
+                data: entries,
+                pagination: response.data.pagination ?? {
+                    page,
+                    limit,
+                    total: entries.length,
+                },
             };
         } catch (err) {
             const errorMessage = parseApiError(err);
@@ -287,6 +308,7 @@ export const useInventory = () => {
 
     return {
         createItem,
+        updateItem,
         listItems,
         isLoading,
         error,

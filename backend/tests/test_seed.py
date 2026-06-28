@@ -25,7 +25,7 @@ def test_seed_database_is_idempotent(db: Session):
 
     assert db.scalar(select(func.count(User.id))) == 4
     assert db.scalar(select(func.count(Item.id))) == 3
-    assert db.scalar(select(func.count(ItemHistory.id))) == 3
+    assert db.scalar(select(func.count(ItemHistory.id))) == 14
     assert db.get(User, SEED_IDS.admin_user).email == "admin.seed@example.com"
 
 
@@ -66,3 +66,16 @@ def test_seed_items_have_creation_history(seeded_db: Session):
     assert history is not None
     assert history.updated_by == SEED_IDS.regular_user
     assert history.description == "Laptop developerski utworzony w seedzie"
+
+
+def test_seed_laptop_has_example_history_for_pagination(seeded_db: Session):
+    history = seeded_db.scalars(select(ItemHistory).where(ItemHistory.item_id == SEED_IDS.laptop)).all()
+
+    assert len(history) == 12
+    assert {entry.change_type for entry in history} == {
+        ItemChangeLogType.CREATED,
+        ItemChangeLogType.LOANED,
+        ItemChangeLogType.OWNER_CHANGED,
+        ItemChangeLogType.LOCATION_CHANGED,
+        ItemChangeLogType.CATEGORY_CHANGED,
+    }

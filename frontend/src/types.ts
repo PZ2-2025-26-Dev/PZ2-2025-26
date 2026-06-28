@@ -11,11 +11,10 @@ export type InventoryItem = {
     status: string;
 
     category: string;
-    categoryId: number;
-
+    categoryPath?: string;
+    categoryId?: number;
     location: string;
-    locationId: number;
-
+    locationId?: number;
     owner: string;
     ownerId: number;
 
