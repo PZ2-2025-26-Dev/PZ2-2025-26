@@ -220,9 +220,7 @@ class UserService:
 
         user = self.get_user(user_id)
 
-        owned_items_count = self.db.scalar(
-            select(func.count(Item.id)).where(Item.owner_id == user_id)
-        ) or 0
+        owned_items_count = self.db.scalar(select(func.count(Item.id)).where(Item.owner_id == user_id)) or 0
         if owned_items_count > 0:
             raise UserOwnsItemsError(item_count=owned_items_count)
 
