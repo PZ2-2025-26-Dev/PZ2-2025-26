@@ -3,6 +3,7 @@ import {
     CalendarDays,
     ChevronDown,
     ChevronUp,
+    CircleAlert,
     ExternalLink,
     History,
     Lock,
@@ -13,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { StatusBadge } from '@/components/StatusBadge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,13 +26,20 @@ import type { AppUser, InventoryItem } from '@/types';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
 import { useItemAttachments } from '../inventory/useItemAttachments';
-import { useInventory } from '../inventory/useInventory';
+import { ITEM_HISTORY_PAGE_LIMIT, useInventory } from '../inventory/useInventory';
 
 type HistoryEntry = {
     id: string | number;
     updated_at: string;
-    updated_by: string;
-    description: string;
+    updated_by: string | number;
+    change_type: string;
+    description: string | null;
+};
+
+type HistoryPagination = {
+    page: number;
+    limit: number;
+    total: number;
 };
 
 type ItemDetailsModalProps = {
@@ -54,14 +63,16 @@ export default function ItemDetailsModal({
     user,
     onUpdateStatus,
 }: ItemDetailsModalProps) {
-    const { t } = useTranslation();
-    const { getItemHistory } = useInventory();
+    const { t, i18n } = useTranslation();
+    const { getItemHistory, isLoading: isHistoryLoading } = useInventory();
     const [returnDate, setReturnDate] = useState('');
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedDescription, setEditedDescription] = useState('');
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
+    const [historyPagination, setHistoryPagination] = useState<HistoryPagination | null>(null);
+    const [historyError, setHistoryError] = useState<string | null>(null);
 
     const itemId = item?.id ?? null;
     const {
@@ -84,6 +95,9 @@ export default function ItemDetailsModal({
         setIsEditingDescription(false);
         setIsDescriptionOpen(false);
         setIsHistoryOpen(false);
+        setHistory([]);
+        setHistoryPagination(null);
+        setHistoryError(null);
     }, [isOpen, item]);
 
     if (!item) return null;
@@ -93,14 +107,39 @@ export default function ItemDetailsModal({
         || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
     const canBorrow = user.role === 'regular' || user.role === 'admin';
 
+    const loadHistory = async (page: number, replace = false) => {
+        setHistoryError(null);
+        const result = await getItemHistory(item.id, page, ITEM_HISTORY_PAGE_LIMIT);
+
+        if (!result.success) {
+            setHistoryError(result.error ?? t('itemDetailsModal.historyLoadError'));
+            return;
+        }
+
+        const entries = (result.data ?? []) as HistoryEntry[];
+        setHistory((current) => replace ? entries : [...current, ...entries]);
+        setHistoryPagination((result.pagination ?? {
+            page,
+            limit: ITEM_HISTORY_PAGE_LIMIT,
+            total: entries.length,
+        }) as HistoryPagination);
+    };
+
     const toggleHistory = async () => {
         const shouldOpen = !isHistoryOpen;
         setIsHistoryOpen(shouldOpen);
         if (shouldOpen && history.length === 0) {
-            const result = await getItemHistory(item.id);
-            if (result.success) setHistory(result.data);
+            await loadHistory(1, true);
         }
     };
+
+    const formatHistoryDate = (value: string) => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString(i18n.language);
+    };
+
+    const historyTotal = historyPagination?.total ?? history.length;
+    const hasMoreHistory = history.length < historyTotal;
 
     const renderDescription = (text: string) => {
         const urlPattern = /(https?:\/\/[^\s]+)/g;
@@ -264,13 +303,50 @@ export default function ItemDetailsModal({
                                 </Button>
                                 {isHistoryOpen && (
                                     <div className="space-y-3">
-                                        {history.length > 0 ? history.map((entry) => (
-                                            <div key={entry.id} className="border-l-2 border-emerald-300 pl-4 text-sm">
-                                                <p className="text-xs text-slate-400">{entry.updated_at}</p>
-                                                <strong>{entry.updated_by}</strong>
-                                                <p className="text-slate-600 dark:text-slate-400">{entry.description}</p>
+                                        {historyError && (
+                                            <Alert variant="destructive">
+                                                <CircleAlert />
+                                                <AlertTitle>{t('itemDetailsModal.historyErrorTitle')}</AlertTitle>
+                                                <AlertDescription>{historyError}</AlertDescription>
+                                            </Alert>
+                                        )}
+                                        {isHistoryLoading && history.length === 0 ? (
+                                            <p className="text-xs text-slate-500">{t('itemDetailsModal.historyLoading')}</p>
+                                        ) : history.length > 0 ? (
+                                            <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+                                                {history.map((entry) => (
+                                                    <div key={entry.id} className="border-l-2 border-emerald-300 pl-4 text-sm">
+                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                            <p className="text-xs text-slate-400">{formatHistoryDate(entry.updated_at)}</p>
+                                                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                                {t(`itemDetailsModal.historyTypes.${entry.change_type}`, { defaultValue: entry.change_type })}
+                                                            </span>
+                                                        </div>
+                                                        <p className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-300">
+                                                            {t('itemDetailsModal.historyAuthor', { id: entry.updated_by })}
+                                                        </p>
+                                                        {entry.description && (
+                                                            <p className="mt-1 text-slate-600 dark:text-slate-400">{entry.description}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
-                                        )) : <p className="text-xs text-slate-400">{t('dashboard.noResults')}</p>}
+                                        ) : !historyError && (
+                                            <p className="text-xs text-slate-400">{t('itemDetailsModal.historyEmpty')}</p>
+                                        )}
+                                        {hasMoreHistory && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full"
+                                                disabled={isHistoryLoading}
+                                                onClick={() => loadHistory((historyPagination?.page ?? 0) + 1)}
+                                            >
+                                                {isHistoryLoading
+                                                    ? t('itemDetailsModal.historyLoading')
+                                                    : t('itemDetailsModal.historyShowMore')}
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>

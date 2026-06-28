@@ -15,6 +15,7 @@ from src.items.schemas import (
     ItemGetResponse,
     ItemHistoryGet,
     ItemHistoryGetResponse,
+    ItemHistorySearch,
     ItemLocation,
     ItemOwner,
     ItemPagination,
@@ -255,13 +256,24 @@ class ItemService:
         pagination = ItemPagination(page=data.page, limit=data.limit, total=total)
         return ItemsPaged(items=items, pagination=pagination)
 
-    def get_item_history(self, item_id: UUID) -> ItemHistoryGetResponse:
+    def get_item_history(self, item_id: UUID, data: ItemHistorySearch) -> ItemHistoryGetResponse:
         item = self._get_item_by_uuid(item_id)
 
         if item is None:
             raise ValueError("Item not found")
 
-        stmt = select(ItemHistory).where(ItemHistory.item_id == item.id).order_by(ItemHistory.updated_at.desc())
+        conditions = [ItemHistory.item_id == item.id]
+        if data.change_type is not None:
+            conditions.append(ItemHistory.change_type == data.change_type)
+
+        total = self.db.scalar(select(func.count(ItemHistory.id)).where(*conditions)) or 0
+        stmt = (
+            select(ItemHistory)
+            .where(*conditions)
+            .order_by(ItemHistory.updated_at.desc(), ItemHistory.id.desc())
+            .offset((data.page - 1) * data.limit)
+            .limit(data.limit)
+        )
 
         results = self.db.execute(stmt).scalars().all()
         return ItemHistoryGetResponse(
@@ -274,5 +286,6 @@ class ItemService:
                     description=entry.description,
                 )
                 for entry in results
-            ]
+            ],
+            pagination=ItemPagination(page=data.page, limit=data.limit, total=total),
         )

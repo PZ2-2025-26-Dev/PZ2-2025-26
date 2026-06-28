@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
@@ -12,6 +12,8 @@ from src.items.constants import (
     ATTACHMENT_MIME_TYPE_MAX_LENGTH,
     BASIC_LENGTH,
     ITEM_DESC_LENGTH,
+    ITEM_HISTORY_PAGE_LIMIT_DEFAULT,
+    ITEM_HISTORY_PAGE_LIMIT_MAX,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
     ItemStatus,
@@ -134,8 +136,17 @@ class ItemHistoryGet(BaseModel):
     description: str | None
 
 
+class ItemHistorySearch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    change_type: ItemChangeLogType | None = Field(default=None, alias="type")
+    page: Annotated[int, Field(ge=1)] = 1
+    limit: Annotated[int, Field(ge=1, le=ITEM_HISTORY_PAGE_LIMIT_MAX)] = ITEM_HISTORY_PAGE_LIMIT_DEFAULT
+
+
 class ItemHistoryGetResponse(BaseModel):
     entries: list[ItemHistoryGet]
+    pagination: ItemPagination
 
 
 type AttachmentID = int

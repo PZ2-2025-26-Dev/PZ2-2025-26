@@ -17,6 +17,7 @@ from src.items.attachment_service import (
 )
 from src.items.dependencies import (
     ItemByUuid,
+    RequireItemOwnerOrAdmin,
     RequireItemReader,
     RequireItemWriter,
     assert_can_assign_owner_on_create,
@@ -29,6 +30,7 @@ from src.items.schemas import (
     ItemCreateResponse,
     ItemGetResponse,
     ItemHistoryGetResponse,
+    ItemHistorySearch,
     ItemID,
     ItemSearch,
     ItemsPaged,
@@ -241,14 +243,14 @@ def delete_item(
     },
 )
 def read_item_history(
-    item_id: ItemID,
+    item: RequireItemOwnerOrAdmin,
     db: DBDep,
-    _reader: RequireItemReader,
+    data: Annotated[ItemHistorySearch, Depends()],
 ) -> ItemHistoryGetResponse:
     service = ItemService(db)
 
     try:
-        return service.get_item_history(item_id)
+        return service.get_item_history(item.uuid, data)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

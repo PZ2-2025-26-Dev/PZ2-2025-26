@@ -59,6 +59,17 @@ class SeedIds:
     laptop_history: int = 50_001
     projector_history: int = 50_002
     adapter_history: int = 50_003
+    laptop_location_history_1: int = 50_004
+    laptop_category_history_1: int = 50_005
+    laptop_loan_history_1: int = 50_006
+    laptop_location_history_2: int = 50_007
+    laptop_location_history_3: int = 50_008
+    laptop_owner_history: int = 50_009
+    laptop_loan_history_2: int = 50_010
+    laptop_location_history_4: int = 50_011
+    laptop_location_history_5: int = 50_012
+    laptop_category_history_2: int = 50_013
+    laptop_loan_history_3: int = 50_014
 
     guest_user: int = 60_001
 
@@ -321,34 +332,129 @@ def seed_database(session: Session) -> SeedIds:
             SEED_IDS.laptop_history,
             SEED_IDS.laptop,
             SEED_IDS.regular_user,
+            ItemChangeLogType.CREATED,
+            SEED_ITEM_HISTORY_AT,
             "Laptop developerski utworzony w seedzie",
         ),
         (
             SEED_IDS.projector_history,
             SEED_IDS.projector,
             SEED_IDS.admin_user,
+            ItemChangeLogType.CREATED,
+            SEED_ITEM_HISTORY_AT,
             "Projektor utworzony w seedzie",
         ),
         (
             SEED_IDS.adapter_history,
             SEED_IDS.adapter,
             SEED_IDS.regular_user,
+            ItemChangeLogType.CREATED,
+            SEED_ITEM_HISTORY_AT,
             "Adapter USB-C utworzony w seedzie",
         ),
+        (
+            SEED_IDS.laptop_location_history_1,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOCATION_CHANGED,
+            datetime(2025, 1, 10, 9, 15, tzinfo=UTC),
+            "Przeniesiono laptop z sali D10 do szafy A",
+        ),
+        (
+            SEED_IDS.laptop_category_history_1,
+            SEED_IDS.laptop,
+            SEED_IDS.admin_user,
+            ItemChangeLogType.CATEGORY_CHANGED,
+            datetime(2025, 1, 15, 11, 30, tzinfo=UTC),
+            "Zmieniono kategorię na Komputery",
+        ),
+        (
+            SEED_IDS.laptop_loan_history_1,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOANED,
+            datetime(2025, 2, 1, 8, 0, tzinfo=UTC),
+            "Wypożyczono laptop do pracowni projektowej",
+        ),
+        (
+            SEED_IDS.laptop_location_history_2,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOCATION_CHANGED,
+            datetime(2025, 2, 10, 14, 20, tzinfo=UTC),
+            "Przeniesiono laptop do lokalizacji zewnętrznej",
+        ),
+        (
+            SEED_IDS.laptop_location_history_3,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOCATION_CHANGED,
+            datetime(2025, 2, 20, 10, 5, tzinfo=UTC),
+            "Zwrócono laptop do szafy A",
+        ),
+        (
+            SEED_IDS.laptop_owner_history,
+            SEED_IDS.laptop,
+            SEED_IDS.admin_user,
+            ItemChangeLogType.OWNER_CHANGED,
+            datetime(2025, 3, 1, 12, 0, tzinfo=UTC),
+            "Przypisano laptop użytkownikowi Jan User",
+        ),
+        (
+            SEED_IDS.laptop_loan_history_2,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOANED,
+            datetime(2025, 3, 10, 8, 45, tzinfo=UTC),
+            "Wypożyczono laptop na zajęcia laboratoryjne",
+        ),
+        (
+            SEED_IDS.laptop_location_history_4,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOCATION_CHANGED,
+            datetime(2025, 4, 1, 13, 10, tzinfo=UTC),
+            "Przeniesiono laptop z szafy A do sali D10",
+        ),
+        (
+            SEED_IDS.laptop_location_history_5,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOCATION_CHANGED,
+            datetime(2025, 4, 2, 9, 30, tzinfo=UTC),
+            "Odłożono laptop z powrotem do szafy A",
+        ),
+        (
+            SEED_IDS.laptop_category_history_2,
+            SEED_IDS.laptop,
+            SEED_IDS.admin_user,
+            ItemChangeLogType.CATEGORY_CHANGED,
+            datetime(2025, 5, 1, 10, 0, tzinfo=UTC),
+            "Potwierdzono kategorię Komputery",
+        ),
+        (
+            SEED_IDS.laptop_loan_history_3,
+            SEED_IDS.laptop,
+            SEED_IDS.regular_user,
+            ItemChangeLogType.LOANED,
+            datetime(2025, 6, 1, 15, 25, tzinfo=UTC),
+            "Wypożyczono laptop do testów aplikacji",
+        ),
     )
-    for history_id, item_id, updated_by, description in item_histories:
+    for history_id, item_id, updated_by, change_type, updated_at, description in item_histories:
         _upsert(
             session,
             ItemHistory,
             history_id,
             select(ItemHistory).where(
                 ItemHistory.item_id == item_id,
-                ItemHistory.change_type == ItemChangeLogType.CREATED,
+                ItemHistory.change_type == change_type,
+                ItemHistory.updated_at == updated_at,
             ),
             item_id=item_id,
-            updated_at=SEED_ITEM_HISTORY_AT,
+            updated_at=updated_at,
             updated_by=updated_by,
-            change_type=ItemChangeLogType.CREATED,
+            change_type=change_type,
             description=description,
         )
 
