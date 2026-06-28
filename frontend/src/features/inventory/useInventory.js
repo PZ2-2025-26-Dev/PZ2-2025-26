@@ -331,7 +331,6 @@ export const useInventory = () => {
         updateItem,
         listItems,
         getItem,
-        updateItem,
         isLoading,
         error,
         clearError,
