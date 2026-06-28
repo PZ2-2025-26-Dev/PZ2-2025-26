@@ -16,6 +16,7 @@ export type InventoryItem = {
     category: string;
     categoryId?: number;
     categoryPath?: string;
+    categoryId?: number;
     location: string;
     locationId?: number;
     owner: string;

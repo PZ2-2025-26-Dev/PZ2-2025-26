@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { AlertCircle, Archive, Building2, ChevronDown, ChevronRight, DoorOpen, Layers3, MapPin, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { StatusBadge } from '@/components/StatusBadge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import type { InventoryItem } from '@/types';
+import { useInventory } from '../inventory/useInventory';
 import { useLocations, type Location, type LocationType } from './useLocations';
 
 type LocationNode = Location & { children: LocationNode[] };
@@ -46,6 +50,15 @@ type LocationFormState = {
 
 type DeleteErrorState = {
     locationName: string;
+};
+
+type HideErrorState = {
+    locationName: string;
+};
+
+type LocationManagerProps = {
+    canManage?: boolean;
+    canCreateRemote?: boolean;
 };
 
 const compareLocations = (first: Location, second: Location) => {
@@ -106,11 +119,23 @@ const collectDescendantIds = (locationId: number, locations: Location[]) => {
     return descendants;
 };
 
-export default function LocationManager() {
+export default function LocationManager({
+    canManage = true,
+    canCreateRemote = false,
+}: LocationManagerProps) {
     const { t } = useTranslation();
     const { listLocations, createLocation, updateLocation, deleteLocation, isLoading, error, clearError } = useLocations();
+    const {
+        listItems,
+        isLoading: areItemsLoading,
+        error: itemsError,
+        clearError: clearItemsError,
+    } = useInventory();
 
     const [locations, setLocations] = useState<Location[]>([]);
+    const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+    const [locationItems, setLocationItems] = useState<InventoryItem[]>([]);
+    const [locationItemsTotal, setLocationItemsTotal] = useState(0);
     const [newLocationName, setNewLocationName] = useState('');
     const [newLocationType, setNewLocationType] = useState<LocationType>('building');
     const [selectedParentId, setSelectedParentId] = useState(ROOT_LOCATION);
@@ -120,9 +145,13 @@ export default function LocationManager() {
     const [editForm, setEditForm] = useState<LocationFormState | null>(null);
     const [deletingLocation, setDeletingLocation] = useState<Location | null>(null);
     const [deleteError, setDeleteError] = useState<DeleteErrorState | null>(null);
+    const [hideError, setHideError] = useState<HideErrorState | null>(null);
     const [expandedLocationIds, setExpandedLocationIds] = useState<Set<number>>(() => new Set());
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
+    const canAddLocation = canManage || canCreateRemote;
+    const defaultNewLocationType: LocationType = canManage ? 'building' : 'remote';
+    const newLocationTypes = canManage ? LOCATION_TYPES : (['remote'] as LocationType[]);
     const locationTree = useMemo(() => buildLocationTree(locations), [locations]);
     const parentOptions = useMemo(() => getParentOptions(locations, newLocationType), [locations, newLocationType]);
     const editParentOptions = useMemo(() => {
@@ -140,7 +169,9 @@ export default function LocationManager() {
 
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
-        if (result.success) setLocations(result.locations);
+        if (result.success) {
+            setLocations(result.locations);
+        }
     }, [listLocations]);
 
     useEffect(() => {
@@ -186,7 +217,7 @@ export default function LocationManager() {
 
         if (result.success) {
             setNewLocationName('');
-            setNewLocationType('building');
+            setNewLocationType(defaultNewLocationType);
             setSelectedParentId(ROOT_LOCATION);
             setNewLocationDescription('');
             setNewLocationAddress('');
@@ -205,11 +236,13 @@ export default function LocationManager() {
             status: location.isActive ? 'active' : 'inactive',
         });
         clearError();
+        setHideError(null);
     };
 
     const closeEditDialog = () => {
         setEditingLocation(null);
         setEditForm(null);
+        setHideError(null);
     };
 
     const handleUpdateLocation = async (event: FormEvent<HTMLFormElement>) => {
@@ -228,6 +261,9 @@ export default function LocationManager() {
         if (result.success) {
             closeEditDialog();
             await refreshLocations();
+        } else if (editForm.status === 'inactive') {
+            setHideError({ locationName: editingLocation.name });
+            clearError();
         }
     };
 
@@ -247,6 +283,24 @@ export default function LocationManager() {
             });
             clearError();
         }
+    };
+
+    const handleSelectLocation = async (location: Location) => {
+        setSelectedLocation(location);
+        setLocationItems([]);
+        setLocationItemsTotal(0);
+        clearItemsError();
+
+        const result = await listItems({ locationId: location.id, limit: 100 });
+        if (result.success) {
+            setLocationItems(result.items);
+            setLocationItemsTotal(result.total);
+        }
+    };
+
+    const refreshSelectedLocationItems = async () => {
+        if (!selectedLocation) return;
+        await handleSelectLocation(selectedLocation);
     };
 
     const toggleLocation = (locationId: number) => {
@@ -269,14 +323,19 @@ export default function LocationManager() {
         return (
             <Collapsible key={node.id} open={isExpanded} onOpenChange={() => toggleLocation(node.id)}>
                 <div
-                    className="group flex items-center justify-between rounded-lg border border-transparent px-3 py-2 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900"
+                    className={`group flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900 ${
+                        selectedLocation?.id === node.id
+                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30'
+                            : 'border-transparent'
+                    }`}
+                    onClick={() => void handleSelectLocation(node)}
                     style={{ marginLeft: level * 20 }}
                 >
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             {hasChildren ? (
                                 <CollapsibleTrigger asChild>
-                                    <Button variant="ghost" size="icon-sm" className="-ml-1" aria-label={node.name}>
+                                    <Button variant="ghost" size="icon-sm" className="-ml-1" onClick={(event) => event.stopPropagation()} aria-label={node.name}>
                                         <ChevronIcon />
                                     </Button>
                                 </CollapsibleTrigger>
@@ -299,25 +358,35 @@ export default function LocationManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => {
-                            // open add dialog with this node as parent
-                            const allowedChildTypes = LOCATION_TYPES.filter((type) => LOCATION_PARENT_TYPES[type].includes(node.type));
-                            const defaultType = (allowedChildTypes[0] ?? 'room') as LocationType;
-                            setNewLocationType(defaultType);
-                            setSelectedParentId(String(node.id));
-                            setNewLocationName('');
-                            setNewLocationDescription('');
-                            setNewLocationAddress('');
-                            setIsAddDialogOpen(true);
-                        }} aria-label={t('locationManager.addTitle')}>
-                            <Plus />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('locationManager.edit')}>
-                            <Pencil />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => setDeletingLocation(node)} aria-label={t('locationManager.delete')}>
-                            <Trash2 />
-                        </Button>
+                        {canManage && (
+                            <>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={(event) => {
+                                    event.stopPropagation();
+                                    const allowedChildTypes = LOCATION_TYPES.filter((type) => LOCATION_PARENT_TYPES[type].includes(node.type));
+                                    const defaultType = (allowedChildTypes[0] ?? 'room') as LocationType;
+                                    setNewLocationType(defaultType);
+                                    setSelectedParentId(String(node.id));
+                                    setNewLocationName('');
+                                    setNewLocationDescription('');
+                                    setNewLocationAddress('');
+                                    setIsAddDialogOpen(true);
+                                }} aria-label={t('locationManager.addTitle')}>
+                                    <Plus />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={(event) => {
+                                    event.stopPropagation();
+                                    openEditDialog(node);
+                                }} aria-label={t('locationManager.edit')}>
+                                    <Pencil />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={(event) => {
+                                    event.stopPropagation();
+                                    setDeletingLocation(node);
+                                }} aria-label={t('locationManager.delete')}>
+                                    <Trash2 />
+                                </Button>
+                            </>
+                        )}
                         <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                             {t(`locationManager.types.${node.type}`)}
                         </span>
@@ -342,9 +411,12 @@ export default function LocationManager() {
                         <Button variant="outline" size="icon-sm" onClick={() => void refreshLocations()} disabled={isLoading} aria-label={t('locationManager.refresh')}>
                             <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                         </Button>
-                        <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_LOCATION); setNewLocationType('building'); }}>
-                            <Plus className="mr-2" /> Dodaj lokalizację
-                        </Button>
+                        {canAddLocation && (
+                            <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_LOCATION); setNewLocationType(defaultNewLocationType); }}>
+                                <Plus className="mr-2" />
+                                {canManage ? t('locationManager.addButton') : t('locationManager.addRemoteButton')}
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -365,11 +437,83 @@ export default function LocationManager() {
                 </CardContent>
             </Card>
 
-            {/* Add Location dialog (used by top button or node +) */}
-            <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => !open && setIsAddDialogOpen(false)}>
+            {selectedLocation && (
+                <Card className="mt-4 overflow-hidden">
+                    <CardHeader className="flex-row items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <CardTitle className="truncate text-sm">
+                                {t('locationManager.itemsTitle', { name: selectedLocation.name })}
+                            </CardTitle>
+                            <CardDescription className="truncate text-xs">
+                                {selectedLocation.path}
+                            </CardDescription>
+                        </div>
+                        <Button variant="outline" size="icon-sm" onClick={() => void refreshSelectedLocationItems()} disabled={areItemsLoading} aria-label={t('locationManager.refreshItems')}>
+                            <RefreshCw className={areItemsLoading ? 'animate-spin' : ''} />
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {itemsError && (
+                            <Alert variant="destructive" className="mb-4">
+                                <AlertCircle />
+                                <AlertTitle>{t('locationManager.itemsErrorTitle')}</AlertTitle>
+                                <AlertDescription>{itemsError}</AlertDescription>
+                            </Alert>
+                        )}
+
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
+                                    <TableHead>{t('dashboard.thName')}</TableHead>
+                                    <TableHead>{t('dashboard.thCategory')}</TableHead>
+                                    <TableHead>{t('dashboard.thStatus')}</TableHead>
+                                    <TableHead>{t('dashboard.thOwner')}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {areItemsLoading && locationItems.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="py-10 text-center text-slate-400">
+                                            {t('locationManager.itemsLoading')}
+                                        </TableCell>
+                                    </TableRow>
+                                ) : locationItems.length > 0 ? locationItems.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell>
+                                            <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                                            {item.description && (
+                                                <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-slate-600 dark:text-slate-400">{item.category}</TableCell>
+                                        <TableCell>
+                                            <StatusBadge status={item.status} label={t(`dashboard.itemStatuses.${item.status}`)} />
+                                        </TableCell>
+                                        <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="py-10 text-center text-slate-400">
+                                            {t('locationManager.itemsEmpty')}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+
+                        {locationItemsTotal > locationItems.length && (
+                            <p className="mt-3 text-xs text-slate-400">
+                                {t('locationManager.itemsLimited', { shown: locationItems.length, total: locationItemsTotal })}
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {canAddLocation && <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => !open && setIsAddDialogOpen(false)}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>{t('locationManager.addTitle')}</DialogTitle>
+                        <DialogTitle>{canManage ? t('locationManager.addTitle') : t('locationManager.addRemoteTitle')}</DialogTitle>
                     </DialogHeader>
                     <form id="add-location-form" onSubmit={(event) => { void handleCreateLocation(event); setIsAddDialogOpen(false); }} className="space-y-4">
                         <div className="space-y-2">
@@ -389,7 +533,7 @@ export default function LocationManager() {
                                 <Select value={newLocationType} onValueChange={(type: string) => setNewLocationType(type as LocationType)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        {LOCATION_TYPES.map((type) => (
+                                        {newLocationTypes.map((type) => (
                                             <SelectItem key={type} value={type}>{t(`locationManager.types.${type}`)}</SelectItem>
                                         ))}
                                     </SelectContent>
@@ -439,14 +583,22 @@ export default function LocationManager() {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog>}
 
-            {/* Edit dialog */}
-                    <Dialog open={Boolean(editingLocation && editForm)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
+            {canManage && <Dialog open={Boolean(editingLocation && editForm)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('locationManager.editTitle')}</DialogTitle>
                     </DialogHeader>
+                    {hideError && (
+                        <Alert variant="destructive">
+                            <AlertCircle />
+                            <AlertTitle>{t('locationManager.hideErrorTitle')}</AlertTitle>
+                            <AlertDescription>
+                                {t('locationManager.hideErrorDesc', { name: hideError.locationName })}
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     {editForm && (
                         <form id="edit-location-form" onSubmit={(event) => void handleUpdateLocation(event)} className="space-y-4">
                             <div className="space-y-2">
@@ -527,9 +679,9 @@ export default function LocationManager() {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog>}
 
-            <Dialog open={Boolean(deletingLocation)} onOpenChange={(open: boolean) => !open && setDeletingLocation(null)}>
+            {canManage && <Dialog open={Boolean(deletingLocation)} onOpenChange={(open: boolean) => !open && setDeletingLocation(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t('locationManager.deleteTitle')}</DialogTitle>
@@ -544,9 +696,9 @@ export default function LocationManager() {
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog>}
 
-            <Dialog open={Boolean(deleteError)} onOpenChange={(open: boolean) => !open && setDeleteError(null)}>
+            {canManage && <Dialog open={Boolean(deleteError)} onOpenChange={(open: boolean) => !open && setDeleteError(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="text-rose-700 dark:text-rose-300">{t('locationManager.deleteErrorTitle')}</DialogTitle>
@@ -558,7 +710,7 @@ export default function LocationManager() {
                         <Button onClick={() => setDeleteError(null)}>{t('locationManager.close')}</Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
+            </Dialog>}
         </div>
     );
 }

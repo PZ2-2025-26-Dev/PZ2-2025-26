@@ -70,6 +70,18 @@ def get_item_by_uuid(
     return item
 
 
+ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
+
+
+def require_item_owner_or_admin(item: ItemByUuid, user: CurrentUser) -> Item:
+    if user.role != UserRole.ADMIN and item.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
+        )
+    return item
+
+
 def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
     fields: set[str] = set()
 
@@ -186,4 +198,4 @@ def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
 
 RequireItemReader = Annotated[User, Depends(require_item_reader)]
 RequireItemWriter = Annotated[User, Depends(require_item_writer)]
-ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
+RequireItemOwnerOrAdmin = Annotated[Item, Depends(require_item_owner_or_admin)]

@@ -2,7 +2,7 @@ from sqlalchemy import func, literal, select
 from sqlalchemy.orm import Session, aliased
 
 from src.items.models import Item
-from src.locations.constants import LocationHistoryChangeType
+from src.locations.constants import LocationHistoryChangeType, LocationType
 from src.locations.models import Location, LocationHistory
 from src.locations.schemas import LocationCreate, LocationDetails, LocationUpdate
 from src.utils import now
@@ -106,6 +106,8 @@ class LocationService:
         if "address" in updated_fields:
             location.address = data.address
         if "is_active" in updated_fields:
+            if data.is_active is False and location.is_active:
+                self._ensure_subtree_has_no_items(location_id)
             location.is_active = data.is_active
 
         self._add_history(
@@ -120,9 +122,7 @@ class LocationService:
         subtree = self._location_subtree(location_id)
         subtree_ids = [location_id for location_id, _depth in subtree]
 
-        assigned_items_count = self.db.scalar(select(func.count(Item.id)).where(Item.location_id.in_(subtree_ids))) or 0
-        if assigned_items_count > 0:
-            raise LocationHasAssignedItemsError()
+        self._ensure_location_ids_have_no_items(subtree_ids)
 
         deleted_locations_count = len(subtree)
         self._add_history(
@@ -167,10 +167,25 @@ class LocationService:
             name=location.name,
             type=location.type,
             parent_id=location.parent_id,
+            owner_id=self._get_remote_owner_id(location),
             description=location.description,
             address=location.address,
             is_active=location.is_active,
             path=self.build_location_path(location.id),
+        )
+
+    def _get_remote_owner_id(self, location: Location) -> int | None:
+        if location.type != LocationType.REMOTE:
+            return None
+
+        return self.db.scalar(
+            select(LocationHistory.changed_by)
+            .where(
+                LocationHistory.location_id == location.id,
+                LocationHistory.change_type == LocationHistoryChangeType.CREATED,
+            )
+            .order_by(LocationHistory.id)
+            .limit(1)
         )
 
     def _validate_parent(self, parent_id: int | None, edited_location_id: int | None = None) -> None:
@@ -217,6 +232,17 @@ class LocationService:
                 select(location_tree.c.id, location_tree.c.depth).order_by(location_tree.c.depth.desc())
             ).all()
         )
+
+    def _ensure_subtree_has_no_items(self, location_id: int) -> None:
+        subtree_ids = [location_id for location_id, _depth in self._location_subtree(location_id)]
+        self._ensure_location_ids_have_no_items(subtree_ids)
+
+    def _ensure_location_ids_have_no_items(self, location_ids: list[int]) -> None:
+        assigned_items_count = (
+            self.db.scalar(select(func.count(Item.id)).where(Item.location_id.in_(location_ids))) or 0
+        )
+        if assigned_items_count > 0:
+            raise LocationHasAssignedItemsError()
 
     def _add_history(
         self,

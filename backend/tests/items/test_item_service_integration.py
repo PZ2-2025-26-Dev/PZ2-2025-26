@@ -1,13 +1,13 @@
 import pytest
 from sqlalchemy import exc as sql_exc
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole, UserStatus
 from src.categories.models import Category
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.models import Item, ItemHistory
-from src.items.schemas import ItemCreate, ItemSearch, ItemUpdate
+from src.items.schemas import ItemCreate, ItemHistorySearch, ItemSearch, ItemUpdate
 from src.items.service import ItemService
 from src.locations.constants import LocationType
 from src.locations.models import Location
@@ -195,53 +195,81 @@ def test_update_item_updates_parameters(seeded_db: Session):
 
 
 def test_update_item_category_creates_history(seeded_db: Session):
+    history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.CATEGORY_CHANGED,
+        )
+    )
+
     ItemService(seeded_db).update_item(
         SEED_IDS.laptop_uuid,
         ItemUpdate(category_id=SEED_IDS.accessories),
     )
 
-    history = (
-        seeded_db.query(ItemHistory)
-        .filter_by(item_id=SEED_IDS.laptop, change_type=ItemChangeLogType.CATEGORY_CHANGED)
-        .all()
+    updated_history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.CATEGORY_CHANGED,
+        )
     )
-    assert len(history) == 1
+    assert updated_history_count == history_count + 1
 
 
 def test_update_item_location_creates_history(seeded_db: Session):
+    history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.LOCATION_CHANGED,
+        )
+    )
+
     ItemService(seeded_db).update_item(
         SEED_IDS.laptop_uuid,
         ItemUpdate(location_id=SEED_IDS.room),
     )
 
-    history = (
-        seeded_db.query(ItemHistory)
-        .filter_by(item_id=SEED_IDS.laptop, change_type=ItemChangeLogType.LOCATION_CHANGED)
-        .all()
+    updated_history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.LOCATION_CHANGED,
+        )
     )
-    assert len(history) == 1
+    assert updated_history_count == history_count + 1
 
 
 def test_update_item_owner_creates_history(seeded_db: Session):
+    history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.OWNER_CHANGED,
+        )
+    )
+
     ItemService(seeded_db).update_item(
         SEED_IDS.laptop_uuid,
         ItemUpdate(owner_id=SEED_IDS.admin_user),
     )
 
-    history = (
-        seeded_db.query(ItemHistory)
-        .filter_by(item_id=SEED_IDS.laptop, change_type=ItemChangeLogType.OWNER_CHANGED)
-        .all()
+    updated_history_count = seeded_db.scalar(
+        select(func.count(ItemHistory.id)).where(
+            ItemHistory.item_id == SEED_IDS.laptop,
+            ItemHistory.change_type == ItemChangeLogType.OWNER_CHANGED,
+        )
     )
-    assert len(history) == 1
+    assert updated_history_count == history_count + 1
 
 
 def test_get_item_history_returns_seed_entries(seeded_db: Session):
-    history = ItemService(seeded_db).get_item_history(SEED_IDS.laptop_uuid)
+    history = ItemService(seeded_db).get_item_history(
+        SEED_IDS.laptop_uuid,
+        ItemHistorySearch(change_type=ItemChangeLogType.CREATED),
+    )
 
     assert len(history.entries) >= 1
     assert history.entries[0].change_type == ItemChangeLogType.CREATED
     assert history.entries[0].updated_by == SEED_IDS.regular_user
+    assert history.pagination.total >= 1
 
 
 def test_search_items_by_category(seeded_db: Session):
