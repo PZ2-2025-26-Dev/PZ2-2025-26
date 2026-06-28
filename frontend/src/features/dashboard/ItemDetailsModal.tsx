@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    AlertCircle,
     CalendarDays,
     ChevronDown,
     ChevronUp,
@@ -31,7 +32,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
 import { useItemAttachments } from '../inventory/useItemAttachments';
 import { ITEM_HISTORY_PAGE_LIMIT, useInventory } from '../inventory/useInventory';
-import { useLocations } from '../locations/useLocations';
+import { useLocations, type Location } from '../locations/useLocations';
 import { useUsers } from '../users/useUsers';
 
 type HistoryEntry = {
@@ -62,6 +63,7 @@ type ItemDetailsModalProps = {
     ) => void;
     onItemUpdated?: (item: InventoryItem) => void;
     onItemDeleted?: (itemId: string | number) => void;
+    onLocationChanged?: (itemId: string | number, location: { id: number; path: string }) => void;
 };
 
 const getUserName = (entry: { firstName?: string; lastName?: string }) =>
@@ -75,10 +77,25 @@ export default function ItemDetailsModal({
     onUpdateStatus,
     onItemUpdated,
     onItemDeleted,
+    onLocationChanged,
 }: ItemDetailsModalProps) {
     const { t, i18n } = useTranslation();
-    const { getItemHistory, getItem, updateItem, deleteItem, isLoading: isHistoryLoading } = useInventory();
-    const { listLocations } = useLocations();
+    const {
+        getItemHistory,
+        getItem,
+        updateItem,
+        deleteItem,
+        isLoading: isInventoryLoading,
+        error: itemUpdateError,
+        clearError: clearItemUpdateError,
+    } = useInventory();
+    const {
+        listLocations,
+        createLocation,
+        isLoading: isLocationLoading,
+        error: locationCreateError,
+        clearError: clearLocationCreateError,
+    } = useLocations();
     const { listUsers } = useUsers();
     const [returnDate, setReturnDate] = useState('');
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
@@ -92,7 +109,7 @@ export default function ItemDetailsModal({
     const [editName, setEditName] = useState('');
     const [editLocationId, setEditLocationId] = useState('');
     const [editOwnerId, setEditOwnerId] = useState('');
-    const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
+    const [locations, setLocations] = useState<Location[]>([]);
     const [locationsLoading, setLocationsLoading] = useState(false);
     const [locationsLoadError, setLocationsLoadError] = useState<string | null>(null);
     const [owners, setOwners] = useState<Array<{ id: number; firstName: string; lastName: string }>>([]);
@@ -102,6 +119,10 @@ export default function ItemDetailsModal({
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isRemoteLocationDialogOpen, setIsRemoteLocationDialogOpen] = useState(false);
+    const [remoteLocationName, setRemoteLocationName] = useState('');
+    const [remoteLocationAddress, setRemoteLocationAddress] = useState('');
+    const [remoteLocationDescription, setRemoteLocationDescription] = useState('');
 
     const itemId = item?.id ?? null;
     const {
@@ -116,7 +137,7 @@ export default function ItemDetailsModal({
     } = useItemAttachments(itemId, isOpen);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !item) return;
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setReturnDate(tomorrow.toISOString().split('T')[0]);
@@ -133,7 +154,13 @@ export default function ItemDetailsModal({
         setEditName(item?.name ?? '');
         setEditLocationId(item?.locationId ? String(item.locationId) : '');
         setEditOwnerId(item?.ownerId ? String(item.ownerId) : '');
-    }, [isOpen, item]);
+        setIsRemoteLocationDialogOpen(false);
+        setRemoteLocationName('');
+        setRemoteLocationAddress('');
+        setRemoteLocationDescription('');
+        clearLocationCreateError();
+        clearItemUpdateError();
+    }, [clearItemUpdateError, clearLocationCreateError, isOpen, item]);
 
     const isAdmin = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
 
@@ -151,7 +178,11 @@ export default function ItemDetailsModal({
         ]);
 
         if (locationsResult.success) {
-            setLocations(locationsResult.locations ?? []);
+            setLocations(
+                (locationsResult.locations ?? [])
+                    .filter((location) => location.isActive)
+                    .sort((first, second) => first.path.localeCompare(second.path)),
+            );
         } else {
             setLocations([]);
             setLocationsLoadError(locationsResult.error ?? t('itemDetailsModal.errorTitle'));
@@ -184,7 +215,11 @@ export default function ItemDetailsModal({
             return locations;
         }
 
-        return [{ id: item.locationId, path: item.location }, ...locations];
+        return [{
+            id: item.locationId,
+            path: item.location,
+            isActive: true,
+        } as Location, ...locations];
     }, [item, locations]);
 
     if (!item) return null;
@@ -221,6 +256,10 @@ export default function ItemDetailsModal({
         const refreshed = await getItem(item.id);
         if (refreshed.success && refreshed.item) {
             onItemUpdated?.(refreshed.item);
+            onLocationChanged?.(item.id, {
+                id: refreshed.item.locationId,
+                path: refreshed.item.location,
+            });
             setIsEditingDetails(false);
             return;
         }
@@ -239,6 +278,10 @@ export default function ItemDetailsModal({
             location: selectedLocation?.path ?? item.location,
             ownerId: savedOwnerId,
             owner: ownerName,
+        });
+        onLocationChanged?.(item.id, {
+            id: Number(editLocationId),
+            path: selectedLocation?.path ?? item.location,
         });
         setIsEditingDetails(false);
     };
@@ -293,6 +336,51 @@ export default function ItemDetailsModal({
 
     const historyTotal = historyPagination?.total ?? history.length;
     const hasMoreHistory = history.length < historyTotal;
+
+    const handleCreateRemoteLocation = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!remoteLocationName.trim()) return;
+
+        clearLocationCreateError();
+        clearItemUpdateError();
+        setActionError(null);
+
+        const createdLocation = await createLocation({
+            name: remoteLocationName.trim(),
+            type: 'remote',
+            parentId: null,
+            description: remoteLocationDescription.trim() || null,
+            address: remoteLocationAddress.trim() || null,
+        });
+
+        if (!createdLocation.success || !createdLocation.location) return;
+
+        setLocations((current) => (
+            [...current, createdLocation.location]
+                .sort((first, second) => first.path.localeCompare(second.path))
+        ));
+        setEditLocationId(String(createdLocation.location.id));
+
+        const updatedItem = await updateItem(item.id, {
+            locationId: createdLocation.location.id,
+        });
+
+        if (!updatedItem.success) return;
+
+        const refreshed = await getItem(item.id);
+        if (refreshed.success && refreshed.item) {
+            onItemUpdated?.(refreshed.item);
+        }
+
+        onLocationChanged?.(item.id, {
+            id: createdLocation.location.id,
+            path: createdLocation.location.path,
+        });
+        setIsRemoteLocationDialogOpen(false);
+        setRemoteLocationName('');
+        setRemoteLocationAddress('');
+        setRemoteLocationDescription('');
+    };
 
     const renderDescription = (text: string) => {
         const urlPattern = /(https?:\/\/[^\s]+)/g;
@@ -357,6 +445,20 @@ export default function ItemDetailsModal({
                                         {locationsLoadError && (
                                             <p className="text-xs text-rose-600">{locationsLoadError}</p>
                                         )}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full"
+                                            onClick={() => {
+                                                clearLocationCreateError();
+                                                clearItemUpdateError();
+                                                setIsRemoteLocationDialogOpen(true);
+                                            }}
+                                            disabled={isSaving}
+                                        >
+                                            <MapPin className="size-4" />
+                                            {t('itemDetailsModal.remoteLocationAction')}
+                                        </Button>
                                     </div>
                                     {isAdmin && (
                                         <div className="space-y-2">
@@ -508,6 +610,9 @@ export default function ItemDetailsModal({
         );
     };
 
+    const remoteLocationError = locationCreateError || itemUpdateError;
+    const isRemoteLocationSaving = isLocationLoading || isInventoryLoading;
+
     return (
         <>
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -590,7 +695,7 @@ export default function ItemDetailsModal({
                                                 <AlertDescription>{historyError}</AlertDescription>
                                             </Alert>
                                         )}
-                                        {isHistoryLoading && history.length === 0 ? (
+                                        {isInventoryLoading && history.length === 0 ? (
                                             <p className="text-xs text-slate-500">{t('itemDetailsModal.historyLoading')}</p>
                                         ) : history.length > 0 ? (
                                             <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
@@ -619,10 +724,10 @@ export default function ItemDetailsModal({
                                                 variant="outline"
                                                 size="sm"
                                                 className="w-full"
-                                                disabled={isHistoryLoading}
+                                                disabled={isInventoryLoading}
                                                 onClick={() => loadHistory((historyPagination?.page ?? 0) + 1)}
                                             >
-                                                {isHistoryLoading
+                                                {isInventoryLoading
                                                     ? t('itemDetailsModal.historyLoading')
                                                     : t('itemDetailsModal.historyShowMore')}
                                             </Button>
@@ -676,6 +781,67 @@ export default function ItemDetailsModal({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        <Dialog open={isRemoteLocationDialogOpen} onOpenChange={setIsRemoteLocationDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{t('itemDetailsModal.remoteLocationTitle')}</DialogTitle>
+                </DialogHeader>
+                <form className="space-y-4" onSubmit={handleCreateRemoteLocation}>
+                    {remoteLocationError && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="size-4" />
+                            <AlertTitle>{t('itemDetailsModal.remoteLocationErrorTitle')}</AlertTitle>
+                            <AlertDescription>{remoteLocationError}</AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="space-y-2">
+                        <Label htmlFor="remote-location-name">{t('itemDetailsModal.remoteLocationName')}</Label>
+                        <Input
+                            id="remote-location-name"
+                            value={remoteLocationName}
+                            onChange={(event) => setRemoteLocationName(event.target.value)}
+                            placeholder={t('itemDetailsModal.remoteLocationNamePlaceholder')}
+                            maxLength={255}
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="remote-location-address">{t('itemDetailsModal.remoteLocationAddress')}</Label>
+                        <Input
+                            id="remote-location-address"
+                            value={remoteLocationAddress}
+                            onChange={(event) => setRemoteLocationAddress(event.target.value)}
+                            placeholder={t('itemDetailsModal.remoteLocationAddressPlaceholder')}
+                            maxLength={255}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="remote-location-description">{t('itemDetailsModal.remoteLocationDescription')}</Label>
+                        <Textarea
+                            id="remote-location-description"
+                            value={remoteLocationDescription}
+                            onChange={(event) => setRemoteLocationDescription(event.target.value)}
+                            placeholder={t('itemDetailsModal.remoteLocationDescriptionPlaceholder')}
+                            maxLength={500}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setIsRemoteLocationDialogOpen(false)}
+                        >
+                            {t('itemDetailsModal.cancel')}
+                        </Button>
+                        <Button type="submit" disabled={isRemoteLocationSaving || !remoteLocationName.trim()}>
+                            {isRemoteLocationSaving
+                                ? t('itemDetailsModal.remoteLocationSaving')
+                                : t('itemDetailsModal.remoteLocationSubmit')}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
         </>
     );
 }
