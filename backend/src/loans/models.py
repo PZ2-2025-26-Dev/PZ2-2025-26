@@ -4,7 +4,7 @@ from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database import Base
-from src.loans.constants import LoanStatus
+from src.loans.constants import LoanStatus, ReturnCondition
 
 
 class Loan(Base):
@@ -20,7 +20,7 @@ class Loan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
 
     declared_return_date: Mapped[datetime] = mapped_column(DateTime)
-    loan_purpose: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text)
 
     borrowed_at: Mapped[datetime | None] = mapped_column(DateTime)
     returned_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -29,6 +29,15 @@ class Loan(Base):
     decision_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
     decision_at: Mapped[datetime | None] = mapped_column(DateTime)
     decision_comment: Mapped[str | None] = mapped_column(Text)
+
+    return_reported_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
+    return_reported_at: Mapped[datetime | None] = mapped_column(DateTime)
+    return_condition: Mapped[ReturnCondition | None] = mapped_column(Enum(ReturnCondition))
+    return_note: Mapped[str | None] = mapped_column(Text)
+
+    return_confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("user.id", ondelete="RESTRICT"))
+    return_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    return_confirmation_note: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         CheckConstraint(

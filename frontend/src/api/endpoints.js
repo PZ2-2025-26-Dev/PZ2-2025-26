@@ -41,5 +41,14 @@ export const ENDPOINTS = {
     EXPORT: {
         BASE: '/exports',
         ITEMS_XLSX: '/exports/items/xlsx',
-    }
+    },
+    LOANS: {
+        BASE: '/loans',
+        EXTERNAL: '/loans/external',
+        DETAILS: (id) => `/loans/${id}`,
+        APPROVE: (id) => `/loans/${id}/approve`,
+        DENY: (id) => `/loans/${id}/deny`,
+        RETURN: (id) => `/loans/${id}/return`,
+        CONFIRM_RETURN: (id) => `/loans/${id}/confirm-return`,
+    },
 };

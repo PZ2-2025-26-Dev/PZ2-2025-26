@@ -22,6 +22,7 @@ from src.exports.router import router as exports_router
 from src.items import models as items_models  # noqa: F401
 from src.items.router import router as items_router
 from src.loans import models as loans_models  # noqa: F401
+from src.loans.router import router as loans_router
 from src.locations import models as locations_models  # noqa: F401
 from src.locations.router import router as locations_router
 from src.users import models as users_models  # noqa: F401
@@ -58,6 +59,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(items_router)
+app.include_router(loans_router)
 app.include_router(locations_router)
 app.include_router(categories_router)
 app.include_router(exports_router)
