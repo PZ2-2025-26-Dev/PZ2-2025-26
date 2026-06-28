@@ -4,12 +4,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.categories.service import build_category_path
-from src.items.constants import ItemChangeLogType, ItemStatus, ITEM_DELETE_BLOCKED_STATUSES
+from src.items.constants import ITEM_DELETE_BLOCKED_STATUSES, ItemChangeLogType, ItemStatus
 from src.items.exceptions import ItemNotFoundError, ItemOnLoanError
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
-from src.loans.constants import LoanStatus
-from src.loans.models import Loan
 from src.items.schemas import (
     ItemCategory,
     ItemCreate,
@@ -28,6 +26,8 @@ from src.items.schemas import (
     ItemUpdate,
     ItemUpdateResponse,
 )
+from src.loans.constants import LoanStatus
+from src.loans.models import Loan
 from src.utils import now
 
 
