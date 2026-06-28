@@ -1,9 +1,10 @@
 from uuid import UUID, uuid7
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from src.categories.models import Category
+from src.categories.service import build_category_path
 from src.items.constants import ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
@@ -24,12 +25,12 @@ from src.items.schemas import (
     ItemUpdate,
     ItemUpdateResponse,
 )
+from src.loans.constants import LoanStatus
+from src.loans.models import Loan
 from src.locations.models import Location
 from src.users.models import User
 from src.utils import now
-from sqlalchemy import exists, or_
-from src.loans.models import Loan
-from src.loans.constants import LoanStatus
+
 
 class ItemService:
     def __init__(self, db: Session):
