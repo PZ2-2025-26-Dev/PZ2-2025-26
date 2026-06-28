@@ -14,6 +14,8 @@ class ItemStatus(Enum):
     RESERVED = "reserved"
     LOANED = "loaned"
     BROKEN = "broken"
+    MISSING = "missing"
+    OVERDUE = "overdue"
 
 
 class ItemChangeLogType(Enum):

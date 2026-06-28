@@ -1,374 +1,193 @@
-"""Mapowanie danych koidc na model PZ2 i zapis do bazy."""
+"""Orkiestracja importu koidc: wczytanie zrzutu SQL, migracja SQL, sprzątanie."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from uuid import NAMESPACE_URL, uuid5
+from pathlib import Path
 
-from sqlalchemy import delete
-from sqlalchemy.orm import Session
+from pymysql.constants import CLIENT
+from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
 
-from src.auth.constants import UserRole, UserStatus
-from src.categories.models import Category
-from src.import_koidc.parser import LegacyDataset
-from src.items.constants import ITEM_DESC_LENGTH, ITEM_NAME_LENGTH, ItemChangeLogType, ItemStatus
-from src.items.models import Item, ItemHistory
-from src.locations.constants import LocationType
-from src.locations.models import Location
-from src.users.models import User
-from src.utils import now
+from src.config import config
+from src.import_koidc.constants import STAGES_REQUIRING_APPROVAL, ImportStage
+from src.import_koidc.loader import (
+    assert_legacy_tables_loaded,
+    cleanup_dump_staging,
+    current_database,
+    default_sql_file,
+    drop_legacy_staging_schema,
+    load_sql_dump,
+    prepare_legacy_staging_schema,
+    staging_table_names,
+    use_database,
+)
+from src.import_koidc.prompts import ImportAbortedError, ImportDataConflictError, approve_stage
+from src.import_koidc.report import (
+    ImportReport,
+    StagePreview,
+    build_categories_result,
+    build_cleanup_result,
+    build_items_result,
+    build_load_result,
+    build_locations_result,
+    build_users_result,
+    empty_report,
+    fetch_existing_ids,
+    format_stage_result,
+    preview_after_load,
+    preview_categories,
+    preview_items,
+    preview_locations,
+    preview_users,
+)
+from src.import_koidc.sql_migrate import (
+    clear_inventory_tables,
+    ensure_legacy_owner,
+    migrate_categories,
+    migrate_item_history,
+    migrate_items,
+    migrate_locations,
+    migrate_users,
+)
 
-LEGACY_OWNER_ID = 999999
-LEGACY_OWNER_EMAIL = "legacy.import@koidc.local"
-FALLBACK_CATEGORY_ID = 9_999
-KOidc_UUID_NAMESPACE = NAMESPACE_URL
+_IMPORT_CONFLICT_MESSAGE = (
+    "Wykryto konflikt unikalnego klucza podczas importu. "
+    "Czy baza docelowa została już wcześniej zainicjalizowana lub zawiera dane produkcyjne? "
+    "Rozważ użycie --clear-existing albo import na czystą bazę testową."
+)
 
 
-@dataclass
-class ImportStats:
-    users: int = 0
-    categories: int = 0
-    locations: int = 0
-    items: int = 0
-    skipped_items: int = 0
+def _create_import_session() -> Session:
+    engine = create_engine(
+        config.database_url,
+        pool_pre_ping=True,
+        connect_args={"client_flag": CLIENT.MULTI_STATEMENTS},
+    )
+    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)()
 
 
 class KoidcImporter:
-    def __init__(self, session: Session, *, dry_run: bool = False):
+    def __init__(self, session: Session, *, dry_run: bool = False, auto_approve: bool = False):
         self.session = session
         self.dry_run = dry_run
+        self.auto_approve = auto_approve
 
-    def _import_users(self, dataset: LegacyDataset) -> int:
-        imported = 0
-        seen_emails: set[str] = set()
+    def import_from_sql(
+        self,
+        sql_path: Path,
+        *,
+        clear_existing: bool = False,
+    ) -> ImportReport:
+        report = empty_report(dry_run=self.dry_run)
+        connection = self.session.connection()
+        main_database = current_database(connection)
+        staging_tables: set[str] = set()
 
-        for row in sorted(dataset.users, key=lambda u: int(u["id"])):
-            user_id = int(row["id"])
+        try:
+            if clear_existing:
+                clear_inventory_tables(connection)
 
-            # Bezpieczne pobranie imienia i nazwiska
-            first_name = row.get("imie", "Nieznany").strip()
-            last_name = row.get("nazwisko", "").strip()
+            prepare_legacy_staging_schema(connection)
+            load_sql_dump(connection, sql_path)
+            use_database(connection, main_database)
+            assert_legacy_tables_loaded(connection)
+            staging_tables = staging_table_names(connection)
 
-            # Walidacja e-maila pod kątem ograniczeń UNIQUE i NOT NULL w bazie
-            raw_email = row.get("email", "").strip().lower()
-            email = raw_email if raw_email else f"brak_maila_{user_id}@koidc.local"
+            load_summary = preview_after_load(connection)
+            load_result = build_load_result(load_summary)
+            report.stages.append(load_result)
+            print(format_stage_result(load_result))
 
-            # Obsługa duplikatów e-mail pomiędzy różnymi ID użytkowników
-            if email in seen_emails:
-                if "@" in email:
-                    local_part, domain = email.split("@", 1)
-                    email = f"{local_part}+dup{user_id}@{domain}"
-                else:
-                    email = f"{email}_dup_{user_id}"
+            users_preview = preview_users(connection)
+            self._approve_stage(ImportStage.USERS, users_preview)
+            existing_users = fetch_existing_ids(connection, "user")
+            ensure_legacy_owner(connection)
+            migrate_users(connection)
+            users_result = build_users_result(connection, existing_before=existing_users)
+            report.stages.append(users_result)
+            print(format_stage_result(users_result))
 
-            seen_emails.add(email)
+            categories_preview = preview_categories(connection)
+            self._approve_stage(ImportStage.CATEGORIES, categories_preview)
+            existing_categories = fetch_existing_ids(connection, "category")
+            migrate_categories(connection)
+            categories_result = build_categories_result(connection, existing_before=existing_categories)
+            report.stages.append(categories_result)
+            print(format_stage_result(categories_result))
 
-            # Mapowanie widoczności na status
-            is_visible = row.get("widocznosc", "tak").lower() == "tak"
-            status = UserStatus.ACTIVE if is_visible else UserStatus.INACTIVE
+            locations_preview = preview_locations(connection)
+            self._approve_stage(ImportStage.LOCATIONS, locations_preview)
+            existing_locations = fetch_existing_ids(connection, "location")
+            migrate_locations(connection)
+            locations_result = build_locations_result(connection, existing_before=existing_locations)
+            report.stages.append(locations_result)
+            print(format_stage_result(locations_result))
 
-            user = self.session.get(User, user_id)
-            if user is None:
-                self.session.add(
-                    User(
-                        id=user_id,
-                        first_name=first_name[:100],
-                        last_name=last_name[:100] or None,
-                        email=email[:512],
-                        role=UserRole.USER,
-                        status=status,
-                    )
-                )
+            items_preview = preview_items(connection)
+            self._approve_stage(ImportStage.ITEMS, items_preview)
+            existing_items = fetch_existing_ids(connection, "item")
+            migrate_items(connection)
+            migrate_item_history(connection)
+            items_result = build_items_result(connection, existing_before=existing_items)
+            report.stages.append(items_result)
+            print(format_stage_result(items_result))
+
+            drop_legacy_staging_schema(connection)
+            cleanup_result = build_cleanup_result(staging_tables)
+            report.stages.append(cleanup_result)
+            print(format_stage_result(cleanup_result))
+
+            if self.dry_run:
+                self.session.rollback()
+                report.committed = False
             else:
-                user.first_name = first_name[:100]
-                user.last_name = last_name[:100] or None
-                user.email = email[:512]
-                user.status = status
+                self.session.commit()
+                report.committed = True
 
-            imported += 1
-
-        return imported
-
-    def import_dataset(self, dataset: LegacyDataset, *, clear_existing: bool = False) -> ImportStats:
-        stats = ImportStats()
-
-        if clear_existing:
-            self._clear_inventory_tables()
-
-        self._ensure_legacy_owner()
-        stats.users = self._import_users(dataset)
-        self.session.flush()
-        known_user_ids = {int(row["id"]) for row in dataset.users}
-        stats.categories = self._import_categories(dataset)
-        self.session.flush()
-        stats.locations = self._import_locations(dataset)
-        self.session.flush()
-        imported, skipped = self._import_items(dataset, known_user_ids)
-        stats.items = imported
-        stats.skipped_items = skipped
-
-        if self.dry_run:
+        except ImportAbortedError as exc:
+            cleanup_dump_staging(connection, main_database)
             self.session.rollback()
-        else:
-            self.session.commit()
+            report.aborted_at = _stage_from_message(str(exc))
+            report.abort_reason = str(exc)
+            report.committed = False
+        except IntegrityError as exc:
+            cleanup_dump_staging(connection, main_database)
+            self.session.rollback()
+            raise ImportDataConflictError(_IMPORT_CONFLICT_MESSAGE) from exc
+        except Exception:
+            cleanup_dump_staging(connection, main_database)
+            self.session.rollback()
+            raise
 
-        return stats
+        return report
 
-    def _clear_inventory_tables(self) -> None:
-        self.session.execute(delete(ItemHistory))
-        self.session.execute(delete(Item))
-        self.session.execute(delete(Category))
-        self.session.execute(delete(Location))
-        self.session.execute(delete(User).where(User.id != LEGACY_OWNER_ID))
-
-    def _ensure_legacy_owner(self) -> int:
-        owner = self.session.get(User, LEGACY_OWNER_ID)
-        if owner is None:
-            owner = User(
-                id=LEGACY_OWNER_ID,
-                first_name="Import",
-                last_name="Legacy",
-                email=LEGACY_OWNER_EMAIL,
-                role=UserRole.USER,
-                status=UserStatus.ACTIVE,
-            )
-            self.session.add(owner)
-            return 1
-
-        if owner.email != LEGACY_OWNER_EMAIL:
-            raise RuntimeError(
-                f"ID {LEGACY_OWNER_ID} jest zajęte przez użytkownika {owner.email}. "
-                "Zmień LEGACY_OWNER_ID w imporcie albo wyczyść bazę."
-            )
-        return 0
-
-    def _import_categories(self, dataset: LegacyDataset) -> int:
-        imported = 0
-        for row in sorted(dataset.device_types, key=lambda item: int(item["id"])):
-            category_id = int(row["id"])
-            name = row["nazwa"].strip() or f"Typ {category_id}"
-            self._upsert_category(category_id, name[:100])
-            imported += 1
-
-        self._upsert_category(FALLBACK_CATEGORY_ID, "Niesklasyfikowane")
-        imported += 1
-        return imported
-
-    def _import_locations(self, dataset: LegacyDataset) -> int:
-        imported = 0
-        building_ids: dict[int, int] = {}
-
-        for row in sorted(dataset.buildings, key=lambda item: int(item["id"])):
-            building_id = int(row["id"])
-            self._upsert_location(
-                location_id=building_id,
-                name=row["nazwa"].strip() or f"Budynek {building_id}",
-                location_type=LocationType.BUILDING,
-                description=_nullable_text(row.get("opis")),
-                parent_id=None,
-            )
-            building_ids[building_id] = building_id
-            imported += 1
-
-        for row in sorted(dataset.rooms, key=lambda item: int(item["id"])):
-            room_id = int(row["id"]) + 10000  # <--- OFFSET DLA POKOI
-            parent_id = int(row["id_budynku"])  # Budynków nie przesuwamy!
-            if parent_id not in building_ids:
-                raise ValueError(f"Pokój id={int(row['id'])} wskazuje na nieistniejący budynek id={parent_id}")
-
-            self._upsert_location(
-                location_id=room_id,
-                name=row["nazwa"].strip() or f"Pokój {room_id}",
-                location_type=LocationType.ROOM,
-                description=_nullable_text(row.get("opis")),
-                parent_id=parent_id,
-            )
-            imported += 1
-
-        return imported
-
-    def _import_items(self, dataset: LegacyDataset, known_user_ids: set[int]) -> tuple[int, int]:
-        producers = {int(row["id"]): row["nazwa"].strip() for row in dataset.producers}
-        models = {int(row["id"]): row for row in dataset.models}
-        category_ids = {int(row["id"]) for row in dataset.device_types}
-        category_ids.add(FALLBACK_CATEGORY_ID)
-
-        # TUTAJ ZMIANA: Pokoje w zbiorze mają teraz +10000
-        location_ids = {int(row["id"]) + 10000 for row in dataset.rooms} | {int(row["id"]) for row in dataset.buildings}
-
-        imported = 0
-        skipped = 0
-
-        for row in sorted(dataset.devices, key=lambda item: int(item["id"])):
-            device_id = int(row["id"])
-            model_id = int(row["id_modelu"] or "0")
-
-            # TUTAJ ZMIANA: Dodajemy offset do przypisanego pokoju
-            legacy_room_id = int(row["id_pokoju"] or "0")
-            room_id = legacy_room_id + 10000 if legacy_room_id > 0 else legacy_room_id
-
-            if room_id not in location_ids:
-                skipped += 1
-                continue
-
-            model = models.get(model_id)
-            if model is None:
-                skipped += 1
-                continue
-
-            type_id = int(model.get("id_typu") or "0")
-            producer_id = int(model.get("id_producenta") or "0")
-            producer_name = producers.get(producer_id, "")
-            model_name = model.get("nazwa", "").strip()
-            item_name = _build_item_name(producer_name, model_name, device_id)
-            category_id = type_id if type_id in category_ids else FALLBACK_CATEGORY_ID
-            status = ItemStatus.LOANED if row.get("wypozyczony", "0") == "1" else ItemStatus.AVAILABLE
-            description = _build_description(
-                serial=row.get("serial", ""),
-                inventory_label=row.get("nr_inw", ""),
-                notes=row.get("opis", ""),
-                model_notes=model.get("opis", ""),
-            )
-            owner_id = _resolve_owner_id(row.get("id_pracownika", "0"), known_user_ids)
-
-            self._upsert_item(
-                item_id=device_id,
-                name=item_name,
-                inventory_number=_legacy_inventory_uuid(device_id),
-                location_id=room_id,
-                category_id=category_id,
-                owner_id=owner_id,
-                status=status,
-                description=description,
-            )
-            imported += 1
-
-        return imported, skipped
-
-    def _upsert_category(self, category_id: int, name: str) -> None:
-        category = self.session.get(Category, category_id)
-        if category is None:
-            self.session.add(Category(id=category_id, name=name, parent_id=None))
+    def _approve_stage(self, stage: ImportStage, preview: StagePreview) -> None:
+        if stage not in STAGES_REQUIRING_APPROVAL:
             return
-        category.name = name
-        category.parent_id = None
-
-    def _upsert_location(
-        self,
-        *,
-        location_id: int,
-        name: str,
-        location_type: LocationType,
-        description: str | None,
-        parent_id: int | None,
-    ) -> None:
-        location = self.session.get(Location, location_id)
-        if location is None:
-            self.session.add(
-                Location(
-                    id=location_id,
-                    name=name[:100],
-                    type=location_type,
-                    description=description,
-                    parent_id=parent_id,
-                    is_active=True,
-                )
-            )
-            return
-
-        location.name = name[:100]
-        location.type = location_type
-        location.description = description
-        location.parent_id = parent_id
-        location.is_active = True
-
-    def _upsert_item(
-        self,
-        *,
-        item_id: int,
-        name: str,
-        inventory_number,
-        location_id: int,
-        category_id: int,
-        owner_id: int,
-        status: ItemStatus,
-        description: str | None,
-    ) -> None:
-        item = self.session.get(Item, item_id)
-        if item is None:
-            item = Item(
-                id=item_id,
-                name=name,
-                inventory_number=inventory_number,
-                location_id=location_id,
-                category_id=category_id,
-                owner_id=owner_id,
-                status=status,
-                description=description,
-            )
-            self.session.add(item)
-            self.session.flush()
-            self.session.add(
-                ItemHistory(
-                    item_id=item.id,
-                    updated_at=now(),
-                    updated_by=owner_id,
-                    change_type=ItemChangeLogType.CREATED,
-                    description="Imported from koidc legacy database",
-                )
-            )
-            return
-
-        item.name = name
-        item.inventory_number = inventory_number
-        item.location_id = location_id
-        item.category_id = category_id
-        item.owner_id = owner_id
-        item.status = status
-        item.description = description
+        approve_stage(stage, preview, auto_approve=self.auto_approve)
 
 
-def _resolve_owner_id(raw_employee_id: str, known_user_ids: set[int]) -> int:
-    employee_id = int(raw_employee_id or "0")
-    if employee_id > 0 and employee_id in known_user_ids:
-        return employee_id
-    return LEGACY_OWNER_ID
-
-
-def _nullable_text(value: str | None) -> str | None:
-    if value is None:
-        return None
-    cleaned = value.strip()
-    return cleaned or None
-
-
-def _build_item_name(producer: str, model: str, device_id: int) -> str:
-    name = f"{producer} {model}" if producer and model else model or producer or f"Urządzenie #{device_id}"
-    return name[:ITEM_NAME_LENGTH]
-
-
-def _build_description(
+def import_koidc_from_sql(
+    sql_path: Path | None = None,
     *,
-    serial: str,
-    inventory_label: str,
-    notes: str,
-    model_notes: str,
-) -> str | None:
-    parts: list[str] = []
-    if serial.strip():
-        parts.append(f"S/N: {serial.strip()}")
-    if inventory_label.strip():
-        parts.append(f"Nr inw.: {inventory_label.strip()}")
-    if model_notes.strip():
-        parts.append(model_notes.strip().replace("\r\n", "\n"))
-    if notes.strip():
-        parts.append(notes.strip().replace("\r\n", "\n"))
+    clear_existing: bool = False,
+    dry_run: bool = False,
+    auto_approve: bool = False,
+) -> ImportReport:
+    dump_path = sql_path or default_sql_file()
+    if not dump_path.is_file():
+        raise FileNotFoundError(f"Nie znaleziono pliku zrzutu SQL: {dump_path}")
 
-    if not parts:
-        return None
-
-    return "\n".join(parts)[:ITEM_DESC_LENGTH]
+    with _create_import_session() as session:
+        return KoidcImporter(session, dry_run=dry_run, auto_approve=auto_approve).import_from_sql(
+            dump_path,
+            clear_existing=clear_existing,
+        )
 
 
-def _legacy_inventory_uuid(device_id: int):
-    return uuid5(KOidc_UUID_NAMESPACE, f"koidc:device:{device_id}")
+def _stage_from_message(message: str) -> ImportStage | None:
+    for stage in ImportStage:
+        if stage.label in message:
+            return stage
+    return None

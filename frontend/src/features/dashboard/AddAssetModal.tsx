@@ -117,7 +117,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
             .finally(() => setCategoriesLoading(false));
 
         setLocationsLoading(true);
-        listLocations({ limit: 100 })
+        listLocations()
             .then((result) => {
                 if (!result.success) {
                     setLocations([]);

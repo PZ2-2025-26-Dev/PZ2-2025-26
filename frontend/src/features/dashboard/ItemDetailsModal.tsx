@@ -525,6 +525,15 @@ export default function ItemDetailsModal({
                                 ) : hasParameters && parameters ? (
                                     <div className={SCROLLABLE_SECTION_CLASS}>
                                         <ItemParametersDisplay parameters={parameters} />
+                                {[
+                                    [t('itemDetailsModal.producer'), item.producer],
+                                    [t('itemDetailsModal.model'), item.model],
+                                    [t('itemDetailsModal.sn'), item.serialNumber],
+                                    [t('itemDetailsModal.category'), item.categoryPath || '-'],                                  
+                                ].map(([label, value]) => (
+                                    <div key={label} className="flex justify-between gap-4">
+                                        <span className="text-slate-500">{label}</span>
+                                        <span className="text-right font-medium">{value || '-'}</span>
                                     </div>
                                 ) : (
                                     <p className="text-slate-500">{t('itemDetailsModal.noParameters')}</p>
