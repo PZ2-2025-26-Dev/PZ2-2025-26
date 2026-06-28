@@ -27,7 +27,9 @@ from src.items.schemas import (
 from src.locations.models import Location
 from src.users.models import User
 from src.utils import now
-
+from sqlalchemy import exists, or_
+from src.loans.models import Loan
+from src.loans.constants import LoanStatus
 
 class ItemService:
     def __init__(self, db: Session):
@@ -228,9 +230,17 @@ class ItemService:
         if data.owner_id:
             stmt = stmt.where(Item.owner_id == data.owner_id)
 
-        # TODO: odkomentować po dodaniu borrower_id do modelu
-        # if data.borrower_id:
-        #     stmt = stmt.where(Item.borrower_id == data.borrower_id)
+        if data.borrower_id:
+            loan_exists = exists().where(
+                Loan.item_id == Item.id,
+                Loan.status == LoanStatus.LOANED,
+                or_(
+                    Loan.user_id == data.borrower_id,
+                    Loan.guest_id == data.borrower_id,
+                ),
+            )
+
+            stmt = stmt.where(loan_exists)
 
         if data.status:
             stmt = stmt.where(Item.status == data.status)

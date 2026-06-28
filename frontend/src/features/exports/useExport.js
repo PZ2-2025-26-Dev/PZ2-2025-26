@@ -26,9 +26,20 @@ export const useExport = () => {
                 ENDPOINTS.EXPORT.ITEMS_XLSX,
                 {
                     params: cleanParams({
-                        search: filters.search,
-                        status: filters.status,
-                        category: filters.category,
+                        uuid: filters.uuid,
+                    name: filters.name,
+                    description: filters.description,
+                    search: filters.search,
+                    status: filters.status,
+                    category_id: filters.categoryId,
+                    location_id: filters.locationId,
+                    owner_id: filters.ownerId,
+                    borrower_id: filters.borrowerId,
+                    sort_by: filters.sort_by ?? "name",
+                    sort_order: filters.sort_order ?? "asc",
+                    page: filters.page ?? 1,
+                    limit: filters.limit ?? 20,
+                    ...filters.parameters
                     }),
                     responseType: 'blob', 
                 }
