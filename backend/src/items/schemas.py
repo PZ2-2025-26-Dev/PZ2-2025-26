@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
@@ -122,6 +123,42 @@ class ItemUpdateResponse(BaseModel):
     status: ItemStatus
     parameters: dict | None = None
     updated_at: datetime
+
+
+class ItemLabelField(StrEnum):
+    NAME = "name"
+    DESCRIPTION = "description"
+    STATUS = "status"
+    CATEGORY = "category"
+    LOCATION = "location"
+    OWNER = "owner"
+    OLD_ID = "oldID"
+
+
+class ItemLabelRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "fields": [],
+                    "width_mm": 76.2,
+                    "height_mm": 30.48,
+                },
+                {
+                    "fields": ["name", "category", "location", "parameters.serial_number"],
+                    "width_mm": 50,
+                    "height_mm": 25,
+                },
+            ]
+        }
+    )
+
+    fields: list[str] = Field(
+        default_factory=list,
+        examples=[["name", "category", "location", "parameters.serial_number"]],
+    )
+    width_mm: Annotated[float, Field(ge=20, le=200)] = 76.2
+    height_mm: Annotated[float, Field(ge=10, le=150)] = 30.48
 
 
 class ItemDeleteResponse(BaseModel):
