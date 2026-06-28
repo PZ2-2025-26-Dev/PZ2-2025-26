@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
     CalendarDays,
     ChevronDown,
@@ -8,18 +8,22 @@ import {
     History,
     Lock,
     MapPin,
+    Pencil,
     QrCode,
     ShieldCheck,
+    Trash2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { NOBODY_USER_ID, ITEM_DELETE_BLOCKED_STATUSES } from '@/constants/systemUsers';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import type { AppUser, InventoryItem } from '@/types';
@@ -27,6 +31,8 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
 import { useItemAttachments } from '../inventory/useItemAttachments';
 import { ITEM_HISTORY_PAGE_LIMIT, useInventory } from '../inventory/useInventory';
+import { useLocations } from '../locations/useLocations';
+import { useUsers } from '../users/useUsers';
 
 type HistoryEntry = {
     id: string | number;
@@ -54,7 +60,12 @@ type ItemDetailsModalProps = {
         borrower?: string | null,
         dueDate?: string | null,
     ) => void;
+    onItemUpdated?: (item: InventoryItem) => void;
+    onItemDeleted?: (itemId: string | number) => void;
 };
+
+const getUserName = (entry: { firstName?: string; lastName?: string }) =>
+    `${entry.firstName ?? ''} ${entry.lastName ?? ''}`.trim();
 
 export default function ItemDetailsModal({
     isOpen,
@@ -62,9 +73,13 @@ export default function ItemDetailsModal({
     item,
     user,
     onUpdateStatus,
+    onItemUpdated,
+    onItemDeleted,
 }: ItemDetailsModalProps) {
     const { t, i18n } = useTranslation();
-    const { getItemHistory, isLoading: isHistoryLoading } = useInventory();
+    const { getItemHistory, getItem, updateItem, deleteItem, isLoading: isHistoryLoading } = useInventory();
+    const { listLocations } = useLocations();
+    const { listUsers } = useUsers();
     const [returnDate, setReturnDate] = useState('');
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -73,6 +88,20 @@ export default function ItemDetailsModal({
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [historyPagination, setHistoryPagination] = useState<HistoryPagination | null>(null);
     const [historyError, setHistoryError] = useState<string | null>(null);
+    const [isEditingDetails, setIsEditingDetails] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editLocationId, setEditLocationId] = useState('');
+    const [editOwnerId, setEditOwnerId] = useState('');
+    const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
+    const [locationsLoading, setLocationsLoading] = useState(false);
+    const [locationsLoadError, setLocationsLoadError] = useState<string | null>(null);
+    const [owners, setOwners] = useState<Array<{ id: number; firstName: string; lastName: string }>>([]);
+    const [ownersLoading, setOwnersLoading] = useState(false);
+    const [ownersLoadError, setOwnersLoadError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const itemId = item?.id ?? null;
     const {
@@ -98,14 +127,138 @@ export default function ItemDetailsModal({
         setHistory([]);
         setHistoryPagination(null);
         setHistoryError(null);
+        setIsEditingDetails(false);
+        setActionError(null);
+        setIsDeleteDialogOpen(false);
+        setEditName(item?.name ?? '');
+        setEditLocationId(item?.locationId ? String(item.locationId) : '');
+        setEditOwnerId(item?.ownerId ? String(item.ownerId) : '');
     }, [isOpen, item]);
+
+    const isAdmin = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+
+    const loadEditOptions = useCallback(async () => {
+        setLocationsLoading(true);
+        setLocationsLoadError(null);
+        setOwnersLoading(true);
+        setOwnersLoadError(null);
+
+        const [locationsResult, usersResult] = await Promise.all([
+            listLocations(),
+            isAdmin
+                ? listUsers({ page: 1, limit: 100, status: 'active' })
+                : Promise.resolve({ success: true, users: [] }),
+        ]);
+
+        if (locationsResult.success) {
+            setLocations(locationsResult.locations ?? []);
+        } else {
+            setLocations([]);
+            setLocationsLoadError(locationsResult.error ?? t('itemDetailsModal.errorTitle'));
+        }
+
+        if (usersResult.success) {
+            setOwners(usersResult.users ?? []);
+        } else {
+            setOwners([]);
+            setOwnersLoadError(usersResult.error ?? t('itemDetailsModal.errorTitle'));
+        }
+
+        setLocationsLoading(false);
+        setOwnersLoading(false);
+    }, [isAdmin, listLocations, listUsers, t]);
+
+    useEffect(() => {
+        if (isOpen && isEditingDetails) {
+            void loadEditOptions();
+        }
+    }, [isOpen, isEditingDetails, loadEditOptions]);
+
+    const locationOptions = useMemo(() => {
+        if (!item?.locationId || !item.location) {
+            return locations;
+        }
+
+        const hasCurrentLocation = locations.some((location) => location.id === item.locationId);
+        if (hasCurrentLocation) {
+            return locations;
+        }
+
+        return [{ id: item.locationId, path: item.location }, ...locations];
+    }, [item, locations]);
 
     if (!item) return null;
 
-    const isOwner = user.name === item.owner
-        || item.ownerId === user.id
-        || hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+    const isOwner = isAdmin
+        || (item.ownerId === user.id && item.ownerId !== NOBODY_USER_ID);
+    const canManageItem = isOwner;
+    const canDelete = canManageItem && !ITEM_DELETE_BLOCKED_STATUSES.includes(item.status);
     const canBorrow = user.role === 'regular' || user.role === 'admin';
+
+    const handleSaveDetails = async () => {
+        if (!editName.trim() || !editLocationId) return;
+
+        setIsSaving(true);
+        setActionError(null);
+
+        const payload: { name: string; locationId: number; ownerId?: number } = {
+            name: editName.trim(),
+            locationId: Number(editLocationId),
+        };
+
+        if (isAdmin && editOwnerId) {
+            payload.ownerId = Number(editOwnerId);
+        }
+
+        const result = await updateItem(item.id, payload);
+        setIsSaving(false);
+
+        if (!result.success) {
+            setActionError(result.error ?? t('itemDetailsModal.errorTitle'));
+            return;
+        }
+
+        const refreshed = await getItem(item.id);
+        if (refreshed.success && refreshed.item) {
+            onItemUpdated?.(refreshed.item);
+            setIsEditingDetails(false);
+            return;
+        }
+
+        const selectedLocation = locationOptions.find((entry) => entry.id === Number(editLocationId));
+        const savedOwnerId = result.data?.owner_id ?? (isAdmin && editOwnerId ? Number(editOwnerId) : item.ownerId);
+        const selectedOwner = owners.find((entry) => entry.id === savedOwnerId);
+        const ownerName = savedOwnerId === NOBODY_USER_ID
+            ? t('itemDetailsModal.noOwner')
+            : (selectedOwner ? getUserName(selectedOwner) : item.owner);
+
+        onItemUpdated?.({
+            ...item,
+            name: editName.trim(),
+            locationId: Number(editLocationId),
+            location: selectedLocation?.path ?? item.location,
+            ownerId: savedOwnerId,
+            owner: ownerName,
+        });
+        setIsEditingDetails(false);
+    };
+
+    const handleDeleteItem = async () => {
+        setIsDeleting(true);
+        setActionError(null);
+
+        const result = await deleteItem(item.id);
+        setIsDeleting(false);
+
+        if (!result.success) {
+            setActionError(result.error ?? t('itemDetailsModal.errorTitle'));
+            return;
+        }
+
+        onItemDeleted?.(item.id);
+        setIsDeleteDialogOpen(false);
+        onClose();
+    };
 
     const loadHistory = async (page: number, replace = false) => {
         setHistoryError(null);
@@ -152,17 +305,142 @@ export default function ItemDetailsModal({
     };
 
     const workflowPanel = () => {
-        if (isOwner) {
+        if (canManageItem) {
             return (
-                <Card className="border-emerald-200 dark:border-emerald-900/50">
-                    <CardHeader>
-                        <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                            <ShieldCheck className="size-5" />
-                            <CardTitle className="text-base">{t('itemDetailsModal.ownerPanel')}</CardTitle>
-                        </div>
-                        <CardDescription>{t('itemDetailsModal.ownerDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <div className="space-y-4">
+                    <Card className="border-emerald-200 dark:border-emerald-900/50">
+                        <CardHeader>
+                            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                                <Pencil className="size-5" />
+                                <CardTitle className="text-base">{t('itemDetailsModal.editDetails')}</CardTitle>
+                            </div>
+                            <CardDescription>{t('itemDetailsModal.editDetailsDesc')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {actionError && (
+                                <Alert variant="destructive">
+                                    <CircleAlert />
+                                    <AlertTitle>{t('itemDetailsModal.errorTitle')}</AlertTitle>
+                                    <AlertDescription>{actionError}</AlertDescription>
+                                </Alert>
+                            )}
+                            {isEditingDetails ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-item-name">{t('itemDetailsModal.nameLabel')}</Label>
+                                        <Input
+                                            id="edit-item-name"
+                                            value={editName}
+                                            onChange={(event) => setEditName(event.target.value)}
+                                            disabled={isSaving}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t('itemDetailsModal.location')}</Label>
+                                        <Select
+                                            value={editLocationId}
+                                            onValueChange={setEditLocationId}
+                                            disabled={isSaving || locationsLoading}
+                                        >
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                {locationOptions.map((location) => (
+                                                    <SelectItem key={location.id} value={String(location.id)}>
+                                                        {location.path}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {locationsLoading && (
+                                            <p className="text-xs text-slate-500">{t('userManager.loading')}</p>
+                                        )}
+                                        {locationsLoadError && (
+                                            <p className="text-xs text-rose-600">{locationsLoadError}</p>
+                                        )}
+                                    </div>
+                                    {isAdmin && (
+                                        <div className="space-y-2">
+                                            <Label>{t('itemDetailsModal.ownerLabel')}</Label>
+                                            <Select
+                                                value={editOwnerId}
+                                                onValueChange={setEditOwnerId}
+                                                disabled={isSaving || ownersLoading}
+                                            >
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={String(NOBODY_USER_ID)}>
+                                                        {t('itemDetailsModal.noOwner')}
+                                                    </SelectItem>
+                                                    {owners.map((owner) => (
+                                                        <SelectItem key={owner.id} value={String(owner.id)}>
+                                                            {getUserName(owner)}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {ownersLoading && (
+                                                <p className="text-xs text-slate-500">{t('userManager.loading')}</p>
+                                            )}
+                                            {ownersLoadError && (
+                                                <p className="text-xs text-rose-600">{ownersLoadError}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() => {
+                                                setIsEditingDetails(false);
+                                                setActionError(null);
+                                                setEditName(item.name);
+                                                setEditLocationId(String(item.locationId));
+                                                setEditOwnerId(String(item.ownerId));
+                                            }}
+                                            disabled={isSaving}
+                                        >
+                                            {t('itemDetailsModal.cancel')}
+                                        </Button>
+                                        <Button
+                                            className="flex-1"
+                                            onClick={() => void handleSaveDetails()}
+                                            disabled={isSaving || !editName.trim() || !editLocationId}
+                                        >
+                                            {isSaving ? t('userManager.saving') : t('itemDetailsModal.saveChanges')}
+                                        </Button>
+                                    </div>
+                                </>
+                            ) : (
+                                <Button variant="outline" className="w-full" onClick={() => setIsEditingDetails(true)}>
+                                    <Pencil className="size-4" />
+                                    {t('itemDetailsModal.editDetails')}
+                                </Button>
+                            )}
+                            {canDelete ? (
+                                <Button
+                                    variant="destructive"
+                                    className="w-full"
+                                    onClick={() => setIsDeleteDialogOpen(true)}
+                                    disabled={isEditingDetails}
+                                >
+                                    <Trash2 className="size-4" />
+                                    {t('itemDetailsModal.deleteItem')}
+                                </Button>
+                            ) : (
+                                <p className="text-xs text-slate-500">{t('itemDetailsModal.deleteItemBlocked')}</p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-emerald-200 dark:border-emerald-900/50">
+                        <CardHeader>
+                            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                                <ShieldCheck className="size-5" />
+                                <CardTitle className="text-base">{t('itemDetailsModal.ownerPanel')}</CardTitle>
+                            </div>
+                            <CardDescription>{t('itemDetailsModal.ownerDesc')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
                         {item.status === 'oczekuje akceptacji' && (
                             <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
                                 <strong className="text-sm text-amber-700 dark:text-amber-300">{t('itemDetailsModal.reqPending')}</strong>
@@ -190,8 +468,9 @@ export default function ItemDetailsModal({
                                 {t('itemDetailsModal.markDamaged')}
                             </Button>
                         )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </div>
             );
         }
 
@@ -230,6 +509,7 @@ export default function ItemDetailsModal({
     };
 
     return (
+        <>
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
                 <DialogHeader>
@@ -289,7 +569,7 @@ export default function ItemDetailsModal({
                                     <ItemAttachmentsPanel
                                         attachments={attachments}
                                         isLoading={isAttachmentsLoading}
-                                        canUpload={isOwner}
+                                        canUpload={canManageItem}
                                         isUploading={isUploadingAttachments}
                                         error={attachmentError}
                                         onUpload={handleUpload}
@@ -370,5 +650,32 @@ export default function ItemDetailsModal({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{t('itemDetailsModal.deleteItem')}</DialogTitle>
+                        <DialogDescription>
+                            {t('itemDetailsModal.deleteItemConfirm', { name: item.name })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {actionError && (
+                        <Alert variant="destructive">
+                            <CircleAlert />
+                            <AlertTitle>{t('itemDetailsModal.errorTitle')}</AlertTitle>
+                            <AlertDescription>{actionError}</AlertDescription>
+                        </Alert>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
+                            {t('itemDetailsModal.cancel')}
+                        </Button>
+                        <Button variant="destructive" onClick={() => void handleDeleteItem()} disabled={isDeleting}>
+                            {isDeleting ? t('userManager.saving') : t('itemDetailsModal.deleteItem')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

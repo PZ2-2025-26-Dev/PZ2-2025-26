@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from src.auth.dependencies import RequireAdmin
 from src.dependencies import DBDep
+from src.items.dependencies import RequireItemReader
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.schemas import (
     LocationCreate,
@@ -72,13 +73,13 @@ def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> Lo
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
+            "description": "Brak uprawnień do przeglądania lokalizacji.",
         },
     },
 )
 def read_locations(
     db: DBDep,
-    _admin: RequireAdmin,
+    _reader: RequireItemReader,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,

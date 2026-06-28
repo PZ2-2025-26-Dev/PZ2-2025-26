@@ -25,6 +25,7 @@ from .service import (
     InvalidUserApprovalRoleError,
     UserEmailTakenError,
     UserHasHistoricalReferencesError,
+    UserIsSystemAccountError,
     UserNotFoundError,
     UserOwnsItemsError,
     UserService,
@@ -258,12 +259,20 @@ def delete_user(
             detail="Nie znaleziono użytkownika.",
         ) from exc
     except UserOwnsItemsError as exc:
+        item_count = exc.item_count
+        detail = (
+            f"Nie można usunąć użytkownika, ponieważ jest właścicielem {item_count} "
+            f"{'przedmiotu' if item_count == 1 else 'przedmiotów'}. "
+            "Najpierw przepisz przedmioty do innego użytkownika."
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "Nie można usunąć użytkownika, ponieważ jest właścicielem przedmiotów. "
-                "Najpierw przepisz przedmioty do innego użytkownika."
-            ),
+            detail=detail,
+        ) from exc
+    except UserIsSystemAccountError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Nie można usunąć konta systemowego.",
         ) from exc
     except UserHasHistoricalReferencesError as exc:
         raise HTTPException(

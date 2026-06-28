@@ -686,7 +686,23 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onSave={() => refreshItems()}
                 user={user}
             />
-            <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
+            <ItemDetailsModal
+                isOpen={isDetailsModalOpen}
+                onClose={() => setIsDetailsModalOpen(false)}
+                item={selectedItem}
+                user={user}
+                onUpdateStatus={handleUpdateItemStatus}
+                onItemUpdated={(updatedItem) => {
+                    setItems((current) => current.map((entry) => entry.id === updatedItem.id ? updatedItem : entry));
+                    setSelectedItem(updatedItem);
+                }}
+                onItemDeleted={(itemId) => {
+                    setItems((current) => current.filter((entry) => entry.id !== itemId));
+                    setTotalCount((current) => Math.max(current - 1, 0));
+                    setSelectedItem(null);
+                    setIsDetailsModalOpen(false);
+                }}
+            />
             <QrScannerDialog
                 isOpen={isQrScannerOpen}
                 onClose={() => setIsQrScannerOpen(false)}
