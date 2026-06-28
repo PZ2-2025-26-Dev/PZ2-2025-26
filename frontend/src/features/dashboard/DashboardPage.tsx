@@ -49,6 +49,7 @@ import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
 import InventoryFilters, { InventoryFiltersState } from '../inventory/InventoryFilters';
+import InventoryToolbar from '../inventory/InventoryToolbar';
 import { useUsers } from '../users/useUsers';
 import { useLocations } from '../locations/useLocations';
 
@@ -296,94 +297,119 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             case 'inventory':
                 return (
                     <div className="space-y-6">
-                        <div className="flex justify-between items-center gap-4 bg-card p-4 rounded-lg border shadow-sm">
-                            <div className="flex gap-2 items-center">
-                                <Search className="size-4 text-slate-400" />
-                                <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="max-w-xs" />
-                            </div>
-                            <div className="flex gap-2">
-                                <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
-                                    <Button size="sm" onClick={() => setIsAddModalOpen(true)}>
-                                        <Plus className="mr-2 size-4" /> {t('dashboard.addAsset')}
-                                    </Button>
-                                </RoleGuard>
-                                <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                                    <Button variant="secondary" size="sm" onClick={handleExportXlsx}>
-                                        <Download className="mr-2 size-4" /> {t('dashboard.exportXlsx')}
-                                    </Button>
-                                </RoleGuard>
-                            </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h2>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('dashboard.dashboardDesc')}</p>
                         </div>
-
-                        <InventoryFilters
+                        <InventoryToolbar
+                            user={user}
                             filters={filters}
                             onChange={setFilters}
                             categories={categories}
                             locations={locations}
                             users={users}
-                        />
+                            onAdd={() => setIsAddModalOpen(true)}
+                            onExport={handleExportXlsx}
+                            isLoading={isLoading}
+                            />
 
-                        <div className="rounded-md border bg-card shadow-sm overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
-                                        {columns.map(col => (
-                                            <TableHead
-                                                key={String(col.field)}
-                                                className={col.sortable ? "cursor-pointer select-none" : ""}
-                                                onClick={() => col.sortable && col.field && handleSort(col.field)}
-                                            >
-                                                {col.label}
-                                                {col.sortable && col.field && renderSortIcon(col.field)}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isLoading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="py-10 text-center text-slate-400">
-                                                {t('common.loading')}
-                                            </TableCell>
+                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <Table className="min-w-full">
+                                    
+                                    {/* HEADER */}
+                                    <TableHeader>
+                                        <TableRow className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40">
+                                            {columns.map((col) => (
+                                                <TableHead
+                                                    key={String(col.field)}
+                                                    className={`
+                                                        whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
+                                                        ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
+                                                    `}
+                                                    onClick={() => col.sortable && col.field && handleSort(col.field)}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        {col.label}
+                                                        {col.sortable && col.field && renderSortIcon(col.field)}
+                                                    </div>
+                                                </TableHead>
+                                            ))}
                                         </TableRow>
-                                    ) : items.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} className="py-10 text-center text-slate-400">
-                                                Brak przedmiotów spełniających wybrane kryteria filtrowania.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        items.map((item) => (
-                                            <TableRow 
-                                                key={item.id} 
-                                                className="cursor-pointer hover:bg-muted/50"
-                                                onClick={() => {
-                                                    setSelectedItem(item);
-                                                    setIsDetailsModalOpen(true);
-                                                }}
-                                            >
-                                                <TableCell className="font-mono text-xs max-w-[120px] truncate">{item.id}</TableCell>
-                                                <TableCell>
-                                                    <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
-                                                    {item.description && (
-                                                        <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
-                                                    )}
+                                    </TableHeader>
+
+                                    {/* BODY */}
+                                    <TableBody>
+                                        {isLoading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
+                                                    {t('common.loading')}
                                                 </TableCell>
-                                                <TableCell>{item.category}</TableCell>
-                                                <TableCell>{item.location}</TableCell>
-                                                <TableCell><StatusBadge status={t(`dashboard.itemStatuses.${item.status}`)} /></TableCell>
-                                                <TableCell>{item.owner}</TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        ) : items.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
+                                                    {t('dashboard.noResults')}
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            items.map((item, index) => (
+                                                <TableRow
+                                                    key={item.id}
+                                                    onClick={() => {
+                                                        setSelectedItem(item);
+                                                        setIsDetailsModalOpen(true);
+                                                    }}
+                                                    className="
+                                                        group cursor-pointer border-b border-slate-100
+                                                        hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40
+                                                        transition-colors duration-150
+                                                    "
+                                                >
+                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">
+                                                        {item.id}
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-slate-900 dark:text-white">
+                                                                {item.name}
+                                                            </span>
+                                                            {item.description && (
+                                                                <span className="text-xs text-slate-400 line-clamp-1">
+                                                                    {item.description}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                                        {item.category}
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                                        {item.location}
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3">
+                                                        <StatusBadge status={item.status} />
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                                        {item.owner}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </div>
 
                         {/* Paginacja */}
                         <div className="flex items-center justify-between space-x-2 py-4">
                             <div className="text-sm text-muted-foreground">
-                                Pokazywane {items.length} z {total} przedmiotów
+                                {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
                             </div>
                             <div className="flex space-x-2">
                                 <Button
@@ -392,10 +418,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
                                     disabled={filters.page === 1 || isLoading}
                                 >
-                                    {t('common.previous')}
+                                    {t("inventoryFilters.common.previous")}
                                 </Button>
                                 <div className="flex items-center justify-center text-sm font-medium px-2">
-                                    {t('common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                                    {t('inventoryFilters.common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
                                 </div>
                                 <Button
                                     variant="outline"
@@ -403,7 +429,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
                                     disabled={items.length < (filters.limit || 15) || isLoading}
                                 >
-                                    {t('common.next')}
+                                    {t("inventoryFilters.common.next")}
                                 </Button>
                             </div>
                         </div>

@@ -31,6 +31,7 @@
   },
   "dashboard": {
     "dashboard": "Panel Inwentaryzacyjny",
+    "dashboardDesc": "Lista przedmiotów",
     "welcome": "Witaj",
     "role": "Rola",
     "logout": "Wyloguj",
@@ -47,7 +48,7 @@
     "borrowedAssets": "Wypożyczone",
     "pendingApprovals": "Oczekujące wnioski",
     "damagedAssets": "Uszkodzone",
-    "searchPlaceholder": "Szukaj po nazwie, producencie, nr seryjnym...",
+    "searchPlaceholder": "Szukaj po nazwie, opisie...",
     "filterStatus": "Status",
     "filterCategory": "Kategoria",
     "all": "Wszystkie",
@@ -67,6 +68,9 @@
     "approveBtn": "Zatwierdź",
     "rejectBtn": "Odrzuć",
     "refresh": "Odśwież",
+    "shown": "Wyświetlane",
+    "of": "z",
+    "items": "przedmiotów",
     "itemStatuses": {
       "available": "Dostępny",
       "pending_approval": "Oczekuje akceptacji",
@@ -109,7 +113,11 @@
       "owner": "np. Dr. Kowalski",
       "borrower": "np. Zieliński"
     },
-
+    "common":{
+      "previous": "Poprzednia",
+      "next": "Następna",
+      "page": "Strona"
+    },
     "options": {
       "allCategories": "Wszystkie kategorie",
       "allStatuses": "Wszystkie statusy",

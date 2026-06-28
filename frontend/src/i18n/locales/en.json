@@ -31,6 +31,7 @@
   },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
+    "dashboardDesc": "Items list",
     "welcome": "Welcome",
     "role": "Role",
     "logout": "Sign Out",
@@ -47,7 +48,7 @@
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
     "damagedAssets": "Damaged",
-    "searchPlaceholder": "Search by asset name, producer, serial...",
+    "searchPlaceholder": "Search by asset name, description...",
     "filterStatus": "Status",
     "filterCategory": "Category",
     "all": "All",
@@ -64,9 +65,12 @@
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",
     "userReqTitle": "Local Registration Management",
     "userReqDesc": "Accounts created outside of AGH SSO require your verification and manual role assignment.",
-     "approveBtn": "Approve",
-     "rejectBtn": "Reject",
-     "refresh": "Refresh",
+    "approveBtn": "Approve",
+    "rejectBtn": "Reject",
+    "refresh": "Refresh",
+    "shown": "Shown",
+    "of": "of",
+    "items": "items",
      "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
@@ -300,6 +304,11 @@
       "title": "Technical parameters",
       "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
       "valuePlaceholder": "Value (e.g. Rigol)"
+    },
+    "common":{
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page"
     }
   },
   "userManager": {

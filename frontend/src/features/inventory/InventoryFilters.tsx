@@ -56,6 +56,10 @@ type Props = {
   categories: Category[];
   locations: Location[];
   users: User[];
+
+
+  isOpen: boolean;
+  setIsOpen: (v: boolean) => void;
 };
 
 interface TechParamRow {
@@ -69,8 +73,9 @@ export default function InventoryFilters({
   categories,
   locations,
   users,
+  isOpen,
+  setIsOpen,
 }: Props) {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const { t } = useTranslation();
   
   // Dynamiczne opcje statusów korzystające z kluczy translacji
@@ -126,7 +131,7 @@ export default function InventoryFilters({
     onChange({
       ...filters,
       parameters: Object.keys(paramsObj).length > 0 ? paramsObj : undefined,
-      page: 1, // Reset paginacji przy zmianie kryteriów
+      page: 1, 
     });
   };
 
@@ -162,31 +167,9 @@ export default function InventoryFilters({
 
   return (
     <div className="space-y-4 bg-card p-4 rounded-lg border shadow-sm">
-      {/* Pasek szybkiego wyszukiwania */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("inventoryFilters.searchPlaceholder")}
-            value={filters.search || ""}
-            onChange={(e) => updateFilterField("search", e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" className="flex gap-2 items-center select-none">
-              {t('inventoryFilters.labels.advancedFilters')}
-              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </CollapsibleTrigger>
-        </Collapsible>
-      </div>
-
       {/* Rozwijany panel zaawansowany */}
       <Collapsible open={isOpen}>
-        <CollapsibleContent className="space-y-6 pt-4 border-t mt-4">
+        <CollapsibleContent className="space-y-6 pt-4 relative">
           
           {/* SEKCJA 1: Dane urządzenia */}
           <div>
