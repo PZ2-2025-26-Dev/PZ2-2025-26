@@ -39,6 +39,11 @@ class SeedIds:
     admin_user: int = 10_001
     regular_user: int = 10_002
     observer_user: int = 10_003
+    delegate_user_1: int = 10_004
+    delegate_user_2: int = 10_005
+    delegate_user_3: int = 10_006
+    delegate_user_4: int = 10_007
+    delegate_user_5: int = 10_008
 
     building: int = 20_001
     room: int = 20_002
@@ -145,6 +150,44 @@ def seed_database(session: Session) -> SeedIds:
         ),
     )
     for user_id, email, values in users:
+        _upsert(
+            session,
+            User,
+            user_id,
+            select(User).where(User.email == email),
+            email=email,
+            **values,
+        )
+    session.flush()
+
+    extra_users = (
+        (
+            SEED_IDS.delegate_user_1,
+            "piotr.seed@example.com",
+            {"first_name": "Piotr", "last_name": "Kowalski", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_2,
+            "maria.seed@example.com",
+            {"first_name": "Maria", "last_name": "Nowak", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_3,
+            "tomek.seed@example.com",
+            {"first_name": "Tomek", "last_name": "Wiśniewski", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_4,
+            "ewa.seed@example.com",
+            {"first_name": "Ewa", "last_name": "Zielińska", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_5,
+            "adam.seed@example.com",
+            {"first_name": "Adam", "last_name": "Testowy", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+    )
+    for user_id, email, values in extra_users:
         _upsert(
             session,
             User,

@@ -112,7 +112,7 @@ class UserService:
             self.db.execute(
                 select(User)
                 .where(*filters)
-                .order_by(User.role, User.last_name, User.first_name)
+                .order_by(User.first_name, User.last_name)
                 .offset((page - 1) * limit)
                 .limit(limit)
             )
