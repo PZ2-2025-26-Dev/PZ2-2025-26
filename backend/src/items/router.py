@@ -6,14 +6,16 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from src.auth.constants import UserRole
-from src.auth.dependencies import CurrentUser, RequireAdmin
+from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.attachment_service import (
     AttachmentNotFoundError,
     AttachmentStorageError,
     AttachmentTooLargeError,
     ItemAttachmentService,
-    ItemNotFoundError,
+)
+from src.items.attachment_service import (
+    ItemNotFoundError as AttachmentItemNotFoundError,
 )
 from src.items.dependencies import (
     ItemByUuid,
@@ -21,8 +23,10 @@ from src.items.dependencies import (
     RequireItemReader,
     RequireItemWriter,
     assert_can_assign_owner_on_create,
+    assert_can_delete_item,
     assert_can_update_item,
 )
+from src.items.exceptions import ItemNotFoundError, ItemOnLoanError
 from src.items.models import Item
 from src.items.schemas import (
     ItemAttachmentsListResponse,
@@ -202,26 +206,39 @@ def update_item(
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
+            "model": ErrorResponse,
+            "description": "Brak uprawnień do usunięcia przedmiotu.",
         },
         status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
             "description": "Nie znaleziono przedmiotu",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": "Przedmiot jest na wypożyczeniu i nie może zostać usunięty.",
         },
     },
 )
 def delete_item(
     item_id: ItemID,
     db: DBDep,
-    _admin: RequireAdmin,
+    user: RequireItemWriter,
+    item: ItemByUuid,
 ) -> None:
+    assert_can_delete_item(user, item)
     service = ItemService(db)
 
     try:
         service.delete_item(item_id)
-    except ValueError as err:
+    except ItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
+        ) from err
+    except ItemOnLoanError as err:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Nie można usunąć przedmiotu, ponieważ jest na wypożyczeniu.",
         ) from err
 
 
@@ -282,7 +299,7 @@ def read_item_attachments(
 
     try:
         attachments = service.list_attachments(item_id)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
@@ -330,7 +347,7 @@ def upload_item_attachments(
 
     try:
         attachments = service.upload_attachments(item_id, user.id, files)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
@@ -372,7 +389,7 @@ def download_item_attachment(
 
     try:
         file_path, original_filename, mime_type = service.get_attachment_file(item_id, attachment_id)
-    except (ItemNotFoundError, AttachmentNotFoundError) as err:
+    except (AttachmentItemNotFoundError, AttachmentNotFoundError) as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Attachment not found",
@@ -414,7 +431,7 @@ def delete_item_attachment(
 
     try:
         service.delete_attachment(item_id, attachment_id, user.id)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",

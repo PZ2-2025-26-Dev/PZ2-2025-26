@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from src.auth.constants import UserRole, UserStatus
 from src.categories.models import Category
 from src.items.constants import ItemChangeLogType, ItemStatus
+from src.items.exceptions import ItemOnLoanError
 from src.items.models import Item, ItemHistory
 from src.items.schemas import ItemCreate, ItemHistorySearch, ItemSearch, ItemUpdate
 from src.items.service import ItemService
@@ -85,6 +86,17 @@ def test_delete_item_success(
     service.delete_item(SEED_IDS.laptop_uuid)
 
     assert seeded_db.get(Item, SEED_IDS.laptop) is None
+
+
+def test_delete_item_rejects_loaned_item(seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    item.status = ItemStatus.LOANED
+    seeded_db.flush()
+
+    service = ItemService(seeded_db)
+
+    with pytest.raises(ItemOnLoanError):
+        service.delete_item(SEED_IDS.laptop_uuid)
 
 
 def test_search_items_by_owner(

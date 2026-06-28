@@ -39,6 +39,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
     const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
     const [editForm, setEditForm] = useState<ManagedUser | null>(null);
     const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const pendingCount = useMemo(() => users.filter((user) => user.status === 'pending_approval').length, [users]);
     const totalPages = Math.max(Math.ceil(totalCount / filters.limit), 1);
@@ -84,11 +85,16 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
 
     const confirmDelete = async () => {
         if (!userToDelete) return;
+        setDeleteError(null);
+        clearError();
         const result = await deleteUser(userToDelete.id);
         if (result.success) {
             setUsers((current) => current.filter((user) => user.id !== userToDelete.id));
             setTotalCount((current) => Math.max(current - 1, 0));
             setUserToDelete(null);
+            setDeleteError(null);
+        } else {
+            setDeleteError(result.error ?? t('userManager.errorTitle'));
         }
     };
 
@@ -128,7 +134,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                     {error && (
                         <Alert variant="destructive">
                             <AlertCircle />
-                            <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                            <AlertTitle>{t('userManager.errorTitle')}</AlertTitle>
                             <AlertDescription>{error}</AlertDescription>
                             <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError}>×</Button>
                         </Alert>
@@ -169,7 +175,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                                         )}
                                         {user.status !== 'inactive' && <Button variant="warning" size="sm" onClick={() => void handleDeactivate(user)}>{t('userManager.deactivate')}</Button>}
                                         <Button variant="secondary" size="sm" onClick={() => { setEditingUser(user); setEditForm({ ...user }); clearError(); }}>{t('userManager.edit')}</Button>
-                                        <Button variant="destructive" size="sm" onClick={() => setUserToDelete(user)}>{t('userManager.delete')}</Button>
+                                        <Button variant="destructive" size="sm" onClick={() => { setUserToDelete(user); setDeleteError(null); clearError(); }}>{t('userManager.delete')}</Button>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -215,12 +221,19 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(userToDelete)} onOpenChange={(open) => !open && setUserToDelete(null)}>
+            <Dialog open={Boolean(userToDelete)} onOpenChange={(open) => { if (!open) { setUserToDelete(null); setDeleteError(null); } }}>
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
                         <DialogTitle>{t('userManager.delete')}</DialogTitle>
                         <DialogDescription>{userToDelete && t('userManager.deleteConfirm', { name: getUserName(userToDelete) || userToDelete.email })}</DialogDescription>
                     </DialogHeader>
+                    {deleteError && (
+                        <Alert variant="destructive">
+                            <AlertCircle />
+                            <AlertTitle>{t('userManager.errorTitle')}</AlertTitle>
+                            <AlertDescription>{deleteError}</AlertDescription>
+                        </Alert>
+                    )}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setUserToDelete(null)}>{t('userManager.cancel')}</Button>
                         <Button variant="destructive" onClick={() => void confirmDelete()}>{t('userManager.delete')}</Button>

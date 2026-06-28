@@ -371,7 +371,17 @@
     "uploadFiles": "Dodaj pliki",
     "noAttachments": "Brak załączników",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Usuń"
+    "deleteAttachment": "Usuń",
+    "editDetails": "Edytuj szczegóły",
+    "editDetailsDesc": "Zmień nazwę, lokalizację lub właściciela przedmiotu.",
+    "nameLabel": "Nazwa",
+    "ownerLabel": "Właściciel",
+    "noOwner": "Brak właściciela",
+    "deleteItem": "Usuń przedmiot",
+    "deleteItemConfirm": "Czy na pewno chcesz usunąć „{{name}}”? Tej operacji nie można cofnąć.",
+    "deleteItemBlocked": "Nie można usunąć przedmiotu na wypożyczeniu.",
+    "saveChanges": "Zapisz zmiany",
+    "errorTitle": "Nie udało się wykonać operacji"
   },
   "userManager": {
     "totalUsers": "Użytkownicy ogółem",
@@ -383,6 +393,7 @@
     "allStatuses": "Wszystkie statusy",
     "search": "Szukaj",
     "refresh": "Odśwież",
+    "errorTitle": "Nie udało się wykonać operacji",
     "loading": "Ładowanie...",
     "thUser": "Użytkownik",
     "thRole": "Rola",

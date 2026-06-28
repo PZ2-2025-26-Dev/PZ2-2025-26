@@ -36,7 +36,7 @@ def test_update_item_endpoint_updates_live_database(api_client: TestClient, seed
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"description": "Opis zmieniony przez API"},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -228,7 +228,7 @@ def test_update_item_endpoint_updates_parameters(api_client: TestClient, seeded_
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"parameters": new_parameters},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -333,7 +333,7 @@ def test_update_item_endpoint_creates_history_on_category_change(api_client: Tes
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"category_id": SEED_IDS.accessories},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -470,14 +470,64 @@ def test_user_cannot_modify_item_owned_by_someone_else(api_client: TestClient, s
     assert response.status_code == 403
 
 
-def test_user_cannot_delete_own_item(api_client: TestClient, seeded_db: Session):
+def test_owner_can_delete_own_available_item(api_client: TestClient, seeded_db: Session):
     response = api_client.delete(
         f"/items/{SEED_IDS.adapter_uuid}",
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
+    assert response.status_code == 204
+    assert seeded_db.get(Item, SEED_IDS.adapter) is None
+
+
+def test_delete_item_blocked_when_loaned(api_client: TestClient, seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    item.status = ItemStatus.LOANED
+    seeded_db.flush()
+
+    response = api_client.delete(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 409
+    assert "wypożyczeniu" in response.json()["detail"]
+    assert seeded_db.get(Item, SEED_IDS.laptop) is not None
+
+
+def test_owner_cannot_update_category(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"category_id": SEED_IDS.accessories},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
     assert response.status_code == 403
-    assert seeded_db.get(Item, SEED_IDS.adapter) is not None
+
+
+def test_owner_can_update_name_and_location(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"name": "Laptop po edycji", "location_id": SEED_IDS.cabinet},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert item.name == "Laptop po edycji"
+    assert item.location_id == SEED_IDS.cabinet
+
+
+def test_admin_can_set_nobody_owner(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"owner_id": SEED_IDS.nobody_user},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["owner_id"] == SEED_IDS.nobody_user
+    assert seeded_db.get(Item, SEED_IDS.laptop).owner_id == SEED_IDS.nobody_user
 
 
 def test_user_cannot_delete_item_owned_by_someone_else(api_client: TestClient, seeded_db: Session):

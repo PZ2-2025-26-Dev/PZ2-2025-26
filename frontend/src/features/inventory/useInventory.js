@@ -148,36 +148,23 @@ export const useInventory = () => {
         }
     }, []);
 
-    const updateItem = useCallback(async (itemId, itemData) => {
-        setIsLoading(true);
-        setError(null);
-
+    /**
+     * Pobiera szczegóły przedmiotu z GET /items/{id}
+     * @param {number|string} itemId
+     * @returns {Promise<{success: boolean, item?: InventoryItem, error?: string}>}
+     */
+    const getItem = useCallback(async (itemId) => {
         try {
-            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), cleanParams({
-                name: itemData.name,
-                category_id: itemData.categoryId,
-                location_id: itemData.locationId,
-                owner_id: itemData.ownerId,
-                description: itemData.description,
-                parameters: itemData.parameters,
-            }));
-
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.DETAILS(itemId));
             return {
                 success: true,
-                data: response.data,
-                statusCode: response.status,
+                item: normalizeItem(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-
             return {
                 success: false,
-                error: errorMessage,
-                statusCode: err.response?.status,
+                error: parseApiError(err),
             };
-        } finally {
-            setIsLoading(false);
         }
     }, []);
 
@@ -296,10 +283,82 @@ export const useInventory = () => {
         }
     }, []);
 
+    /**
+     * Aktualizuje przedmiot poprzez PATCH /items/{id}
+     * @param {number|string} itemId
+     * @param {Object} itemData
+     * @returns {Promise<{success: boolean, data?: Object, error?: string, statusCode?: number}>}
+     */
+    const updateItem = useCallback(async (itemId, itemData) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const payload = {};
+            if (itemData.name !== undefined) payload.name = itemData.name;
+            if (itemData.categoryId !== undefined) payload.category_id = itemData.categoryId;
+            if (itemData.locationId !== undefined) payload.location_id = itemData.locationId;
+            if (itemData.ownerId !== undefined) payload.owner_id = itemData.ownerId;
+            if (itemData.description !== undefined) payload.description = itemData.description;
+            if (itemData.parameters !== undefined) payload.parameters = itemData.parameters;
+
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
+
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    /**
+     * Usuwa przedmiot poprzez DELETE /items/{id}
+     * @param {number|string} itemId
+     * @returns {Promise<{success: boolean, error?: string, statusCode?: number}>}
+     */
+    const deleteItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            await axiosClient.delete(ENDPOINTS.ITEMS.DETAILS(itemId));
+
+            return {
+                success: true,
+                statusCode: 204,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     return {
         createItem,
         updateItem,
         listItems,
+        getItem,
+        deleteItem,
         isLoading,
         error,
         clearError,

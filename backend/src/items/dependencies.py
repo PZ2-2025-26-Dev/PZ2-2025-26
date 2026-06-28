@@ -11,6 +11,7 @@ from src.dependencies import DBDep
 from src.items.constants import (
     ITEM_UPDATE_CRITICAL_FIELDS,
     ITEM_UPDATE_FIELD_PERMISSIONS,
+    ITEM_UPDATE_OWNER_ALLOWED_FIELDS,
     ItemPermissionType,
 )
 from src.items.models import Item, ItemACL
@@ -109,6 +110,15 @@ def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session
         return
 
     if user.role == UserRole.USER and item.owner_id == user.id:
+        updated_fields = _meaningful_update_fields(data, item)
+        if not updated_fields:
+            return
+        disallowed = updated_fields - ITEM_UPDATE_OWNER_ALLOWED_FIELDS
+        if disallowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Właściciel może edytować wyłącznie nazwę i lokalizację przedmiotu.",
+            )
         return
 
     if user.role != UserRole.USER:
@@ -170,6 +180,19 @@ def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Możesz tworzyć przedmioty wyłącznie jako ich właściciel.",
+    )
+
+
+def assert_can_delete_item(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN:
+        return
+
+    if user.role == UserRole.USER and item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Brak uprawnień do usunięcia tego przedmiotu.",
     )
 
 

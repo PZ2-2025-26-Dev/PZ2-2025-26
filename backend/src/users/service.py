@@ -6,6 +6,7 @@ from src.auth.constants import UserRole, UserStatus
 from src.auth.models import UserAccount
 from src.items.models import Item, ItemACL, ItemHistory
 from src.loans.models import Loan
+from src.users.constants import NOBODY_USER_ID
 from src.users.models import User
 from src.users.schemas import BaseUserDetails, GuestBrowse, GuestUserCreate, GuestUserUpdate, UserBasicBrowse
 
@@ -27,6 +28,12 @@ class InvalidUserApprovalRoleError(Exception):
 
 
 class UserOwnsItemsError(Exception):
+    def __init__(self, item_count: int = 0) -> None:
+        self.item_count = item_count
+        super().__init__()
+
+
+class UserIsSystemAccountError(Exception):
     pass
 
 
@@ -91,7 +98,7 @@ class UserService:
         limit: int,
         search: str | None = None,
     ) -> tuple[list[UserBasicBrowse | GuestBrowse], int]:
-        filters = [User.status == UserStatus.ACTIVE]
+        filters = [User.status == UserStatus.ACTIVE, User.id != NOBODY_USER_ID]
 
         if search is not None:
             search_pattern = f"%{search.lower()}%"
@@ -148,7 +155,7 @@ class UserService:
         status: UserStatus | None = None,
         search: str | None = None,
     ) -> tuple[list[User], int]:
-        filters = [User.role != UserRole.GUEST]
+        filters = [User.role != UserRole.GUEST, User.id != NOBODY_USER_ID]
 
         if role is not None:
             filters.append(User.role == role)
@@ -208,10 +215,14 @@ class UserService:
         return user
 
     def delete_user(self, user_id: int) -> None:
+        if user_id == NOBODY_USER_ID:
+            raise UserIsSystemAccountError()
+
         user = self.get_user(user_id)
 
-        if self._has_records(Item, Item.owner_id == user_id):
-            raise UserOwnsItemsError()
+        owned_items_count = self.db.scalar(select(func.count(Item.id)).where(Item.owner_id == user_id)) or 0
+        if owned_items_count > 0:
+            raise UserOwnsItemsError(item_count=owned_items_count)
 
         if self._has_historical_references(user_id):
             raise UserHasHistoricalReferencesError()

@@ -371,7 +371,17 @@
     "uploadFiles": "Upload files",
     "noAttachments": "No attachments",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Delete"
+    "deleteAttachment": "Delete",
+    "editDetails": "Edit details",
+    "editDetailsDesc": "Change item name, location, or owner.",
+    "nameLabel": "Name",
+    "ownerLabel": "Owner",
+    "noOwner": "No owner",
+    "deleteItem": "Delete item",
+    "deleteItemConfirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "deleteItemBlocked": "Cannot delete an item that is on loan.",
+    "saveChanges": "Save changes",
+    "errorTitle": "Operation failed"
   },
   "userManager": {
     "totalUsers": "Total users",
@@ -383,6 +393,7 @@
     "allStatuses": "All statuses",
     "search": "Search",
     "refresh": "Refresh",
+    "errorTitle": "Operation failed",
     "loading": "Loading...",
     "thUser": "User",
     "thRole": "Role",

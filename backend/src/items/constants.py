@@ -50,3 +50,16 @@ ITEM_UPDATE_CRITICAL_FIELDS: frozenset[str] = frozenset(
         "owner_id",
     }
 )
+
+# Pola edytowalne przez właściciela przedmiotu (bez administratora).
+ITEM_UPDATE_OWNER_ALLOWED_FIELDS: frozenset[str] = frozenset({"name", "location_id"})
+
+# Statusy przedmiotu blokujące usunięcie.
+ITEM_DELETE_BLOCKED_STATUSES: frozenset[ItemStatus] = frozenset(
+    {
+        ItemStatus.PENDING_APPROVAL,
+        ItemStatus.RESERVED,
+        ItemStatus.LOANED,
+        ItemStatus.OVERDUE,
+    }
+)

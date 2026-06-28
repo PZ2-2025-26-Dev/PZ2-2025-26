@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from argon2 import PasswordHasher
-from sqlalchemy import Engine, Select, select
+from sqlalchemy import Engine, Select, select, text
 from sqlalchemy.orm import Session
 
 from src.auth.constants import AuthProvider, UserRole, UserStatus
@@ -19,6 +19,7 @@ from src.items.models import Item, ItemHistory
 from src.loans import models as loan_models  # noqa: F401
 from src.locations.constants import LocationType
 from src.locations.models import Location
+from src.users.constants import NOBODY_USER_EMAIL
 from src.users.models import User
 
 SEED_PASSWORD = "SeedPassword123!"
@@ -36,6 +37,7 @@ SEED_ADAPTER_PARAMETERS = {"ports": ["USB-C", "HDMI"], "watt": 65}
 
 @dataclass(frozen=True)
 class SeedIds:
+    nobody_user: int = 10_000
     admin_user: int = 10_001
     regular_user: int = 10_002
     observer_user: int = 10_003
@@ -120,6 +122,19 @@ def _upsert(
 
 def seed_database(session: Session) -> SeedIds:
     """Add or refresh the deterministic development dataset in a transaction."""
+    _upsert(
+        session,
+        User,
+        SEED_IDS.nobody_user,
+        select(User).where(User.email == NOBODY_USER_EMAIL),
+        email=NOBODY_USER_EMAIL,
+        first_name="Brak",
+        last_name="właściciela",
+        role=UserRole.USER,
+        status=UserStatus.INACTIVE,
+    )
+    session.flush()
+
     users = (
         (
             SEED_IDS.admin_user,
@@ -480,6 +495,10 @@ def seed_database(session: Session) -> SeedIds:
 
 def reset_database(database_engine: Engine = engine) -> SeedIds:
     """Recreate all tables and restore the deterministic development dataset."""
+    with database_engine.begin() as conn:
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+        conn.execute(text("DROP TABLE IF EXISTS guest"))
+
     Base.metadata.drop_all(bind=database_engine)
     Base.metadata.create_all(bind=database_engine)
     with Session(database_engine, expire_on_commit=False) as session:

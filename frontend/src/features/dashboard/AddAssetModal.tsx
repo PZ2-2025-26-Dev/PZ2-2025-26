@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import type { InventoryItem, AppUser } from '@/types';
+import { NOBODY_USER_ID } from '@/constants/systemUsers';
 import { ROLES } from '../auth/permissions';
 import { useInventory } from '../inventory/useInventory';
 import { useLocations } from '../locations/useLocations';
@@ -241,7 +242,9 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
         if (result.success && result.statusCode === 201) {
             const ownerName = isAdmin
-                ? getUserName(users.find((entry) => entry.id === ownerId) ?? { firstName: '', lastName: '' })
+                ? (Number(ownerId) === NOBODY_USER_ID
+                    ? t('itemDetailsModal.noOwner')
+                    : getUserName(users.find((entry) => entry.id === ownerId) ?? { firstName: '', lastName: '' }))
                 : (user?.name ?? '');
 
             onSave({
@@ -335,6 +338,9 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                                     >
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value={String(NOBODY_USER_ID)}>
+                                                {t('itemDetailsModal.noOwner')}
+                                            </SelectItem>
                                             {users.map((owner) => (
                                                 <SelectItem key={owner.id} value={String(owner.id)}>
                                                     {getUserName(owner)}
