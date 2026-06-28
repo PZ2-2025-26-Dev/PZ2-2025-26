@@ -297,7 +297,7 @@ class ItemService:
                 category=ItemCategory(
                     id=item.category.id,
                     name=item.category.name,
-                    path=build_category_path(item.category),                    
+                    path=build_category_path(item.category),
                 )
                 if item.category
                 else None,
