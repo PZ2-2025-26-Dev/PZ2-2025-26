@@ -36,7 +36,7 @@ def test_update_item_endpoint_updates_live_database(api_client: TestClient, seed
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"description": "Opis zmieniony przez API"},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -228,7 +228,7 @@ def test_update_item_endpoint_updates_parameters(api_client: TestClient, seeded_
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"parameters": new_parameters},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -333,7 +333,7 @@ def test_update_item_endpoint_creates_history_on_category_change(api_client: Tes
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"category_id": SEED_IDS.accessories},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
