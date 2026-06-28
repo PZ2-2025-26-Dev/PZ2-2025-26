@@ -13,7 +13,9 @@ from src.items.attachment_service import (
     AttachmentStorageError,
     AttachmentTooLargeError,
     ItemAttachmentService,
-    ItemNotFoundError,
+)
+from src.items.attachment_service import (
+    ItemNotFoundError as AttachmentItemNotFoundError,
 )
 from src.items.dependencies import (
     ItemByUuid,
@@ -297,7 +299,7 @@ def read_item_attachments(
 
     try:
         attachments = service.list_attachments(item_id)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
@@ -345,7 +347,7 @@ def upload_item_attachments(
 
     try:
         attachments = service.upload_attachments(item_id, user.id, files)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
@@ -387,7 +389,7 @@ def download_item_attachment(
 
     try:
         file_path, original_filename, mime_type = service.get_attachment_file(item_id, attachment_id)
-    except (ItemNotFoundError, AttachmentNotFoundError) as err:
+    except (AttachmentItemNotFoundError, AttachmentNotFoundError) as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Attachment not found",
@@ -429,7 +431,7 @@ def delete_item_attachment(
 
     try:
         service.delete_attachment(item_id, attachment_id, user.id)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",

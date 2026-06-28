@@ -9,7 +9,6 @@ from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.constants import (
-    ITEM_DELETE_BLOCKED_STATUSES,
     ITEM_UPDATE_CRITICAL_FIELDS,
     ITEM_UPDATE_FIELD_PERMISSIONS,
     ITEM_UPDATE_OWNER_ALLOWED_FIELDS,
