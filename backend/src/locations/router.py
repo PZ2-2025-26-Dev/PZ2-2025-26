@@ -78,10 +78,15 @@ def create_location(data: LocationCreate, db: DBDep, user: CurrentUser) -> Locat
             "model": LocationsPaged,
             "description": "Zwrócono stronicowaną listę lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
 def read_locations(
     db: DBDep,
+    _user: CurrentUser,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
@@ -105,9 +110,13 @@ def read_locations(
             "model": ErrorResponse,
             "description": "Nie znaleziono lokalizacji.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
-def read_location(location_id: LocationID, db: DBDep) -> LocationDetails:
+def read_location(location_id: LocationID, db: DBDep, _user: CurrentUser) -> LocationDetails:
     try:
         return LocationService(db).get_location(location_id)
     except LocationNotFoundError as err:

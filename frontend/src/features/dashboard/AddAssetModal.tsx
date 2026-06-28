@@ -67,6 +67,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     const [remoteLocationName, setRemoteLocationName] = useState('');
     const [remoteLocationAddress, setRemoteLocationAddress] = useState('');
     const [remoteLocationDescription, setRemoteLocationDescription] = useState('');
+    const [pendingLocationId, setPendingLocationId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -97,6 +98,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         setRemoteLocationName('');
         setRemoteLocationAddress('');
         setRemoteLocationDescription('');
+        setPendingLocationId(null);
 
         const defaultOwnerId = isAdmin ? '' : String(user.id ?? '');
 
@@ -173,6 +175,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
             .finally(() => setUsersLoading(false));
     }, [isOpen, clearError, isAdmin, user?.id, listUsers, listLocations, listCategories]);
 
+    useEffect(() => {
+        if (!pendingLocationId || !locations.some((location) => String(location.id) === pendingLocationId)) return;
+
+        setFormData((current) => ({ ...current, locationId: pendingLocationId }));
+        setPendingLocationId(null);
+    }, [locations, pendingLocationId]);
+
     const handleAddCategory = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!isAdmin || !newCategoryName.trim()) return;
@@ -207,7 +216,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
         const newLocation = result.location;
         setLocations((current) => [...current, newLocation]);
-        setFormData((current) => ({ ...current, locationId: String(newLocation.id) }));
+        setPendingLocationId(String(newLocation.id));
         setRemoteLocationName('');
         setRemoteLocationAddress('');
         setRemoteLocationDescription('');

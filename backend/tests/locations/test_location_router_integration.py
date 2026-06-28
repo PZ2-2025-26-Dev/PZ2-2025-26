@@ -1,4 +1,5 @@
 import pytest
+from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -117,6 +118,12 @@ def test_list_locations_endpoint_allows_regular_user(api_client: TestClient, see
     assert len(response.json()["locations"]) == 2
 
 
+def test_list_locations_endpoint_requires_authentication(api_client: TestClient):
+    response = api_client.get("/locations")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
 def test_location_details_endpoint_returns_full_path(api_client: TestClient, seeded_db: Session):
     assert seeded_db.get(Location, SEED_IDS.cabinet) is not None
 
@@ -134,6 +141,12 @@ def test_location_details_endpoint_allows_regular_user(api_client: TestClient, s
 
     assert response.status_code == 200
     assert response.json()["path"] == "Budynek D / Sala D10 / Szafa A"
+
+
+def test_location_details_endpoint_requires_authentication(api_client: TestClient):
+    response = api_client.get(f"/locations/{SEED_IDS.cabinet}")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_update_location_endpoint_updates_database_and_history(api_client: TestClient, seeded_db: Session):
