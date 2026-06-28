@@ -134,6 +134,7 @@
     "reportReturn": "Zgłoś zwrot",
     "rejectReturn": "Odrzuć zwrot",
     "returnCondition": "Stan przy zwrocie",
+    "returnDocumentationHint": "Podczas odbioru przedmiotu możesz udokumentować jego aktualny stan zdjęciami lub plikami.",
     "addGuestInline": "Dodaj nowego gościa",
     "addGuest": "Dodaj gościa",
     "saveAction": "Zapisz",

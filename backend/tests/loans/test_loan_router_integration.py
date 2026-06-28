@@ -117,6 +117,55 @@ def test_owner_can_create_active_guest_loan_and_list_owned_scope(
     assert get_item_or_fail(seeded_db, item["id"]).status == ItemStatus.MISSING
 
 
+def test_owner_can_reject_return_confirmation(api_client: TestClient, seeded_db: Session) -> None:
+    item = create_item_via_api(
+        api_client,
+        user_id=SEED_IDS.admin_user,
+        owner_id=SEED_IDS.admin_user,
+        name="Projektor z niezaakceptowanym zwrotem",
+    )
+
+    create_response = api_client.post(
+        "/loans",
+        json={
+            "item_id": item["id"],
+            "declared_return_date": RETURN_DATE,
+            "note": "Prezentacja",
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+    assert create_response.status_code == 201, create_response.text
+    loan = create_response.json()
+
+    approve_response = api_client.post(
+        f"/loans/{loan['id']}/approve",
+        json={"approved": True},
+        headers=admin_headers(),
+    )
+    assert approve_response.status_code == 200, approve_response.text
+
+    return_response = api_client.post(
+        f"/loans/{loan['id']}/return",
+        json={"condition": "ok", "note": "Zostawione pod salą"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+    assert return_response.status_code == 200, return_response.text
+    assert return_response.json()["status"] == "return_pending_confirmation"
+
+    reject_response = api_client.post(
+        f"/loans/{loan['id']}/confirm-return",
+        json={"approved": False, "note": "Nie znaleziono sprzętu w miejscu zwrotu"},
+        headers=admin_headers(),
+    )
+    assert reject_response.status_code == 200, reject_response.text
+    rejected = reject_response.json()
+    assert rejected["status"] == "active"
+    assert rejected["return_condition"] is None
+    assert rejected["return_note"] is None
+    assert rejected["return_confirmation_note"] == "Nie znaleziono sprzętu w miejscu zwrotu"
+    assert get_item_or_fail(seeded_db, item["id"]).status == ItemStatus.LOANED
+
+
 def test_owner_cannot_borrow_own_item(api_client: TestClient, seeded_db: Session) -> None:
     item = create_item_via_api(
         api_client,

@@ -122,7 +122,6 @@ class LoanService:
             created_at=loan.created_at,
             declared_return_date=loan.declared_return_date,
             note=loan.note,
-            loan_purpose=loan.note,
             borrowed_at=loan.borrowed_at,
             returned_at=loan.returned_at,
             decision_by=loan.decision_by,
@@ -250,7 +249,7 @@ class LoanService:
         ts = now()
         loan.decision_by = user.id
         loan.decision_at = ts
-        loan.decision_comment = data.effective_note
+        loan.decision_comment = data.note
 
         if data.approved:
             loan.status = LoanStatus.ACTIVE
@@ -287,14 +286,14 @@ class LoanService:
         loan.return_reported_by = user.id
         loan.return_reported_at = ts
         loan.return_condition = data.condition
-        loan.return_note = data.effective_note
+        loan.return_note = data.note
 
         if is_owner:
             loan.status = LoanStatus.CLOSED
             loan.returned_at = ts
             loan.return_confirmed_by = user.id
             loan.return_confirmed_at = ts
-            loan.return_confirmation_note = data.effective_note
+            loan.return_confirmation_note = data.note
             self._set_item_after_return(item, data.condition)
         else:
             loan.status = LoanStatus.RETURN_PENDING_CONFIRMATION
@@ -321,10 +320,15 @@ class LoanService:
             loan.return_condition = condition
             loan.return_confirmed_by = user.id
             loan.return_confirmed_at = now()
-            loan.return_confirmation_note = data.effective_note
+            loan.return_confirmation_note = data.note
             self._set_item_after_return(item, condition)
         else:
-            loan.return_confirmation_note = data.effective_note
+            loan.status = LoanStatus.ACTIVE
+            loan.return_reported_by = None
+            loan.return_reported_at = None
+            loan.return_condition = None
+            loan.return_note = None
+            loan.return_confirmation_note = data.note
 
         self.db.commit()
         self.db.refresh(loan)

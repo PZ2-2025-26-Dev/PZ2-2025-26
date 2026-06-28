@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { AppUser, InventoryItem } from '@/types';
 import { type DirectoryEntry, type Guest, getEntryName, useGuests } from '../guests/useGuests';
+import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
+import { useItemAttachments } from '../inventory/useItemAttachments';
 import { useInventory } from '../inventory/useInventory';
 import { type Loan, type LoanStatus, type ReturnCondition, useLoans } from './useLoans';
 
@@ -83,6 +85,17 @@ export default function RentalCenter({ user }: RentalCenterProps) {
     const [actionType, setActionType] = useState<ActionType | null>(null);
     const [actionCondition, setActionCondition] = useState<ReturnCondition>('ok');
     const [actionNote, setActionNote] = useState('');
+    const actionItemId = actionLoan?.item.id ?? null;
+    const showActionAttachments = isActionDialogOpen && ['return', 'confirm-return', 'reject-return'].includes(actionType ?? '');
+    const {
+        attachments: actionAttachments,
+        isLoading: isActionAttachmentsLoading,
+        isUploading: isUploadingActionAttachments,
+        error: actionAttachmentsError,
+        handleUpload: handleActionAttachmentUpload,
+        handleDownload: handleActionAttachmentDownload,
+        handleDelete: handleActionAttachmentDelete,
+    } = useItemAttachments(actionItemId, showActionAttachments);
 
     const userId = Number(user.id);
     const isAdmin = user.role === 'admin';
@@ -127,7 +140,7 @@ export default function RentalCenter({ user }: RentalCenterProps) {
     const statusLabel = (status: StatusFilter) => t(`rentalCenter.statuses.${status}`, { defaultValue: status });
     const conditionLabel = (condition: ReturnCondition) => t(`rentalCenter.conditions.${condition}`, { defaultValue: condition });
     const formatDate = (date: string | null) => date ? new Date(date).toLocaleDateString() : '-';
-    const loanNote = (loan: Loan) => loan.note ?? loan.loan_purpose;
+    const loanNote = (loan: Loan) => loan.note;
     const borrowerName = (loan: Loan) => loan.borrower?.name ?? '-';
 
     const openBorrowDialog = () => {
@@ -432,7 +445,7 @@ export default function RentalCenter({ user }: RentalCenterProps) {
             </Dialog>
 
             <Dialog open={isActionDialogOpen} onOpenChange={(open) => !open && setIsActionDialogOpen(false)}>
-                <DialogContent className="max-w-sm" onOpenAutoFocus={(event) => event.preventDefault()}>
+                <DialogContent className="max-w-lg" onOpenAutoFocus={(event) => event.preventDefault()}>
                     <DialogHeader>
                         <DialogTitle>{actionLoan?.item.name}</DialogTitle>
                         <DialogDescription>{t(`rentalCenter.actions.${actionType}`, { defaultValue: '' })}</DialogDescription>
@@ -449,6 +462,23 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                         <Label htmlFor="action-note">{t('rentalCenter.noteLabel', { defaultValue: 'Notatka (opcjonalnie)' })}</Label>
                         <Textarea id="action-note" value={actionNote} onChange={(event) => setActionNote(event.target.value)} rows={3} />
                     </div>
+                    {showActionAttachments && (
+                        <div>
+                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                {t('rentalCenter.returnDocumentationHint', { defaultValue: 'Podczas odbioru przedmiotu możesz udokumentować jego aktualny stan zdjęciami lub plikami.' })}
+                            </p>
+                            <ItemAttachmentsPanel
+                                attachments={actionAttachments}
+                                isLoading={isActionAttachmentsLoading}
+                                canUpload={true}
+                                isUploading={isUploadingActionAttachments}
+                                error={actionAttachmentsError}
+                                onUpload={handleActionAttachmentUpload}
+                                onDownload={handleActionAttachmentDownload}
+                                onDelete={handleActionAttachmentDelete}
+                            />
+                        </div>
+                    )}
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsActionDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel', { defaultValue: 'Anuluj' })}</Button>
                         <Button variant={actionType === 'reject' ? 'destructive' : 'default'} onClick={() => void submitAction()} disabled={isLoading}>

@@ -33,7 +33,6 @@ export type Loan = {
     created_at: string;
     declared_return_date: string;
     note: string | null;
-    loan_purpose: string | null;
     borrowed_at: string | null;
     returned_at: string | null;
     decision_by: number | null;

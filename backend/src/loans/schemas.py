@@ -34,32 +34,17 @@ class LoanCreateExternal(BaseModel):
 class LoanDecision(BaseModel):
     approved: bool = True
     note: LoanNote | None = None
-    comment: LoanNote | None = None
-
-    @property
-    def effective_note(self) -> str | None:
-        return self.note if self.note is not None else self.comment
 
 
 class LoanReturn(BaseModel):
     condition: ReturnCondition
     note: LoanNote | None = None
-    comment: LoanNote | None = None
-
-    @property
-    def effective_note(self) -> str | None:
-        return self.note if self.note is not None else self.comment
 
 
 class LoanConfirmReturn(BaseModel):
     approved: bool = True
     condition: ReturnCondition | None = None
     note: LoanNote | None = None
-    comment: LoanNote | None = None
-
-    @property
-    def effective_note(self) -> str | None:
-        return self.note if self.note is not None else self.comment
 
 
 class LoanBorrowerInfo(BaseModel):
@@ -90,7 +75,6 @@ class LoanResponse(BaseModel):
     created_at: datetime
     declared_return_date: datetime
     note: str | None
-    loan_purpose: str | None
     borrowed_at: datetime | None
     returned_at: datetime | None
     decision_by: int | None

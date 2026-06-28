@@ -134,6 +134,7 @@
     "reportReturn": "Report return",
     "rejectReturn": "Reject return",
     "returnCondition": "Return condition",
+    "returnDocumentationHint": "During pickup you can document the item's current condition with photos or files.",
     "addGuestInline": "Add new guest",
     "addGuest": "Add guest",
     "saveAction": "Save",
