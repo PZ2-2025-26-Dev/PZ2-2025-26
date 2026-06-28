@@ -261,7 +261,7 @@ def test_delete_item_endpoint_returns_404_for_missing_item(api_client: TestClien
 def test_item_history_endpoint_returns_seed_history(api_client: TestClient, seeded_db: Session):
     response = api_client.get(
         f"/items/{SEED_IDS.laptop_uuid}/history",
-        headers=auth_headers(SEED_IDS.observer_user),
+        headers=auth_headers(SEED_IDS.regular_user),
     )
 
     assert response.status_code == 200
@@ -270,6 +270,33 @@ def test_item_history_endpoint_returns_seed_history(api_client: TestClient, seed
     assert body["entries"][0]["change_type"] == ItemChangeLogType.LOANED.value
     assert body["entries"][0]["updated_by"] == SEED_IDS.regular_user
     assert body["pagination"]["total"] == 12
+
+
+def test_item_history_endpoint_allows_admin(api_client: TestClient, seeded_db: Session):
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/history",
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+
+
+def test_item_history_endpoint_rejects_non_owner(api_client: TestClient, seeded_db: Session):
+    response = api_client.get(
+        f"/items/{SEED_IDS.projector_uuid}/history",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
+
+
+def test_item_history_endpoint_rejects_observer(api_client: TestClient, seeded_db: Session):
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/history",
+        headers=auth_headers(SEED_IDS.observer_user),
+    )
+
+    assert response.status_code == 403
 
 
 def test_item_history_endpoint_supports_pagination_and_type_filter(api_client: TestClient, seeded_db: Session):
