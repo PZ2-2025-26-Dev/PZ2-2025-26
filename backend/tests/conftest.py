@@ -25,6 +25,7 @@ def test_database_schema() -> Iterator[None]:
     with engine.begin():
         Base.metadata.drop_all(bind=engine)
 
+
 @pytest.fixture()
 def db(test_database_schema: None) -> Iterator[Session]:
     connection = engine.connect()
