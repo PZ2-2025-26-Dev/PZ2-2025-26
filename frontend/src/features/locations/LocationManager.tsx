@@ -59,7 +59,6 @@ type HideErrorState = {
 type LocationManagerProps = {
     canManage?: boolean;
     canCreateRemote?: boolean;
-    showOnlyRemote?: boolean;
 };
 
 const compareLocations = (first: Location, second: Location) => {
@@ -123,7 +122,6 @@ const collectDescendantIds = (locationId: number, locations: Location[]) => {
 export default function LocationManager({
     canManage = true,
     canCreateRemote = false,
-    showOnlyRemote = false,
 }: LocationManagerProps) {
     const { t } = useTranslation();
     const { listLocations, createLocation, updateLocation, deleteLocation, isLoading, error, clearError } = useLocations();
@@ -172,13 +170,9 @@ export default function LocationManager({
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
         if (result.success) {
-            const visibleLocations = showOnlyRemote
-                ? result.locations.filter((location) => location.type === 'remote')
-                : result.locations;
-
-            setLocations(visibleLocations);
+            setLocations(result.locations);
         }
-    }, [listLocations, showOnlyRemote]);
+    }, [listLocations]);
 
     useEffect(() => {
         void refreshLocations();

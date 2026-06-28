@@ -566,7 +566,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <LocationManager
                             canManage={false}
                             canCreateRemote={user.role === 'user'}
-                            showOnlyRemote={user.role === 'user'}
                         />
                     </div>
                 );

@@ -140,10 +140,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                 }
 
                 const availableLocations = result.locations
-                    .filter((location) => location.isActive)
-                    .filter((location) => isAdmin || (
-                        location.type !== 'remote' || location.ownerId === Number(user.id)
-                    ));
+                    .filter((location) => location.isActive);
 
                 setLocations(availableLocations);
                 if (availableLocations.length > 0) {

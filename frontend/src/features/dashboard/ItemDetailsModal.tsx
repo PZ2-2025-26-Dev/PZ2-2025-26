@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import type { AppUser, InventoryItem } from '@/types';
@@ -28,7 +29,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
 import { useItemAttachments } from '../inventory/useItemAttachments';
 import { ITEM_HISTORY_PAGE_LIMIT, useInventory } from '../inventory/useInventory';
-import { useLocations } from '../locations/useLocations';
+import { useLocations, type Location } from '../locations/useLocations';
 
 type HistoryEntry = {
     id: string | number;
@@ -76,8 +77,9 @@ export default function ItemDetailsModal({
         clearError: clearItemUpdateError,
     } = useInventory();
     const {
+        listLocations,
         createLocation,
-        isLoading: isLocationCreating,
+        isLoading: isLocationLoading,
         error: locationCreateError,
         clearError: clearLocationCreateError,
     } = useLocations();
@@ -89,6 +91,8 @@ export default function ItemDetailsModal({
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [historyPagination, setHistoryPagination] = useState<HistoryPagination | null>(null);
     const [historyError, setHistoryError] = useState<string | null>(null);
+    const [availableLocations, setAvailableLocations] = useState<Location[]>([]);
+    const [selectedLocationId, setSelectedLocationId] = useState('');
     const [isRemoteLocationDialogOpen, setIsRemoteLocationDialogOpen] = useState(false);
     const [remoteLocationName, setRemoteLocationName] = useState('');
     const [remoteLocationAddress, setRemoteLocationAddress] = useState('');
@@ -107,7 +111,7 @@ export default function ItemDetailsModal({
     } = useItemAttachments(itemId, isOpen);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !item) return;
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         setReturnDate(tomorrow.toISOString().split('T')[0]);
@@ -118,13 +122,28 @@ export default function ItemDetailsModal({
         setHistory([]);
         setHistoryPagination(null);
         setHistoryError(null);
+        setAvailableLocations([]);
+        setSelectedLocationId(String(item.locationId ?? ''));
         setIsRemoteLocationDialogOpen(false);
         setRemoteLocationName('');
         setRemoteLocationAddress('');
         setRemoteLocationDescription('');
         clearLocationCreateError();
         clearItemUpdateError();
-    }, [isOpen, item]);
+
+        void listLocations().then((result) => {
+            if (!result.success) return;
+
+            const locations = result.locations
+                .filter((location) => location.isActive)
+                .sort((first, second) => first.path.localeCompare(second.path));
+            const currentLocation = locations.find((location) => location.id === item.locationId)
+                ?? locations.find((location) => location.path === item.location);
+
+            setAvailableLocations(locations);
+            setSelectedLocationId(currentLocation ? String(currentLocation.id) : '');
+        });
+    }, [clearItemUpdateError, clearLocationCreateError, isOpen, item, listLocations]);
 
     if (!item) return null;
 
@@ -167,6 +186,18 @@ export default function ItemDetailsModal({
     const historyTotal = historyPagination?.total ?? history.length;
     const hasMoreHistory = history.length < historyTotal;
 
+    const handleAssignLocation = async () => {
+        const location = availableLocations.find((entry) => entry.id === Number(selectedLocationId));
+        if (!location || location.id === item.locationId) return;
+
+        clearLocationCreateError();
+        clearItemUpdateError();
+        const updatedItem = await updateItem(item.id, { locationId: location.id });
+        if (!updatedItem.success) return;
+
+        onLocationChanged?.(item.id, { id: location.id, path: location.path });
+    };
+
     const handleCreateRemoteLocation = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!remoteLocationName.trim()) return;
@@ -183,6 +214,12 @@ export default function ItemDetailsModal({
         });
 
         if (!createdLocation.success || !createdLocation.location) return;
+
+        setAvailableLocations((current) => (
+            [...current, createdLocation.location]
+                .sort((first, second) => first.path.localeCompare(second.path))
+        ));
+        setSelectedLocationId(String(createdLocation.location.id));
 
         const updatedItem = await updateItem(item.id, {
             locationId: createdLocation.location.id,
@@ -228,10 +265,49 @@ export default function ItemDetailsModal({
                                     <MapPin className="size-4" />
                                 </div>
                                 <div>
-                                    <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.remoteLocationTitle')}</strong>
-                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.remoteLocationDesc')}</p>
+                                    <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.itemLocationTitle')}</strong>
+                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.itemLocationDesc')}</p>
                                 </div>
                             </div>
+                            {(locationCreateError || itemUpdateError) && !isRemoteLocationDialogOpen && (
+                                <Alert variant="destructive" className="mb-3">
+                                    <AlertCircle className="size-4" />
+                                    <AlertTitle>{t('itemDetailsModal.locationUpdateErrorTitle')}</AlertTitle>
+                                    <AlertDescription>{locationCreateError || itemUpdateError}</AlertDescription>
+                                </Alert>
+                            )}
+                            <div className="space-y-3">
+                                <Select
+                                    value={selectedLocationId}
+                                    onValueChange={setSelectedLocationId}
+                                    disabled={isLocationLoading || availableLocations.length === 0}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t('itemDetailsModal.locationSelectPlaceholder')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableLocations.map((location) => (
+                                            <SelectItem key={location.id} value={String(location.id)}>
+                                                {location.path}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    className="w-full"
+                                    disabled={
+                                        isInventoryLoading
+                                        || !selectedLocationId
+                                        || Number(selectedLocationId) === item.locationId
+                                    }
+                                    onClick={() => void handleAssignLocation()}
+                                >
+                                    {isInventoryLoading
+                                        ? t('itemDetailsModal.locationSaving')
+                                        : t('itemDetailsModal.locationSave')}
+                                </Button>
+                            </div>
+                            <Separator className="my-4" />
                             <Button
                                 variant="outline"
                                 className="w-full"
@@ -312,7 +388,7 @@ export default function ItemDetailsModal({
     };
 
     const remoteLocationError = locationCreateError || itemUpdateError;
-    const isRemoteLocationSaving = isLocationCreating || isInventoryLoading;
+    const isRemoteLocationSaving = isLocationLoading || isInventoryLoading;
 
     return (
         <>
