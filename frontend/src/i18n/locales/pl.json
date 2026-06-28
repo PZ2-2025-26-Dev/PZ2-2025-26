@@ -251,10 +251,17 @@
     "readOnlyTitle": "Tylko do odczytu",
     "delegatedPanel": "Twoje delegowane uprawnienia",
     "delegatedDesc": "Możesz edytować wybrane pola tego przedmiotu.",
-    "parameters": "Parametry (JSON)",
+    "parameters": "Parametry",
     "noParameters": "Brak parametrów",
     "editParameters": "Edytuj parametry",
-    "invalidParametersJson": "Niepoprawny JSON — podaj obiekt, np. {\"cpu\": \"Intel i7\", \"ram_gb\": 16}."
+    "parameterKeyPlaceholder": "Klucz, np. cpu",
+    "parameterValuePlaceholder": "Wartość, np. Intel i7",
+    "parameterComplexPlaceholder": "[\"USB-C\", \"HDMI\"]",
+    "parameterValueHint": "Listy i obiekty wpisz w nawiasach — np. [\"USB-C\"] lub {\"slot\": 1}. Po wpisaniu [ lub { pole rozszerzy się do edycji.",
+    "addParameter": "Dodaj parametr",
+    "removeParameter": "Usuń parametr",
+    "duplicateParameterKeys": "Klucze parametrów muszą być unikalne.",
+    "invalidParameterValue": "Niepoprawna wartość JSON w polu „{{key}}”."
   },
   "itemAcl": {
     "title": "Delegowane uprawnienia",
@@ -265,6 +272,7 @@
     "userPlaceholder": "Wybierz użytkownika",
     "userSearchPlaceholder": "Szukaj po imieniu lub nazwisku...",
     "noUsersFound": "Nie znaleziono użytkowników z rolą user.",
+    "noUsersAvailable": "Brak innych użytkowników z rolą user do delegacji.",
     "prevPage": "Poprzednia",
     "nextPage": "Następna",
     "pageInfo": "Strona {{page}} z {{total}}",

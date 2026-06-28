@@ -9,6 +9,7 @@ import { ROLES } from '../auth/permissions';
 import { useGuests } from '../guests/useGuests';
 
 const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 300;
 
 type SelectableUser = {
     id: number;
@@ -31,75 +32,75 @@ export default function AclUserPicker({ ownerId, value, onChange, disabled }: Ac
     const { browseUsers } = useGuests();
 
     const [searchInput, setSearchInput] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [page, setPage] = useState(1);
     const [users, setUsers] = useState<SelectableUser[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
-    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    useEffect(() => {
+        const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), SEARCH_DEBOUNCE_MS);
+        return () => window.clearTimeout(timer);
+    }, [searchInput]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearch, ownerId]);
 
     const loadUsers = useCallback(async () => {
         setIsLoading(true);
         const result = await browseUsers({
             page,
             limit: PAGE_SIZE,
-            search: searchQuery || undefined,
+            search: debouncedSearch || undefined,
             role: ROLES.USER,
         });
 
         if (result.success) {
-            setUsers(
-                result.entries
-                    .filter((entry) => entry.role === ROLES.USER && entry.id !== ownerId)
-                    .map((entry) => ({
-                        id: entry.id,
-                        firstName: entry.firstName,
-                        lastName: entry.lastName,
-                    })),
-            );
+            const eligible = result.entries
+                .filter((entry) => entry.role === ROLES.USER && entry.id !== ownerId)
+                .map((entry) => ({
+                    id: entry.id,
+                    firstName: entry.firstName,
+                    lastName: entry.lastName,
+                }));
+            setUsers(eligible);
             setTotalCount(result.totalCount);
         } else {
             setUsers([]);
             setTotalCount(0);
         }
         setIsLoading(false);
-    }, [browseUsers, ownerId, page, searchQuery]);
+    }, [browseUsers, ownerId, page, debouncedSearch]);
 
     useEffect(() => {
         loadUsers();
     }, [loadUsers]);
 
-    useEffect(() => {
-        setPage(1);
-    }, [searchQuery, ownerId]);
-
-    const handleSearch = () => {
-        setSearchQuery(searchInput.trim());
-    };
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
     return (
         <div className="space-y-2">
             <Label htmlFor="acl-user-search">{t('itemAcl.userLabel')}</Label>
-            <div className="flex gap-2">
+            <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <Input
                     id="acl-user-search"
                     value={searchInput}
                     onChange={(event) => setSearchInput(event.target.value)}
-                    onKeyDown={(event) => event.key === 'Enter' && handleSearch()}
                     placeholder={t('itemAcl.userSearchPlaceholder')}
                     disabled={disabled}
+                    className="pl-9"
                 />
-                <Button type="button" variant="outline" size="icon" onClick={handleSearch} disabled={disabled}>
-                    <Search className="size-4" />
-                </Button>
             </div>
 
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+            <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
                 {isLoading ? (
                     <p className="p-3 text-xs text-slate-500">{t('common.loading')}</p>
                 ) : users.length === 0 ? (
-                    <p className="p-3 text-xs text-slate-500">{t('itemAcl.noUsersFound')}</p>
+                    <p className="p-3 text-xs text-slate-500">
+                        {debouncedSearch ? t('itemAcl.noUsersFound') : t('itemAcl.noUsersAvailable')}
+                    </p>
                 ) : (
                     <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                         {users.map((user) => {

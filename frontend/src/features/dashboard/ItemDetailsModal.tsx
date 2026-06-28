@@ -34,6 +34,14 @@ import type { AppUser, InventoryItem } from '@/types';
 import { PERMISSIONS, ROLES, hasPermission } from '../auth/permissions';
 import ItemAclPanel from '../inventory/ItemAclPanel';
 import ItemAttachmentsPanel from '../inventory/ItemAttachmentsPanel';
+import ItemParametersEditor, {
+    buildParametersFromRows,
+    parametersToRows,
+    type ParameterRow,
+} from '../inventory/ItemParametersEditor';
+import ItemParametersDisplay from '../inventory/ItemParametersDisplay';
+
+const SCROLLABLE_SECTION_CLASS = 'max-h-44 overflow-y-auto overflow-x-hidden pr-1';
 import { useItemAcl } from '../inventory/useItemAcl';
 import { useItemAttachments } from '../inventory/useItemAttachments';
 import { useInventory } from '../inventory/useInventory';
@@ -91,7 +99,7 @@ export default function ItemDetailsModal({
     const [saveError, setSaveError] = useState<string | null>(null);
     const [parameters, setParameters] = useState<Record<string, unknown> | null>(null);
     const [isEditingParameters, setIsEditingParameters] = useState(false);
-    const [editedParametersJson, setEditedParametersJson] = useState('{}');
+    const [parameterRows, setParameterRows] = useState<ParameterRow[]>([{ id: 'row-0', key: '', value: '' }]);
     const [parametersError, setParametersError] = useState<string | null>(null);
     const [aclPermissions, setAclPermissions] = useState<string[]>([]);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -129,10 +137,7 @@ export default function ItemDetailsModal({
     const canManageAttachments = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_attachments'));
     const canManageAcl = !isObserver && isOwnerOrAdmin;
 
-    const parameterEntries = useMemo(
-        () => (parameters ? Object.entries(parameters) : []),
-        [parameters],
-    );
+    const hasParameters = Boolean(parameters && Object.keys(parameters).length > 0);
 
     useEffect(() => {
         if (!isOpen || !item) return;
@@ -152,7 +157,7 @@ export default function ItemDetailsModal({
         setParametersError(null);
         setIsEditingParameters(false);
         setParameters(item.parameters ?? null);
-        setEditedParametersJson(JSON.stringify(item.parameters ?? {}, null, 2));
+        setParameterRows(parametersToRows(item.parameters ?? null));
     }, [isOpen, item]);
 
     useEffect(() => {
@@ -162,7 +167,7 @@ export default function ItemDetailsModal({
             if (!result.success) return;
             const nextParameters = result.data.parameters ?? null;
             setParameters(nextParameters);
-            setEditedParametersJson(JSON.stringify(nextParameters ?? {}, null, 2));
+            setParameterRows(parametersToRows(nextParameters));
         });
     }, [isOpen, itemId, getItem]);
 
@@ -263,25 +268,22 @@ export default function ItemDetailsModal({
         setIsEditingLocation(false);
     };
 
-    const formatParameterValue = (value: unknown) => {
-        if (value === null || value === undefined) return '-';
-        if (typeof value === 'object') return JSON.stringify(value);
-        return String(value);
-    };
-
     const handleSaveParameters = async () => {
         setParametersError(null);
-        let parsed: Record<string, unknown>;
-        try {
-            const raw = JSON.parse(editedParametersJson);
-            if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-                throw new Error('invalid');
-            }
-            parsed = raw as Record<string, unknown>;
-        } catch {
-            setParametersError(t('itemDetailsModal.invalidParametersJson'));
+
+        const keys = parameterRows.map((row) => row.key.trim()).filter(Boolean);
+        if (new Set(keys).size !== keys.length) {
+            setParametersError(t('itemDetailsModal.duplicateParameterKeys'));
             return;
         }
+
+        const built = buildParametersFromRows(parameterRows);
+        if (!built.success) {
+            setParametersError(t('itemDetailsModal.invalidParameterValue', { key: built.error }));
+            return;
+        }
+
+        const parsed = built.parameters;
 
         setSaveError(null);
         const result = await updateItem(item.id, { parameters: parsed });
@@ -291,6 +293,7 @@ export default function ItemDetailsModal({
         }
 
         setParameters(parsed);
+        setParameterRows(parametersToRows(parsed));
         applyItemUpdate({ parameters: parsed });
         setIsEditingParameters(false);
     };
@@ -479,7 +482,7 @@ export default function ItemDetailsModal({
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm">{t('itemDetailsModal.techSpec')}</CardTitle>
                                 {canEditParameters && !isEditingParameters && (
-                                    <Button variant="link" size="sm" onClick={() => setIsEditingParameters(true)}>
+                                    <Button variant="link" size="xs" className="text-xs font-normal" onClick={() => setIsEditingParameters(true)}>
                                         {t('itemDetailsModal.editParameters')}
                                     </Button>
                                 )}
@@ -495,22 +498,20 @@ export default function ItemDetailsModal({
                                 </p>
                                 {isEditingParameters ? (
                                     <div className="space-y-3">
-                                        <Textarea
-                                            value={editedParametersJson}
-                                            onChange={(event) => setEditedParametersJson(event.target.value)}
-                                            className="min-h-[160px] font-mono text-xs"
-                                            spellCheck={false}
-                                        />
-                                        {parametersError && (
-                                            <p className="text-xs text-red-600 dark:text-red-400">{parametersError}</p>
-                                        )}
+                                        <div className={SCROLLABLE_SECTION_CLASS}>
+                                            <ItemParametersEditor
+                                                rows={parameterRows}
+                                                onChange={setParameterRows}
+                                                error={parametersError}
+                                            />
+                                        </div>
                                         <div className="flex justify-end gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => {
                                                     setIsEditingParameters(false);
-                                                    setEditedParametersJson(JSON.stringify(parameters ?? {}, null, 2));
+                                                    setParameterRows(parametersToRows(parameters));
                                                     setParametersError(null);
                                                 }}
                                             >
@@ -521,15 +522,10 @@ export default function ItemDetailsModal({
                                             </Button>
                                         </div>
                                     </div>
-                                ) : parameterEntries.length > 0 ? (
-                                    parameterEntries.map(([key, value]) => (
-                                        <div key={key} className="flex justify-between gap-4">
-                                            <span className="text-slate-500">{key}</span>
-                                            <span className="max-w-[60%] break-all text-right font-medium">
-                                                {formatParameterValue(value)}
-                                            </span>
-                                        </div>
-                                    ))
+                                ) : hasParameters && parameters ? (
+                                    <div className={SCROLLABLE_SECTION_CLASS}>
+                                        <ItemParametersDisplay parameters={parameters} />
+                                    </div>
                                 ) : (
                                     <p className="text-slate-500">{t('itemDetailsModal.noParameters')}</p>
                                 )}
@@ -546,6 +542,8 @@ export default function ItemDetailsModal({
                                     {canEditDescription && !isEditingDescription && (
                                         <Button
                                             variant="link"
+                                            size="xs"
+                                            className="text-xs font-normal"
                                             onClick={() => { setIsDescriptionOpen(true); setIsEditingDescription(true); }}
                                         >
                                             {t('itemDetailsModal.editDescription')}
@@ -554,7 +552,14 @@ export default function ItemDetailsModal({
                                 </div>
                                 {isDescriptionOpen && (isEditingDescription ? (
                                     <div className="space-y-3">
-                                        <Textarea maxLength={256} value={editedDescription} onChange={(event) => setEditedDescription(event.target.value)} />
+                                        <div className={SCROLLABLE_SECTION_CLASS}>
+                                            <Textarea
+                                                maxLength={256}
+                                                value={editedDescription}
+                                                onChange={(event) => setEditedDescription(event.target.value)}
+                                                className="min-h-[6rem] resize-none"
+                                            />
+                                        </div>
                                         <div className="flex items-center justify-between">
                                             <span className="text-xs text-slate-400">{editedDescription.length}/256</span>
                                             <div className="flex gap-2">
@@ -564,7 +569,9 @@ export default function ItemDetailsModal({
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300">{renderDescription(item.description || t('itemDetailsModal.noDescription'))}</p>
+                                    <div className={`whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-300 ${SCROLLABLE_SECTION_CLASS}`}>
+                                        {renderDescription(item.description || t('itemDetailsModal.noDescription'))}
+                                    </div>
                                 ))}
                                 {hasApiItemId && (
                                     <ItemAttachmentsPanel
