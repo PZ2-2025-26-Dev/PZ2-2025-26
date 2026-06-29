@@ -1,8 +1,9 @@
 from uuid import UUID, uuid7
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from src.categories.models import Category
 from src.categories.service import build_category_path
 from src.items.constants import BASIC_LENGTH, ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
@@ -25,6 +26,10 @@ from src.items.schemas import (
     ItemUpdate,
     ItemUpdateResponse,
 )
+from src.loans.constants import LoanStatus
+from src.loans.models import Loan
+from src.locations.models import Location
+from src.users.models import User
 from src.utils import now
 
 
@@ -220,39 +225,93 @@ class ItemService:
 
         return ItemDeleteResponse(deleted=True)
 
+    def _build_items_query(self, data: ItemSearch):
+        stmt = select(Item)
+
+        if data.search:
+            q = f"%{data.search.lower()}%"
+            stmt = stmt.where(
+                or_(
+                    func.lower(Item.name).like(q),
+                    func.lower(func.coalesce(Item.description, "")).like(q),
+                    func.lower(func.coalesce(Item.oldID, "")).like(q),
+                )
+            )
+
+        if data.uuid:
+            stmt = stmt.where(Item.uuid == data.uuid)
+
+        if data.name:
+            stmt = stmt.where(func.lower(Item.name).like(f"%{data.name.lower()}%"))
+
+        if data.description:
+            stmt = stmt.where(func.lower(func.coalesce(Item.description, "")).like(f"%{data.description.lower()}%"))
+
+        if data.category_id:
+            stmt = stmt.where(Item.category_id == data.category_id)
+
+        if data.location_id:
+            stmt = stmt.where(Item.location_id == data.location_id)
+
+        if data.owner_id:
+            stmt = stmt.where(Item.owner_id == data.owner_id)
+
+        if data.borrower_id:
+            loan_exists = exists().where(
+                Loan.item_id == Item.id,
+                Loan.status == LoanStatus.LOANED,
+                or_(
+                    Loan.user_id == data.borrower_id,
+                    Loan.guest_id == data.borrower_id,
+                ),
+            )
+
+            stmt = stmt.where(loan_exists)
+
+        if data.status:
+            stmt = stmt.where(Item.status == data.status)
+
+        return stmt
+
     def search_items(self, data: ItemSearch) -> ItemsPaged:
-        stmt = select(Item).options(
+        stmt = self._build_items_query(data)
+
+        # liczba wszystkich wyników (bez paginacji)
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = self.db.execute(count_stmt).scalar_one()
+
+        # doładowanie relacji
+        stmt = stmt.options(
             selectinload(Item.category),
             selectinload(Item.location),
             selectinload(Item.owner),
         )
 
-        if data.owner_id is not None:
-            stmt = stmt.where(Item.owner_id == data.owner_id)
+        sort_field_map = {
+            "id": Item.id,
+            "name": Item.name,
+            "status": Item.status,
+            "category": Category.name,
+            "location": Location.name,
+            "owner": User.last_name,
+        }
 
-        if data.category_id is not None:
-            stmt = stmt.where(Item.category_id == data.category_id)
+        if data.sort_by == "category":
+            stmt = stmt.join(Item.category)
+        elif data.sort_by == "location":
+            stmt = stmt.join(Item.location)
+        elif data.sort_by == "owner":
+            stmt = stmt.join(Item.owner)
 
-        if data.location_id is not None:
-            stmt = stmt.where(Item.location_id == data.location_id)
+        sort_column = sort_field_map.get(data.sort_by, Item.id)
 
-        if data.status is not None:
-            stmt = stmt.where(Item.status == data.status)
+        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
 
-        if data.name is not None:
-            stmt = stmt.where(Item.name.ilike(f"%{data.name}%"))
-
-        if data.description is not None:
-            stmt = stmt.where(Item.description.ilike(f"%{data.description}%"))
-
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = self.db.execute(count_stmt).scalar_one()
-
-        stmt = stmt.order_by(Item.id)
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
 
         results = self.db.execute(stmt).scalars().all()
+
         items = [
             ItemSearchResponse(
                 id=item.uuid,
@@ -263,21 +322,34 @@ class ItemService:
                     id=item.category.id,
                     name=item.category.name,
                     path=build_category_path(item.category),
-                ),
+                )
+                if item.category
+                else None,
                 location=ItemLocation(
                     id=item.location.id,
                     path=build_location_path(item.location),
-                ),
+                )
+                if item.location
+                else None,
                 owner=ItemOwner(
                     id=item.owner.id,
                     name=self._owner_display_name(item.owner),
-                ),
+                )
+                if item.owner
+                else None,
                 description=item.description,
             )
             for item in results
         ]
-        pagination = ItemPagination(page=data.page, limit=data.limit, total=total)
-        return ItemsPaged(items=items, pagination=pagination)
+
+        return ItemsPaged(
+            items=items,
+            pagination=ItemPagination(
+                page=data.page,
+                limit=data.limit,
+                total=total,
+            ),
+        )
 
     def get_item_history(self, item_id: UUID, data: ItemHistorySearch) -> ItemHistoryGetResponse:
         item = self._get_item_by_uuid(item_id)

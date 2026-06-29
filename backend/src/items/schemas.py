@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +27,8 @@ type ItemName = Annotated[str, Field(min_length=1, max_length=ITEM_NAME_LENGTH)]
 type ItemDescription = Annotated[str, Field(min_length=1, max_length=ITEM_DESC_LENGTH)]
 type StringBasic = Annotated[str, Field(min_length=1, max_length=BASIC_LENGTH)]
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
+type SortOrder = Literal["asc", "desc"]
+type ItemSortField = Literal["name", "id", "status", "category", "location", "status", "owner"]
 
 
 class ItemCreate(BaseModel):
@@ -61,12 +63,22 @@ class ItemOwner(BaseModel):
 
 
 class ItemSearch(BaseModel):
+    uuid: UUID | None = None
     name: SearchStr | None = None
     description: SearchStr | None = None
+
     category_id: CategoryID | None = None
     location_id: LocationID | None = None
     owner_id: UserID | None = None
+
     status: ItemStatus | None = None
+
+    borrower_id: UserID | None = None
+    search: SearchStr | None = None
+
+    sort_by: ItemSortField = "name"
+    sort_order: SortOrder = "asc"
+
     page: Annotated[int, Field(ge=1)] = 1
     limit: Annotated[int, Field(ge=1, le=100)] = 20
 

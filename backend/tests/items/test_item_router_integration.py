@@ -665,14 +665,22 @@ def test_read_items_filters_by_owner(
         headers=auth_headers(SEED_IDS.observer_user),
     )
 
+    print("\nSTATUS:", response.status_code)
+    print("\nRAW BODY:", response.text)
+
     assert response.status_code == 200
 
     body = response.json()
+
+    print("\nPARSED BODY:", body)
+    print("\nOWNERS IN RESPONSE:", [item.get("owner", {}).get("id") for item in body.get("items", [])])
 
     assert "items" in body
     assert len(body["items"]) > 0
 
     item = body["items"][0]
+
+    print("\nFIRST ITEM OWNER:", item.get("owner"))
 
     assert item["owner"]["id"] == SEED_IDS.regular_user
 
