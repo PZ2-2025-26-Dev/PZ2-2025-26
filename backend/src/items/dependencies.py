@@ -196,6 +196,16 @@ def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
     )
 
 
+def assert_can_generate_item_assets(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tylko administrator lub właściciel przedmiotu może generować jego kod QR i etykiety.",
+    )
+
+
 RequireItemReader = Annotated[User, Depends(require_item_reader)]
 RequireItemWriter = Annotated[User, Depends(require_item_writer)]
 RequireItemOwnerOrAdmin = Annotated[Item, Depends(require_item_owner_or_admin)]
