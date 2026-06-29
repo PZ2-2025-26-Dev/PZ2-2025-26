@@ -103,7 +103,7 @@ const collectDescendantIds = (categoryId: number, categories: Category[]) => {
     return descendants;
 };
 
-export default function CategoryManager() {
+export default function CategoryManager({ canManage = true }: { canManage?: boolean }) {
     const { t } = useTranslation();
     const { listCategories, createCategory, updateCategory, deleteCategory, isLoading, error, clearError } = useCategories();
 
@@ -285,15 +285,19 @@ export default function CategoryManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
-                            <Plus />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
-                            <Pencil />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
-                            <Trash2 />
-                        </Button>
+                        {canManage && (
+                            <>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
+                                    <Plus />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
+                                    <Pencil />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
+                                    <Trash2 />
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
                 <CollapsibleContent>
@@ -339,6 +343,7 @@ export default function CategoryManager() {
             </Card>
 
             {/* Add Category dialog */}
+            {canManage && (
             <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => !open && setIsAddDialogOpen(false)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -377,7 +382,9 @@ export default function CategoryManager() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
 
+            {canManage && (
             <Dialog open={Boolean(editingCategory && editForm)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
@@ -417,7 +424,9 @@ export default function CategoryManager() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
 
+            {canManage && (
             <Dialog open={Boolean(deletingCategory)} onOpenChange={(open: boolean) => !open && setDeletingCategory(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -455,6 +464,7 @@ export default function CategoryManager() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
         </div>
     );
 }

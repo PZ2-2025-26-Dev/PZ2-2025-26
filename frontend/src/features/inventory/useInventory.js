@@ -236,6 +236,30 @@ export const useInventory = () => {
         }
     }, []);
 
+    const deleteItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            await axiosClient.delete(ENDPOINTS.ITEMS.DETAILS(itemId));
+
+            return {
+                success: true,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const lookupItemByQrCode = useCallback(async (code) => {
         setIsLoading(true);
         setError(null);
@@ -398,6 +422,7 @@ export const useInventory = () => {
     return {
         createItem,
         updateItem,
+        deleteItem,
         getItem,
         listItems,
         isLoading,

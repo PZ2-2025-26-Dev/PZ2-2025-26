@@ -19,6 +19,7 @@ from src.items.dependencies import (
     RequireItemReader,
     RequireItemWriter,
     assert_can_assign_owner_on_create,
+    assert_can_delete_item,
     assert_can_generate_item_assets,
     assert_can_manage_item_acl,
     assert_can_manage_item_attachments,
@@ -439,7 +440,7 @@ def update_item(
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
+            "description": "Operacja dostępna wyłącznie dla właściciela przedmiotu lub administratora.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
@@ -449,8 +450,10 @@ def update_item(
 def delete_item(
     item_id: ItemID,
     db: DBDep,
-    _admin: RequireAdmin,
+    user: RequireItemWriter,
+    item: ItemByUuid,
 ) -> None:
+    assert_can_delete_item(user, item)
     service = ItemService(db)
 
     try:
