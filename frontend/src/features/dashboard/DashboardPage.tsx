@@ -52,6 +52,7 @@ import InventoryFilters, { InventoryFiltersState } from '../inventory/InventoryF
 import InventoryToolbar from '../inventory/InventoryToolbar';
 import { useUsers } from '../users/useUsers';
 import { useLocations } from '../locations/useLocations';
+import QrScannerDialog from '@/components/QrScannerDialog';
 
 type CategoryOption = {
     id: number;
@@ -99,6 +100,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+
     
     const [filters, setFilters] = useState<InventoryFiltersState>({
         uuid: '',
@@ -134,6 +136,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
     type SortField = "id" | "name" | "category" | "location" | "status" | "owner";
 
@@ -252,6 +255,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const handleUpdateItemStatus = () => {
         refreshItems();
+    };
+
+    
+    const handleQrScan = (decodedText: string) => {
+        setSearchQuery(decodedText);
+        setIsQrScannerOpen(false);
     };
 
     const handleExportXlsx = useCallback(async () => {
