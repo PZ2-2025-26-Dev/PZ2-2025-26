@@ -33,20 +33,16 @@ const cleanParams = (params) => Object.fromEntries(
 export const normalizeItem = (item) => ({
     id: item.id,
     name: item.name,
-
     category: item.category?.name ?? '',
-    categoryId: item.category?.id ?? null,
-
+    categoryPath: item.category?.path ?? '',
+    categoryId: item.category?.id,
     location: item.location?.path ?? '',
-    locationId: item.location?.id ?? null,
-
+    locationId: item.location?.id,
     owner: item.owner?.name ?? '',
-    ownerId: item.owner?.id ?? null,
-
+    ownerId: item.owner?.id ?? 0,
     description: item.description ?? null,
     oldID: item.oldID ?? null,
     parameters: item.parameters ?? null,
-
     status: item.status,
 });
 
@@ -60,6 +56,7 @@ const downloadBlob = (blob, filename) => {
     link.remove();
     window.URL.revokeObjectURL(url);
 };
+
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
  * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
@@ -130,20 +127,13 @@ export const useInventory = () => {
         try {
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
-                    uuid: filters.uuid,
                     name: filters.name,
-                    description: filters.description,
-                    search: filters.search,
                     status: filters.status,
                     category_id: filters.categoryId,
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
-                    borrower_id: filters.borrowerId,
-                    sort_by: filters.sort_by ?? "name",
-                    sort_order: filters.sort_order ?? "asc",
                     page: filters.page ?? 1,
-                    limit: filters.limit ?? 20,
-                    ...filters.parameters // Rozpakowanie parametrów jako query params
+                    limit: filters.limit ?? 50,
                 }),
             });
 
