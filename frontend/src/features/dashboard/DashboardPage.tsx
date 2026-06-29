@@ -84,7 +84,7 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, error, clearError } = useInventory();
+    const { listItems, getItem, lookupItemByQrCode, error, clearError } = useInventory();
     const { listCategories } = useCategories();
     const { exportItemsXlsx } = useExport();
 
@@ -258,9 +258,16 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     };
 
     
-    const handleQrScan = (decodedText: string) => {
-        setSearchQuery(decodedText);
+    const handleQrScan = async (decodedText: string) => {
         setIsQrScannerOpen(false);
+        const result = await lookupItemByQrCode(decodedText);
+        if (result.success && result.item) {
+            setSelectedItem(result.item);
+            setIsDetailsModalOpen(true);
+            return;
+        }
+
+        setSearchQuery(decodedText);
     };
 
     const handleExportXlsx = useCallback(async () => {
@@ -269,6 +276,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             search: filters.search || searchQuery,
         });
     }, [exportItemsXlsx, filters, searchQuery]);
+
+    const openItemDetails = async (item: InventoryItem) => {
+        const result = await getItem(item.id);
+        setSelectedItem(result.success && result.item ? result.item : item);
+        setIsDetailsModalOpen(true);
+    };
+
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
         setItems((current) => current.map((item) => item.id === itemId ? {
             ...item,
@@ -380,10 +394,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                             items.map((item, index) => (
                                                 <TableRow
                                                     key={item.id}
-                                                    onClick={() => {
-                                                        setSelectedItem(item);
-                                                        setIsDetailsModalOpen(true);
-                                                    }}
+                                                    onClick={() => void openItemDetails(item)}
                                                     className="
                                                         group cursor-pointer border-b border-slate-100
                                                         hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40
