@@ -16,10 +16,14 @@ def test_database_schema() -> Iterator[None]:
     if config.env == Environment.PROD:
         raise RuntimeError("Integration tests cannot recreate the schema when PZ_ENV=prod.")
 
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    with engine.begin():
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+
     yield
-    Base.metadata.drop_all(bind=engine)
+
+    with engine.begin():
+        Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture()

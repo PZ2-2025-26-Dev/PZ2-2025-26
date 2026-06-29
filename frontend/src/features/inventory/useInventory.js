@@ -31,17 +31,20 @@ const cleanParams = (params) => Object.fromEntries(
 export const normalizeItem = (item) => ({
     id: item.id,
     name: item.name,
+
     category: item.category?.name ?? '',
-    categoryPath: item.category?.path ?? '',
-    categoryId: item.category?.id,
+    categoryId: item.category?.id ?? null,
+
     location: item.location?.path ?? '',
-    locationId: item.location?.id,
+    locationId: item.location?.id ?? null,
+
     owner: item.owner?.name ?? '',
-    ownerId: item.owner?.id ?? 0,
+    ownerId: item.owner?.id ?? null,
+
     description: item.description ?? null,
+
     status: item.status,
 });
-
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
  * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
@@ -112,13 +115,20 @@ export const useInventory = () => {
         try {
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
+                    uuid: filters.uuid,
                     name: filters.name,
+                    description: filters.description,
+                    search: filters.search,
                     status: filters.status,
                     category_id: filters.categoryId,
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
+                    borrower_id: filters.borrowerId,
+                    sort_by: filters.sort_by ?? "name",
+                    sort_order: filters.sort_order ?? "asc",
                     page: filters.page ?? 1,
-                    limit: filters.limit ?? 50,
+                    limit: filters.limit ?? 20,
+                    ...filters.parameters // Rozpakowanie parametrów jako query params
                 }),
             });
 
