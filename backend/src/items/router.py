@@ -483,8 +483,9 @@ def delete_item(
     },
 )
 def read_item_history(
-    item: RequireItemOwnerOrAdmin,
+    item: ItemByUuid,
     db: DBDep,
+    _reader: RequireItemReader,
     data: Annotated[ItemHistorySearch, Depends()],
 ) -> ItemHistoryGetResponse:
     service = ItemService(db)
@@ -632,11 +633,18 @@ def delete_item_acl(
             "model": ErrorResponse,
             "description": "Nie znaleziono przedmiotu.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
     },
 )
 def read_item_attachments(
     item_id: ItemID,
     db: DBDep,
+    _reader: RequireItemReader,
 ) -> ItemAttachmentsListResponse:
     service = ItemAttachmentService(db)
 
@@ -722,12 +730,19 @@ def upload_item_attachments(
             "model": ErrorResponse,
             "description": "Nie znaleziono przedmiotu lub załącznika.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
     },
 )
 def download_item_attachment(
     item_id: ItemID,
     attachment_id: int,
     db: DBDep,
+    _reader: RequireItemReader,
 ) -> FileResponse:
     service = ItemAttachmentService(db)
 

@@ -231,12 +231,9 @@ def delete_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) ->
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
-        status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
-        },
     },
 )
-def read_location_history(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> list[LocationHistoryEntry]:
+def read_location_history(location_id: LocationID, db: DBDep, _user: CurrentUser) -> list[LocationHistoryEntry]:
     try:
         history = LocationService(db).list_history(location_id)
     except LocationNotFoundError as err:
