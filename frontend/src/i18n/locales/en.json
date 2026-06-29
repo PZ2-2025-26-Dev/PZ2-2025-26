@@ -31,7 +31,6 @@
   },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
-    "dashboardDesc": "Items list",
     "welcome": "Welcome",
     "role": "Role",
     "logout": "Sign Out",
@@ -48,7 +47,7 @@
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
     "damagedAssets": "Damaged",
-    "searchPlaceholder": "Search by asset name, description...",
+    "searchPlaceholder": "Search by asset name, producer, serial...",
     "filterStatus": "Status",
     "filterCategory": "Category",
     "all": "All",
@@ -68,10 +67,6 @@
     "approveBtn": "Approve",
     "rejectBtn": "Reject",
     "refresh": "Refresh",
-    "shown": "Shown",
-    "of": "of",
-    "items": "items",
-     "itemStatuses": {
     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
@@ -394,68 +389,6 @@
       "oldID": "Old ID"
     }
   },
-  "inventoryFilters": {
-    "searchPlaceholder": "Search by name, description...",
-
-    "labels": {
-      "advancedFilters": "Advanced filters"
-    },
-
-    "sections": {
-      "deviceData": "Device data",
-      "locationTree": "Location tree",
-      "users": "Users"
-    },
-
-    "fields": {
-      "deviceId": "Device ID",
-      "deviceName": "Device name",
-      "category": "Category",
-      "status": "Status",
-      "location": "Location",
-      "owner": "Owner (Assigned Owner)",
-      "borrower": "Borrower (Current Borrower)"
-    },
-
-    "placeholders": {
-      "category": "Select category",
-      "status": "All statuses",
-      "location": "Select location",
-      "owner": "e.g. Dr. Smith",
-      "borrower": "e.g. Johnson"
-    },
-
-    "options": {
-      "allCategories": "All categories",
-      "allStatuses": "All statuses",
-      "allLocations": "All locations",
-      "allOwners": "All owners",
-      "allBorrowers": "All borrowers"
-    },
-
-    "status": {
-      "available": "Available",
-      "reserved": "Reserved",
-      "loaned": "Loaned",
-      "pendingApproval": "Pending approval",
-      "broken": "Broken"
-    },
-
-    "buttons": {
-      "addParam": "Add parameter filter"
-    },
-
-    "parameters": {
-      "title": "Technical parameters",
-      "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
-      "valuePlaceholder": "Value (e.g. Rigol)"
-    },
-    "common":{
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page"
-    }
-  },
   "userManager": {
     "totalUsers": "Total users",
     "pendingUsers": "Pending accounts",
@@ -567,6 +500,5 @@
     "saving": "Saving...",
     "noResults": "No results match the criteria.",
     "readOnly": "Read only"
-  }
   }
 }

@@ -80,7 +80,7 @@ export const useCategories = () => {
                 totalCount: response.data.pagination?.total ?? categories.length,
             };
         } catch (err) {
-            const errorMessage = parseApiError(err as any);
+            const errorMessage = parseApiError(err);
             setError(errorMessage);
             return { success: false, categories: [], totalCount: 0, error: errorMessage };
         } finally {
@@ -103,7 +103,7 @@ export const useCategories = () => {
                 category: normalizeCategory(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err as any);
+            const errorMessage = parseApiError(err);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -126,7 +126,7 @@ export const useCategories = () => {
                 category: normalizeCategory(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err as any);
+            const errorMessage = parseApiError(err);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -146,7 +146,7 @@ export const useCategories = () => {
 
             return { success: true };
         } catch (err) {
-            const errorMessage = parseApiError(err as any);
+            const errorMessage = parseApiError(err);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
