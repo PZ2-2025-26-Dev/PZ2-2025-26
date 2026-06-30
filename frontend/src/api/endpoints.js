@@ -21,6 +21,9 @@ export const ENDPOINTS = {
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,
         HISTORY: (id) => `/items/${id}/history`,
+        SCAN: (code) => `/items/scan/${encodeURIComponent(code)}`,
+        QR: (id, format) => `/items/${id}/qr.${format}`,
+        LABEL: (id, format) => `/items/${id}/label.${format}`,
         ATTACHMENTS: (id) => `/items/${id}/attachments`,
         ATTACHMENT_DOWNLOAD: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}/download`,
         ATTACHMENT_DELETE: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}`,
@@ -40,10 +43,6 @@ export const ENDPOINTS = {
         BROWSE: '/users/browse',
         GUESTS: '/users/guests',
         DETAILS: (id) => `/users/${id}`,
-    },
-    EXPORT: {
-        BASE: '/exports',
-        ITEMS_XLSX: '/exports/items/xlsx',
     },
     LOANS: {
         BASE: '/loans',

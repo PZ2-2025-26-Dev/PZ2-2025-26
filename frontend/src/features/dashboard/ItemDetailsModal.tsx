@@ -6,7 +6,9 @@ import {
     ChevronDown,
     ChevronUp,
     CircleAlert,
+    Download,
     ExternalLink,
+    FileText,
     History,
     Lock,
     MapPin,
@@ -69,6 +71,26 @@ type LocationOption = {
     path: string;
 };
 
+type LabelFieldOption = {
+    key: string;
+    label: string;
+};
+
+const DEFAULT_LABEL_FIELDS = ['name', 'category', 'location'];
+const BASE_LABEL_FIELD_KEYS = ['name', 'description', 'status', 'category', 'location', 'owner', 'oldID'];
+
+const flattenParameterFields = (parameters: Record<string, unknown> | null | undefined, prefix = ''): LabelFieldOption[] => {
+    if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) return [];
+
+    return Object.entries(parameters).flatMap(([key, value]) => {
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return flattenParameterFields(value as Record<string, unknown>, path);
+        }
+        return [{ key: `parameters.${path}`, label: path }];
+    });
+};
+
 type ItemDetailsModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -99,6 +121,8 @@ export default function ItemDetailsModal({
         getItemHistory,
         getItem,
         updateItem,
+        downloadItemQr,
+        downloadItemLabel,
         isLoading: isInventoryLoading,
         error: itemUpdateError,
         clearError: clearItemUpdateError,
@@ -137,6 +161,9 @@ export default function ItemDetailsModal({
     const [remoteLocationName, setRemoteLocationName] = useState('');
     const [remoteLocationAddress, setRemoteLocationAddress] = useState('');
     const [remoteLocationDescription, setRemoteLocationDescription] = useState('');
+    const [labelFields, setLabelFields] = useState<string[]>(DEFAULT_LABEL_FIELDS);
+    const [assetDownloadError, setAssetDownloadError] = useState<string | null>(null);
+    const [isAssetDownloading, setIsAssetDownloading] = useState(false);
 
     const itemId = item?.id ?? null;
     const {
@@ -149,6 +176,15 @@ export default function ItemDetailsModal({
         handleDownload,
         handleDelete,
     } = useItemAttachments(itemId, isOpen);
+    const labelFieldOptions = useMemo(() => {
+        const baseFields = BASE_LABEL_FIELD_KEYS
+            .filter((field) => field !== 'oldID' || item?.oldID)
+            .map((field) => ({
+                key: field,
+                label: t(`itemDetailsModal.labelFields.${field}`, { defaultValue: field }),
+            }));
+        return [...baseFields, ...flattenParameterFields(item?.parameters)];
+    }, [item?.oldID, item?.parameters, t]);
 
     const isAdmin = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE) || user.role === ROLES.ADMIN;
     const isOwner = Boolean(
@@ -199,6 +235,8 @@ export default function ItemDetailsModal({
         setRemoteLocationName('');
         setRemoteLocationAddress('');
         setRemoteLocationDescription('');
+        setLabelFields(DEFAULT_LABEL_FIELDS);
+        setAssetDownloadError(null);
         clearLocationCreateError();
         clearItemUpdateError();
 
@@ -221,7 +259,7 @@ export default function ItemDetailsModal({
 
         getItem(itemId).then((result) => {
             if (!result.success) return;
-            const nextParameters = result.data.parameters ?? null;
+            const nextParameters = result.item?.parameters ?? null;
             setParameters(nextParameters);
             setParameterRows(parametersToRows(nextParameters));
         });
@@ -437,6 +475,34 @@ export default function ItemDetailsModal({
         setRemoteLocationName('');
         setRemoteLocationAddress('');
         setRemoteLocationDescription('');
+    };
+
+    const toggleLabelField = (field: string) => {
+        setLabelFields((current) => (
+            current.includes(field)
+                ? current.filter((entry) => entry !== field)
+                : [...current, field]
+        ));
+    };
+
+    const downloadQr = async (format: 'png' | 'pdf') => {
+        setIsAssetDownloading(true);
+        setAssetDownloadError(null);
+        const result = await downloadItemQr(item.id, format);
+        if (!result.success) setAssetDownloadError(result.error ?? t('itemDetailsModal.assetDownloadError'));
+        setIsAssetDownloading(false);
+    };
+
+    const downloadLabel = async (format: 'png' | 'pdf') => {
+        setIsAssetDownloading(true);
+        setAssetDownloadError(null);
+        const result = await downloadItemLabel(item.id, format, {
+            fields: labelFields,
+            width_mm: 76.2,
+            height_mm: 30.48,
+        });
+        if (!result.success) setAssetDownloadError(result.error ?? t('itemDetailsModal.assetDownloadError'));
+        setIsAssetDownloading(false);
     };
 
     const renderDescription = (text: string) => {
@@ -890,9 +956,67 @@ export default function ItemDetailsModal({
                                         )
                                     )}
                                 </div>
-                                <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 py-6 text-slate-400 dark:border-slate-700">
-                                    <QrCode className="mb-2 size-14" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest">{t('itemDetailsModal.qrCode')}</span>
+                                <div className="rounded-lg border border-dashed border-slate-300 p-4 dark:border-slate-700">
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                                            <QrCode className="size-7" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('itemDetailsModal.qrCode')}</span>
+                                            <p className="mt-1 break-all font-mono text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
+                                        </div>
+                                    </div>
+                                    {isOwner && (
+                                        <div className="mt-4 space-y-4">
+                                            {assetDownloadError && (
+                                                <Alert variant="destructive">
+                                                    <AlertCircle className="size-4" />
+                                                    <AlertTitle>{t('itemDetailsModal.assetDownloadErrorTitle')}</AlertTitle>
+                                                    <AlertDescription>{assetDownloadError}</AlertDescription>
+                                                </Alert>
+                                            )}
+                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                <Button variant="outline" size="sm" onClick={() => void downloadQr('png')} disabled={isAssetDownloading}>
+                                                    <Download className="size-4" />
+                                                    {t('itemDetailsModal.downloadQrPng')}
+                                                </Button>
+                                                <Button variant="outline" size="sm" onClick={() => void downloadQr('pdf')} disabled={isAssetDownloading}>
+                                                    <Download className="size-4" />
+                                                    {t('itemDetailsModal.downloadQrPdf')}
+                                                </Button>
+                                            </div>
+                                            <Separator />
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
+                                                    <FileText className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                                    {t('itemDetailsModal.labelExportTitle')}
+                                                </div>
+                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                    {labelFieldOptions.map((field) => (
+                                                        <label key={field.key} className="flex min-h-9 items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={labelFields.includes(field.key)}
+                                                                onChange={() => toggleLabelField(field.key)}
+                                                                className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                            />
+                                                            <span className="min-w-0 truncate">{field.label}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                    <Button size="sm" onClick={() => void downloadLabel('png')} disabled={isAssetDownloading}>
+                                                        <Download className="size-4" />
+                                                        {t('itemDetailsModal.downloadLabelPng')}
+                                                    </Button>
+                                                    <Button size="sm" onClick={() => void downloadLabel('pdf')} disabled={isAssetDownloading}>
+                                                        <Download className="size-4" />
+                                                        {t('itemDetailsModal.downloadLabelPdf')}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

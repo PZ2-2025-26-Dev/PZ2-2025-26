@@ -21,6 +21,8 @@ const cleanParams = (params) => Object.fromEntries(
  * @property {string} owner
  * @property {number} ownerId
  * @property {string|null} description
+ * @property {string|null} oldID
+ * @property {Object|null} parameters
  * @property {string} status
  */
 
@@ -31,24 +33,33 @@ const cleanParams = (params) => Object.fromEntries(
 export const normalizeItem = (item) => ({
     id: item.id,
     name: item.name,
-
     category: item.category?.name ?? '',
-    categoryId: item.category?.id ?? null,
-
+    categoryPath: item.category?.path ?? '',
+    categoryId: item.category?.id,
     location: item.location?.path ?? '',
-    locationId: item.location?.id ?? null,
-
+    locationId: item.location?.id,
     owner: item.owner?.name ?? '',
-    ownerId: item.owner?.id ?? null,
-
+    ownerId: item.owner?.id ?? 0,
     description: item.description ?? null,
-
-    status: item.status,
+    oldID: item.oldID ?? null,
     parameters: item.parameters ?? null,
+    status: item.status,
 });
+
+const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(new Blob([blob]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+};
+
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, updateItem: Function, getItem: Function, getItemHistory: Function, listItems: Function, lookupItemByQrCode: Function, listAttachments: Function, uploadAttachments: Function, downloadAttachment: Function, deleteAttachment: Function, downloadItemQr: Function, downloadItemLabel: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -116,20 +127,13 @@ export const useInventory = () => {
         try {
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
-                    uuid: filters.uuid,
                     name: filters.name,
-                    description: filters.description,
-                    search: filters.search,
                     status: filters.status,
                     category_id: filters.categoryId,
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
-                    borrower_id: filters.borrowerId,
-                    sort_by: filters.sort_by ?? "name",
-                    sort_order: filters.sort_order ?? "asc",
                     page: filters.page ?? 1,
-                    limit: filters.limit ?? 20,
-                    ...filters.parameters // Rozpakowanie parametrów jako query params
+                    limit: filters.limit ?? 50,
                 }),
             });
 
@@ -152,6 +156,79 @@ export const useInventory = () => {
                 success: false,
                 items: [],
                 total: 0,
+                error: errorMessage,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const getItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.DETAILS(itemId));
+            return {
+                success: true,
+                item: normalizeItem(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const updateItem = useCallback(async (itemId, updates) => {
+        setIsLoading(true);
+        setError(null);
+
+        const payload = {};
+        if (updates.name !== undefined) payload.name = updates.name;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.locationId !== undefined) payload.location_id = updates.locationId;
+        if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
+        if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
+        if (updates.parameters !== undefined) payload.parameters = updates.parameters;
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const lookupItemByQrCode = useCallback(async (code) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.SCAN(code));
+            return {
+                success: true,
+                item: normalizeItem(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return {
+                success: false,
                 error: errorMessage,
             };
         } finally {
@@ -191,68 +268,6 @@ export const useInventory = () => {
 
             setError(errorMessage);
 
-            return {
-                success: false,
-                error: errorMessage,
-                statusCode: err.response?.status,
-            };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    /**
-     * Pobiera szczegóły przedmiotu z GET /items/{id}
-     * @param {string|number} itemId
-     * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
-     */
-    const getItem = useCallback(async (itemId) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await axiosClient.get(ENDPOINTS.ITEMS.DETAILS(itemId));
-            return {
-                success: true,
-                data: normalizeItem(response.data),
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-            return { success: false, error: errorMessage };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    /**
-     * Aktualizuje dane przedmiotu poprzez PATCH /items/{id}
-     * @param {string|number} itemId
-     * @param {Object} updates
-     * @returns {Promise<{success: boolean, data?: Object, error?: string, statusCode?: number}>}
-     */
-    const updateItem = useCallback(async (itemId, updates) => {
-        setIsLoading(true);
-        setError(null);
-
-        const payload = {};
-        if (updates.name !== undefined) payload.name = updates.name;
-        if (updates.description !== undefined) payload.description = updates.description;
-        if (updates.locationId !== undefined) payload.location_id = updates.locationId;
-        if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
-        if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
-        if (updates.parameters !== undefined) payload.parameters = updates.parameters;
-
-        try {
-            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
-            return {
-                success: true,
-                data: response.data,
-                statusCode: response.status,
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
             return {
                 success: false,
                 error: errorMessage,
@@ -336,18 +351,45 @@ export const useInventory = () => {
         }
     }, []);
 
+    const downloadItemQr = useCallback(async (itemId, format) => {
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.QR(itemId, format), {
+                responseType: 'blob',
+            });
+            downloadBlob(response.data, `item-${itemId}-qr.${format}`);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
+    const downloadItemLabel = useCallback(async (itemId, format, options = {}) => {
+        try {
+            const response = await axiosClient.post(ENDPOINTS.ITEMS.LABEL(itemId, format), options, {
+                responseType: 'blob',
+            });
+            downloadBlob(response.data, `item-${itemId}-label.${format}`);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
     return {
         createItem,
         updateItem,
-        listItems,
         getItem,
+        listItems,
         isLoading,
         error,
         clearError,
         getItemHistory,
+        lookupItemByQrCode,
         listAttachments,
         uploadAttachments,
         downloadAttachment,
         deleteAttachment,
+        downloadItemQr,
+        downloadItemLabel,
     };
 };

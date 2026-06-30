@@ -31,7 +31,6 @@
   },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
-    "dashboardDesc": "Items list",
     "welcome": "Welcome",
     "role": "Role",
     "logout": "Sign Out",
@@ -48,7 +47,7 @@
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
     "damagedAssets": "Damaged",
-    "searchPlaceholder": "Search by asset name, description...",
+    "searchPlaceholder": "Search by asset name, producer, serial...",
     "filterStatus": "Status",
     "filterCategory": "Category",
     "all": "All",
@@ -68,10 +67,6 @@
     "approveBtn": "Approve",
     "rejectBtn": "Reject",
     "refresh": "Refresh",
-    "shown": "Shown",
-    "of": "of",
-    "items": "items",
-     "itemStatuses": {
     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
@@ -394,7 +389,23 @@
     "addParameter": "Add parameter",
     "removeParameter": "Remove parameter",
     "duplicateParameterKeys": "Parameter keys must be unique.",
-    "invalidParameterValue": "Invalid JSON value in field \"{{key}}\"."
+    "invalidParameterValue": "Invalid JSON value in field \"{{key}}\".",
+    "assetDownloadErrorTitle": "Could not download file",
+    "assetDownloadError": "File generation failed.",
+    "downloadQrPng": "QR PNG",
+    "downloadQrPdf": "QR PDF",
+    "labelExportTitle": "Item label",
+    "downloadLabelPng": "Label PNG",
+    "downloadLabelPdf": "Label PDF",
+    "labelFields": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "category": "Category",
+      "location": "Location",
+      "owner": "Owner",
+      "oldID": "Old ID"
+    }
   },
   "itemAcl": {
     "title": "Delegated permissions",
@@ -596,6 +607,5 @@
     "saving": "Saving...",
     "noResults": "No results match the criteria.",
     "readOnly": "Read only"
-  }
   }
 }

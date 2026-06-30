@@ -6,10 +6,13 @@ export type AppUser = {
 };
 
 export type InventoryItem = {
-    id: string;
+    id: string | number;
+    inventory_number?: string;
     name: string;
+    producer?: string;
+    model?: string;
+    serialNumber?: string;
     status: string;
-
     category: string;
     categoryId?: number;
     categoryPath?: string;
@@ -20,5 +23,6 @@ export type InventoryItem = {
     borrower?: string | null;
     dueDate?: string | null;
     description?: string | null;
+    oldID?: string | null;
     parameters?: Record<string, unknown> | null;
 };
