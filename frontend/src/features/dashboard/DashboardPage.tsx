@@ -218,7 +218,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             const existingIndex = prev.findIndex(c => c.field === field);
 
             if (isShiftPressed) {
-                // Jeżeli kliknięto z Shiftem - dodajemy lub modyfikujemy wariant w tablicy
                 if (existingIndex > -1) {
                     const currentOrder = prev[existingIndex].order;
                     const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
@@ -226,16 +225,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     updated[existingIndex] = { field, order: nextOrder };
                     return updated;
                 } else {
-                    // Dodajemy nowe pole na koniec kolejki sortowania
                     return [...prev, { field, order: 'asc' }];
                 }
             } else {
-                // Bez Shifta - standardowe zachowanie (czyścimy resztę, zostaje tylko to jedno)
                 if (prev.length === 1 && prev[0].field === field) {
-                    // Jeśli to jedyne pole, odwracamy kierunek
                     return [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
                 }
-                // W przeciwnym wypadku ustawiamy to pole jako jedyne rosnąco
                 return [{ field, order: 'asc' }];
             }
         });
@@ -399,7 +394,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                             whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
                                                             ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
                                                         `}
-                                                        // PRZEKAZUJEMY EVENT DO HANDLE_SORT:
                                                         onClick={(e) => col.sortable && col.field && handleSort(col.field, e)}
                                                     >
                                                         <div className="flex items-center gap-1">
