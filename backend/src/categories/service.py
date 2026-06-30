@@ -98,11 +98,38 @@ class CategoryService:
         self.db.commit()
         return item_count
 
-    def list_categories(self, page: int, limit: int) -> tuple[list[CategoryResponse], int]:
-        total = self.db.scalar(select(func.count()).select_from(Category)) or 0
-        stmt = select(Category).order_by(Category.name.asc(), Category.id.asc()).offset((page - 1) * limit).limit(limit)
-        categories = self.db.execute(stmt).scalars().all()
-        return [self.to_response(category) for category in categories], total
+    def list_categories(self, page: int = 1, limit: int = 100) -> tuple[list[CategoryResponse], int]:
+        # 1. Bazowe zapytanie pobierające kategorie wraz z liczbą przedmiotów
+        stmt = (
+            select(Category, func.count(Item.id).label("item_count"))
+            .outerjoin(Item, Item.category_id == Category.id)
+            .group_by(Category.id)
+            .order_by(Category.id)
+        )
+        
+        # 2. Obliczamy całkowitą ilość kategorii (total) dla paginacji
+        # Ponieważ zapytanie ma group_by, najbezpieczniej policzyć ogólną liczbę kategorii osobnym selectem
+        total = self.db.scalar(select(func.count(Category.id))) or 0
+        
+        # 3. Nakładamy paginację (offset i limit)
+        offset = (page - 1) * limit
+        stmt = stmt.offset(offset).limit(limit)
+        
+        results = self.db.execute(stmt).all()
+        
+        categories_out: list[CategoryResponse] = []
+        for category, item_count in results:
+            categories_out.append(
+                CategoryResponse(
+                    id=category.id,
+                    name=category.name,
+                    parent_id=category.parent_id,
+                    path=build_category_path(category),
+                    item_count=item_count
+                )
+            )
+            
+        return categories_out, total
 
     def get_category_items(self, category_id: int, page: int, limit: int) -> tuple[list[CategoryItem], int]:
         self._get_category_or_raise(category_id)

@@ -189,7 +189,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         const result = await listUsers({ status: 'active', limit: 100 });
         if (result.success) {
             setUsers(
-                result.users.map(u => ({
+                result.users.map((u: { id: number; firstName?: string | null; lastName?: string | null }) => ({
                     id: u.id,
                     name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
                 }))
