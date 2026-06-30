@@ -79,8 +79,6 @@ def read_items(
     data: Annotated[ItemSearch, Depends()],
     _reader: RequireItemReader,
 ) -> ItemsPaged:
-    print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    print(data)
     return ItemService(db).search_items(data)
 
 

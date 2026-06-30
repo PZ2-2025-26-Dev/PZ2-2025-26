@@ -23,7 +23,6 @@ class ExportService:
         category: str | None = None,
     ):
         stmt = select(Item).order_by(Item.id)
-        print(stmt)
 
         if status:
             stmt = stmt.where(Item.status == status)
@@ -39,7 +38,6 @@ class ExportService:
 
     def export_items_xlsx(self, data: ItemSearch):
         stmt = ItemService(self.db)._build_items_query(data)
-        print("uywejdkhnsa", data)
         stmt = stmt.options(
             selectinload(Item.category),
             selectinload(Item.location),

@@ -18,6 +18,4 @@ def export_items_xlsx(
     db: DBDep,
     _reader: RequireItemReader,
 ):
-    print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-    print(data)
     return ExportService(db).export_items_xlsx(data)
