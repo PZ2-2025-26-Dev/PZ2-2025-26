@@ -25,6 +25,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
+import QrScannerDialog from '@/components/QrScannerDialog';
 import { StatusBadge } from '@/components/StatusBadge';
 import SystemClock from '@/components/SystemClock';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -48,11 +49,10 @@ import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
-import InventoryFilters, { InventoryFiltersState } from '../inventory/InventoryFilters';
 import InventoryToolbar from '../inventory/InventoryToolbar';
+import { InventoryFiltersState } from '../inventory/InventoryFilters';
 import { useUsers } from '../users/useUsers';
 import { useLocations } from '../locations/useLocations';
-import QrScannerDialog from '@/components/QrScannerDialog';
 
 type CategoryOption = {
     id: number;
@@ -62,12 +62,6 @@ type CategoryOption = {
 };
 
 type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
-
-export type ApiUser = {
-    id: number;
-    firstName: string;
-    lastName: string;
-};
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
@@ -84,13 +78,12 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, getItem, lookupItemByQrCode, error, clearError } = useInventory();
+    const { listItems, isLoading, getItem, lookupItemByQrCode, error, clearError } = useInventory();
     const { listCategories } = useCategories();
     const { exportItemsXlsx } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
 
     const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
     const [users, setUsers] = useState<Array<{ id: number; name: string }>>([]);
@@ -117,24 +110,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         parameters: undefined,
     });
 
-    const [stats, setStats] = useState({
-        total: 0,
-        loaned: 0,
-        pending: 0,
-        broken: 0,
-    });
-
     const [activeSection, setActiveSection] = useState<MenuSection>(() => {
         const storedSection = localStorage.getItem(DASHBOARD_ACTIVE_SECTION_KEY);
         return isMenuSection(storedSection) ? storedSection : 'dashboard';
     });
-
+    
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
     type SortField = "id" | "name" | "category" | "location" | "status" | "owner";
 
@@ -169,21 +155,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [activeSection, canManageSystem]);
 
     const refreshItems = useCallback(async () => {
-        setIsLoading(true);
         const result = await listItems({ ...filters, limit: filters.limit || 15 });
         if (result.success) {
             setItems(result.items);
             setTotal(result.total);
-            
-            const computedStats = { total: result.total, loaned: 0, pending: 0, broken: 0 };
-            result.items.forEach((item: InventoryItem) => {
-                if (item.status === 'loaned') computedStats.loaned++;
-                else if (item.status === 'pending_approval') computedStats.pending++;
-                else if (item.status === 'broken') computedStats.broken++;
-            });
-            setStats(computedStats);
         }
-        setIsLoading(false);
     }, [listItems, filters]);
 
     const refreshCategories = useCallback(async () => {
@@ -245,6 +221,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             : <ArrowDown className="ml-2 h-4 w-4 inline text-primary" />;
     };
 
+    const stats = useMemo(() => ({
+        total: total,
+        borrowed: items.filter((item) => item.status === 'loaned').length,
+        pending: items.filter((item) => item.status === 'pending_approval').length,
+        damaged: items.filter((item) => item.status === 'broken').length,
+    }), [items, total]);
+
     const handleUpdateItemStatus = () => {
         refreshItems();
     };
@@ -289,7 +272,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
-    const menuItems = [
+    const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
@@ -302,48 +285,52 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         switch (activeSection) {
             case 'dashboard':
                 return (
-                    <div className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-5">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.mainPanel')}</h2>
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                             <StatCard title={t('dashboard.totalAssets')} value={stats.total} icon={Box} />
-                            <StatCard title={t('dashboard.borrowedAssets')} value={stats.loaned} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
+                            <StatCard title={t('dashboard.borrowedAssets')} value={stats.borrowed} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
                             <StatCard title={t('dashboard.pendingApprovals')} value={stats.pending} icon={Users} className="text-amber-600 dark:text-amber-400" />
-                            <StatCard title={t('dashboard.damagedAssets')} value={stats.broken} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
+                            <StatCard title={t('dashboard.damagedAssets')} value={stats.damaged} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
                         </div>
-                        {error && (
-                            <Alert variant="destructive">
-                                <AlertTriangle />
-                                <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                                <AlertDescription className="flex items-center justify-between gap-3">
-                                    <span>{error}</span>
-                                    <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
-                                </AlertDescription>
-                            </Alert>
-                        )}
                     </div>
                 );
+            
             case 'inventory':
                 return (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h2>
-                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('dashboard.dashboardDesc')}</p>
+                    <div className="space-y-5">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.tabInventory')}</h2>
+                            <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
+                                <Button size="sm" onClick={() => setIsAddModalOpen(true)}><Plus className="size-4" />{t('dashboard.addAsset')}</Button>
+                            </RoleGuard>
                         </div>
-                        
-                        <InventoryToolbar
-                            user={user}
-                            filters={filters}
-                            onChange={setFilters}
-                            categories={categories}
-                            locations={locations}
-                            users={users}
-                            onAdd={() => setIsAddModalOpen(true)}
-                            onExport={handleExportXlsx}
-                            isLoading={isLoading}
-                        />
 
-                        {/* Główna tabela danych zajmująca pełną szerokość */}
                         <div className="space-y-4">
-                            <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
+                            {error && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle />
+                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                    <AlertDescription className="flex items-center justify-between gap-3">
+                                        <span>{error}</span>
+                                        <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            <InventoryToolbar
+                                user={user}
+                                filters={filters}
+                                onChange={setFilters}
+                                categories={categories}
+                                locations={locations}
+                                users={users}
+                                onAdd={() => setIsAddModalOpen(true)}
+                                onExport={handleExportXlsx}
+                                isLoading={isLoading}
+                            />
+
+                            <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
                                 <div className="overflow-x-auto">
                                     <Table className="min-w-full">
                                         <TableHeader>
@@ -365,75 +352,39 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                 ))}
                                             </TableRow>
                                         </TableHeader>
-
                                         <TableBody>
-                                            {isLoading ? (
+                                            {isLoading && items.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
-                                                        {t('common.loading')}
+                                                    <TableCell colSpan={6} className="py-10 text-center text-slate-400">
+                                                        {t('userManager.loading')}
                                                     </TableCell>
                                                 </TableRow>
-                                            ) : items.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
-                                                        {t('dashboard.noResults')}
+                                            ) : items.length > 0 ? items.map((item) => (
+                                                <TableRow key={item.id} className="cursor-pointer group border-b border-slate-100 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40 transition-colors duration-150" onClick={() => void openItemDetails(item) }>
+                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{item.inventory_number ?? item.id}</TableCell>
+                                                    <TableCell className="px-4 py-3">
+                                                        <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                                                        {item.description && (
+                                                            <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
+                                                        )}
                                                     </TableCell>
+                                                    <TableCell className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.category}</TableCell>
+                                                    <TableCell className="px-4 py-3 max-w-[220px] whitespace-normal text-slate-600 dark:text-slate-400">{item.location}</TableCell>
+                                                    <TableCell className="px-4 py-3">
+                                                        <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
+                                                        {item.borrower && <div className="mt-1 text-[9px] text-slate-400">{item.borrower} ({item.dueDate})</div>}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
                                                 </TableRow>
-                                            ) : (
-                                                items.map((item) => (
-                                                    <TableRow
-                                                        key={item.id}
-                                                        onClick={() => {
-                                                            setSelectedItem(item);
-                                                            setIsDetailsModalOpen(true);
-                                                        }}
-                                                        className="
-                                                            group cursor-pointer border-b border-slate-100
-                                                            hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40
-                                                            transition-colors duration-150
-                                                        "
-                                                    >
-                                                        <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">
-                                                            {item.id}
-                                                        </TableCell>
-
-                                                        <TableCell className="px-4 py-3">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-medium text-slate-900 dark:text-white">
-                                                                    {item.name}
-                                                                </span>
-                                                                {item.description && (
-                                                                    <span className="text-xs text-slate-400 line-clamp-1">
-                                                                        {item.description}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-
-                                                        <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                            {item.category}
-                                                        </TableCell>
-
-                                                        <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                            {item.location}
-                                                        </TableCell>
-
-                                                        <TableCell className="px-4 py-3">
-                                                            <StatusBadge status={item.status} />
-                                                        </TableCell>
-
-                                                        <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                            {item.owner}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
+                                            )) : (
+                                                <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
                                             )}
                                         </TableBody>
                                     </Table>
                                 </div>
-                            </div>
+                            </Card>
 
-                            {/* Paginacja serwerowa z HEAD */}
+                            {/* Paginacja serwerowa */}
                             <div className="flex items-center justify-between space-x-2 py-4">
                                 <div className="text-sm text-muted-foreground">
                                     {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
@@ -460,12 +411,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     </Button>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 );
+            
             case 'loans':
                 return <RentalCenter user={user} />;
+            
             case 'locations':
                 return canManageSystem ? (
                         <div className="grid gap-6 lg:grid-cols-2">
@@ -487,18 +439,21 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         />
                     </div>
                 );
+            
             case 'directory':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
                         <UserDirectory user={user} />
                     </RoleGuard>
                 );
+
             case 'users':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
                         <UserManager onPendingCountChange={setPendingUserCount} />
                     </RoleGuard>
                 );
+            
             default:
                 return null;
         }
@@ -533,11 +488,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <Button variant="ghost" size="sm" onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL')}>
                             {i18n.language === 'PL' ? 'EN' : 'PL'}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
-                            {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
+                        <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
+                            {isDarkMode ? <Sun /> : <Moon />}
                         </Button>
                         <Button variant="destructive" size="sm" onClick={onLogout}>
-                            <LogOut className="size-4 mr-1" />
+                            <LogOut />
                             <span className="hidden sm:inline">{t('dashboard.logout')}</span>
                         </Button>
                     </div>
@@ -552,8 +507,18 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     }`}
                 >
                     <nav className="flex flex-col gap-1 overflow-y-auto px-2 py-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="w-full"
+                            aria-label="Przełącz menu boczne"
+                        >
+                            <Menu className="size-5" />
+                        </Button>
                         {menuItems.map((item) => {
                             const requiresPermission = item.requiresPermission ? hasPermission(user, item.requiresPermission) : true;
+                            
                             if (!requiresPermission) return null;
 
                             const isActive = activeSection === item.id;
@@ -608,7 +573,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             <AddAssetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                onSave={refreshItems}
+                onSave={() => refreshItems()}
                 user={user}
             />
             <ItemDetailsModal
