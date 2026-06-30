@@ -33,6 +33,8 @@
     "dashboard": "Inventory Dashboard",
     "dashboardDesc": "Items list",
     "welcome": "Welcome",
+    "title": "Inventory Dashboard",      
+    "description": "Items list",        
     "role": "Role",
     "logout": "Sign Out",
     "mainPanel": "Main Dashboard",
@@ -71,7 +73,6 @@
     "shown": "Shown",
     "of": "of",
     "items": "items",
-     "itemStatuses": {
     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
@@ -612,6 +613,5 @@
     "saving": "Saving...",
     "noResults": "No results match the criteria.",
     "readOnly": "Read only"
-  }
   }
 }
