@@ -16,14 +16,10 @@ def test_database_schema() -> Iterator[None]:
     if config.env == Environment.PROD:
         raise RuntimeError("Integration tests cannot recreate the schema when PZ_ENV=prod.")
 
-    with engine.begin():
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield
-
-    with engine.begin():
-        Base.metadata.drop_all(bind=engine)
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture()
@@ -66,3 +62,4 @@ def api_client(db: Session) -> Iterator[TestClient]:
             app.dependency_overrides.pop(get_db, None)
         else:
             app.dependency_overrides[get_db] = previous_override
+
