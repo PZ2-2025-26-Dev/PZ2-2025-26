@@ -17,7 +17,7 @@
     "localLogin": "Local Authentication",
     "registerLink": "Register local account (Requires admin approval)",
     "selectRoleTitle": "Select a system role (MVP Simulation):",
-    "backBtn": "Przejdź do strony głównej",
+    "backBtn": "Back to home",
     "card1Title": "Inventory & Statuses",
     "card1Desc": "Instant access to device parameters, calibration dates, and assigned supervisors.",
     "card2Title": "QR Codes & Quick Actions",
@@ -58,6 +58,7 @@
     "thStatus": "Status",
     "thOwner": "Supervisor",
     "noResults": "No equipment matches the chosen filter metrics.",
+    "openItemDetails": "Open item details: {{name}}",
     "exportXlsx": "Export (.xlsx)",
     "addAsset": "Add Item",
     "accessDeniedTitle": "Access Restriction",
@@ -298,7 +299,14 @@
     "categoryRootOption": "-- Root Category (None) --",
     "cancelCategory": "Cancel",
     "saveCategory": "Add Category",
-    "categoryPlaceholder": "e.g., Power Supplies"
+    "categoryPlaceholder": "e.g., Power Supplies",
+    "parametersTitle": "Parameters (optional)",
+    "parametersHint": "Add any technical parameters as key-value pairs.",
+    "parameterKey": "Parameter name",
+    "parameterValue": "Value",
+    "addParameter": "Add parameter",
+    "removeParameter": "Remove parameter",
+    "noLocations": "No locations available. Contact an administrator."
   },
   "itemDetailsModal": {
     "detailsTitle": "Asset Details",
@@ -345,6 +353,7 @@
     "borrowDesc": "Specify your planned return date to submit a rental request to the owner.",
     "dateLabel": "Return Date",
     "btnSubmitReq": "Submit Rental Request",
+    "readOnly": "Read only",
     "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset.",
     "description": "Technical Description",
     "documentation": "Manufacturer Documentation",
@@ -528,6 +537,7 @@
     "save": "Save changes",
     "saving": "Saving...",
     "deleteConfirm": "Are you sure you want to delete {{name}}?",
+    "approvalRoleFor": "Select role for {{name}}",
     "roles": {
       "admin": "Administrator",
       "user": "User",
@@ -553,6 +563,8 @@
     "close": "Close scanner"
   },
   "auth": {
+    "appTitle": "AGH Apparatus",
+    "appSubtitle": "Integrated measurement equipment management system",
     "login": "Login",
     "register": "Register",
     "email": "Email",
@@ -580,11 +592,45 @@
     "passwordTooShort": "Password must be at least 8 characters long.",
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
-    "registerErrorTitle": "Registration failed",
-    "registerSuccessTitle": "Registration successful",
-    "registering": "Creating account...",
-    "emailAlreadyExists": "An account with this email already exists"
-  },
+     "registerErrorTitle": "Registration failed",
+     "registerSuccessTitle": "Registration successful",
+     "registering": "Creating account...",
+     "emailAlreadyExists": "An account with this email already exists"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Available Equipment",
+     "itemsAvailable": "items available",
+     "action": "Action",
+     "requestBorrow": "Borrow",
+     "noAvailable": "No equipment available",
+     "myRequests": "My Requests",
+     "requests": "requests",
+     "dueDate": "Due Date",
+     "requested": "Requested",
+     "noRequests": "No requests submitted",
+     "requestTitle": "Submit Rental Request",
+     "selectDueDate": "Select Due Date",
+     "requestInfo": "Your request will be sent to the equipment owner. The owner will approve or reject the request.",
+     "cancel": "Cancel",
+     "submitting": "Submitting...",
+     "submitRequest": "Submit Request"
+   },
+   "common": {
+     "loading": "Loading..."
+   },
+   "a11y": {
+     "openItemDetails": "Open item details: {{name}}",
+     "expandCategory": "Expand category {{name}}",
+     "collapseCategory": "Collapse category {{name}}",
+     "filterByCategory": "Filter by category: {{name}}",
+     "toggleSidebar": "Toggle sidebar",
+     "lightMode": "Switch to light mode",
+     "darkMode": "Switch to dark mode",
+     "switchLanguage": "Change language to {{lang}}",
+     "dismiss": "Dismiss message",
+     "closeSidebar": "Close sidebar",
+     "close": "Close"
+   },
   "guests": {
     "title": "Users and guests directory",
     "desc": "Browse people in the system and add guest accounts for lending.",

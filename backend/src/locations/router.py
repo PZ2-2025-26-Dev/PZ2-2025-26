@@ -6,6 +6,7 @@ from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.dependencies import DBDep
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX, LocationType
+from src.locations.dependencies import RequireLocationReader
 from src.locations.schemas import (
     LocationCreate,
     LocationDeleteResponse,
@@ -82,10 +83,14 @@ def create_location(data: LocationCreate, db: DBDep, user: CurrentUser) -> Locat
             "model": ErrorResponse,
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania lokalizacji.",
+        },
     },
 )
 def read_locations(
     db: DBDep,
+    _reader: RequireLocationReader,
     _user: CurrentUser,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Html5Qrcode } from 'html5-qrcode';
 import { Camera, LoaderCircle, ScanQrCode, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,9 @@ export default function QrScannerDialog({
     const { t } = useTranslation();
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const scanHandledRef = useRef(false);
+    const dialogRef = useRef<HTMLDivElement | null>(null);
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+    const previouslyFocusedRef = useRef<HTMLElement | null>(null);
     const [isStarting, setIsStarting] = useState(false);
     const [error, setError] = useState('');
 
@@ -134,9 +137,56 @@ export default function QrScannerDialog({
         };
     }, [isOpen, onClose, onScan, t]);
 
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+        const focusFrame = window.requestAnimationFrame(() => {
+            closeButtonRef.current?.focus();
+        });
+
+        return () => {
+            window.cancelAnimationFrame(focusFrame);
+            previouslyFocusedRef.current?.focus?.();
+        };
+    }, [isOpen]);
+
     if (!isOpen) {
         return null;
     }
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusable || focusable.length === 0) {
+            return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+
+        if (event.shiftKey && active === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && active === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    };
 
     return (
         <div
@@ -144,6 +194,8 @@ export default function QrScannerDialog({
             role="dialog"
             aria-modal="true"
             aria-labelledby="qr-scanner-title"
+            ref={dialogRef}
+            onKeyDown={handleKeyDown}
         >
             <div className="my-auto w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
                 <div className="relative flex items-start justify-center border-b border-slate-100 px-12 py-4 text-center dark:border-slate-800 sm:justify-between sm:px-5 sm:text-left">
@@ -163,9 +215,10 @@ export default function QrScannerDialog({
                     </div>
 
                     <button
+                        ref={closeButtonRef}
                         type="button"
                         onClick={onClose}
-                        className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:right-4 sm:top-4"
+                        className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:right-4 sm:top-4"
                         aria-label={t('qrScanner.close')}
                     >
                         <X className="h-4 w-4" />

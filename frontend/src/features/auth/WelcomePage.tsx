@@ -45,7 +45,7 @@ export default function WelcomePage({
                         type="button"
                         onClick={() => setIsDarkMode(!isDarkMode)}
                         className="absolute right-5 top-36 z-20 flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-md backdrop-blur transition hover:bg-white/25 focus:outline-none focus:ring-4 focus:ring-white/50 sm:right-8 sm:top-44 sm:h-14 sm:w-14"
-                        aria-label={isDarkMode ? 'Włącz jasny motyw' : 'Włącz ciemny motyw'}
+                        aria-label={isDarkMode ? t('a11y.lightMode') : t('a11y.darkMode')}
                     >
                         {isDarkMode ? (
                             <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

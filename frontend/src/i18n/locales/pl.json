@@ -58,6 +58,7 @@
     "thStatus": "Status",
     "thOwner": "Opiekun",
     "noResults": "Brak przyrządów pomiarowych spełniających zadane kryteria filtrowania.",
+    "openItemDetails": "Otwórz szczegóły przedmiotu: {{name}}",
     "exportXlsx": "Eksportuj (.xlsx)",
     "addAsset": "Dodaj przedmiot",
     "accessDeniedTitle": "Brak aktywnego dostępu",
@@ -298,7 +299,14 @@
     "categoryRootOption": "-- Kategoria Główna (Brak nadrzędnej) --",
     "cancelCategory": "Anuluj",
     "saveCategory": "Dodaj",
-    "categoryPlaceholder": "np. Zasilacze"
+    "categoryPlaceholder": "np. Zasilacze",
+    "parametersTitle": "Parametry (opcjonalnie)",
+    "parametersHint": "Dodaj dowolne parametry techniczne jako pary klucz-wartość.",
+    "parameterKey": "Nazwa parametru",
+    "parameterValue": "Wartość",
+    "addParameter": "Dodaj parametr",
+    "removeParameter": "Usuń parametr",
+    "noLocations": "Brak dostępnych lokalizacji. Skontaktuj się z administratorem."
   },
   "itemDetailsModal": {
     "detailsTitle": "Karta Przedmiotu",
@@ -345,6 +353,7 @@
     "borrowDesc": "Wskaż planowaną datę zwrotu, aby wysłać wniosek o wypożyczenie do właściciela urządzenia.",
     "dateLabel": "Data zwrotu",
     "btnSubmitReq": "Złóż wniosek o wypożyczenie",
+    "readOnly": "Tylko do odczytu",
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie.",
     "description": "Opis techniczny",
     "documentation": "Dokumentacja producenta",
@@ -466,6 +475,7 @@
     "save": "Zapisz zmiany",
     "saving": "Zapisywanie...",
     "deleteConfirm": "Czy na pewno usunąć użytkownika {{name}}?",
+    "approvalRoleFor": "Wybierz rolę dla {{name}}",
     "roles": {
       "admin": "Administrator",
       "user": "Użytkownik",
@@ -491,6 +501,8 @@
     "close": "Zamknij skaner"
   },
   "auth": {
+    "appTitle": "Aparatura AGH",
+    "appSubtitle": "Zintegrowany system zarządzania aparaturą pomiarową",
     "login": "Logowanie",
     "register": "Rejestracja",
     "email": "Email",
@@ -518,11 +530,45 @@
     "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków",
     "firstNameRequired": "Imię jest wymagane",
     "lastNameRequired": "Nazwisko jest wymagane",
-    "registerErrorTitle": "Rejestracja nie powiodła się",
-    "registerSuccessTitle": "Rejestracja zakończona sukcesem",
-    "registering": "Tworzenie konta...",
-    "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
-  },
+     "registerErrorTitle": "Rejestracja nie powiodła się",
+     "registerSuccessTitle": "Rejestracja zakończona sukcesem",
+     "registering": "Tworzenie konta...",
+     "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
+   },
+   "rentalCenter": {
+     "availableEquipment": "Dostępny sprzęt",
+     "itemsAvailable": "elementów dostępnych",
+     "action": "Akcja",
+     "requestBorrow": "Wypożycz",
+     "noAvailable": "Brak dostępnego sprzętu",
+     "myRequests": "Moje wnioski",
+     "requests": "wniosków",
+     "dueDate": "Data zwrotu",
+     "requested": "Złożono",
+     "noRequests": "Brak złożonych wniosków",
+     "requestTitle": "Złóż wniosek o wypożyczenie",
+     "selectDueDate": "Wybierz datę zwrotu",
+     "requestInfo": "Twój wniosek będzie wysłany do opiekuna sprzętu. Opiekun zatwierdzi lub odrzuci żądanie.",
+     "cancel": "Anuluj",
+     "submitting": "Wysyłanie...",
+     "submitRequest": "Złóż wniosek"
+   },
+   "common": {
+     "loading": "Ładowanie..."
+   },
+   "a11y": {
+     "openItemDetails": "Otwórz szczegóły przedmiotu: {{name}}",
+     "expandCategory": "Rozwiń kategorię {{name}}",
+     "collapseCategory": "Zwiń kategorię {{name}}",
+     "filterByCategory": "Filtruj według kategorii: {{name}}",
+     "toggleSidebar": "Przełącz menu boczne",
+     "lightMode": "Włącz jasny motyw",
+     "darkMode": "Włącz ciemny motyw",
+     "switchLanguage": "Zmień język na {{lang}}",
+     "dismiss": "Zamknij komunikat",
+     "closeSidebar": "Zamknij menu boczne",
+     "close": "Zamknij"
+   },
   "guests": {
     "title": "Katalog użytkowników i gości",
     "desc": "Przeglądaj osoby w systemie oraz dodawaj konta gości do wypożyczeń.",

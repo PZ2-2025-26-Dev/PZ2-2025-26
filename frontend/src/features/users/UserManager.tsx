@@ -105,23 +105,30 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                 <CardContent className="space-y-4 p-4">
                     <form onSubmit={(event) => { event.preventDefault(); setFilters((current) => ({ ...current, page: 1 })); void refreshUsers(); }} className="flex flex-col gap-3 lg:flex-row">
                         <div className="relative flex-1">
+                            <Label htmlFor="user-search" className="sr-only">{t('userManager.searchPlaceholder')}</Label>
                             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                            <Input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder={t('userManager.searchPlaceholder')} className="pl-9" />
+                            <Input id="user-search" value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder={t('userManager.searchPlaceholder')} className="pl-9" />
                         </div>
-                        <Select value={filters.role} onValueChange={(role) => setFilters((current) => ({ ...current, role, page: 1 }))}>
-                            <SelectTrigger className="lg:w-44"><SelectValue /></SelectTrigger>
+                        <div className="space-y-2 lg:contents">
+                            <Label htmlFor="user-filter-role" className="sr-only">{t('userManager.thRole')}</Label>
+                            <Select value={filters.role} onValueChange={(role) => setFilters((current) => ({ ...current, role, page: 1 }))}>
+                                <SelectTrigger id="user-filter-role" className="lg:w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t('userManager.allRoles')}</SelectItem>
                                 {ROLE_OPTIONS.map((role) => <SelectItem key={role} value={role}>{t(`userManager.roles.${role}`)}</SelectItem>)}
                             </SelectContent>
                         </Select>
-                        <Select value={filters.status} onValueChange={(status) => setFilters((current) => ({ ...current, status, page: 1 }))}>
-                            <SelectTrigger className="lg:w-48"><SelectValue /></SelectTrigger>
+                        </div>
+                        <div className="space-y-2 lg:contents">
+                            <Label htmlFor="user-filter-status" className="sr-only">{t('userManager.thStatus')}</Label>
+                            <Select value={filters.status} onValueChange={(status) => setFilters((current) => ({ ...current, status, page: 1 }))}>
+                                <SelectTrigger id="user-filter-status" className="lg:w-48"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t('userManager.allStatuses')}</SelectItem>
                                 {STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{t(`userManager.statuses.${status}`)}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                        </div>
                         <Button type="submit" variant="secondary" disabled={isLoading}><Search />{t('userManager.search')}</Button>
                         <Button type="button" onClick={() => void refreshUsers()} disabled={isLoading}><RefreshCw className={isLoading ? 'animate-spin' : ''} />{t('userManager.refresh')}</Button>
                     </form>
@@ -130,7 +137,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                             <AlertCircle />
                             <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                             <AlertDescription>{error}</AlertDescription>
-                            <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError}>×</Button>
+                            <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError} aria-label={t('a11y.dismiss')}><span aria-hidden="true">×</span></Button>
                         </Alert>
                     )}
                 </CardContent>
@@ -161,7 +168,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                                         {user.status === 'pending_approval' && (
                                             <>
                                                 <Select value={approvalRoles[String(user.id)] ?? 'user'} onValueChange={(role) => setApprovalRoles((current) => ({ ...current, [String(user.id)]: role }))}>
-                                                    <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                                                    <SelectTrigger id={`approval-role-${user.id}`} className="h-8 w-32" aria-label={t('userManager.approvalRoleFor', { name: getUserName(user) || user.email })}><SelectValue /></SelectTrigger>
                                                     <SelectContent>{APPROVAL_ROLE_OPTIONS.map((role) => <SelectItem key={role} value={role}>{t(`userManager.roles.${role}`)}</SelectItem>)}</SelectContent>
                                                 </Select>
                                                 <Button size="sm" onClick={() => void handleApprove(user)}>{t('userManager.approve')}</Button>
@@ -192,18 +199,18 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                     {editForm && (
                         <form id="edit-user-form" onSubmit={handleSaveEdit} className="space-y-4">
                             <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="space-y-2"><Label>{t('userManager.firstName')}</Label><Input value={editForm.firstName} onChange={(event) => setEditForm({ ...editForm, firstName: event.target.value })} required /></div>
-                                <div className="space-y-2"><Label>{t('userManager.lastName')}</Label><Input value={editForm.lastName} onChange={(event) => setEditForm({ ...editForm, lastName: event.target.value })} required /></div>
+                                <div className="space-y-2"><Label htmlFor="edit-user-first-name">{t('userManager.firstName')}</Label><Input id="edit-user-first-name" value={editForm.firstName} onChange={(event) => setEditForm({ ...editForm, firstName: event.target.value })} required /></div>
+                                <div className="space-y-2"><Label htmlFor="edit-user-last-name">{t('userManager.lastName')}</Label><Input id="edit-user-last-name" value={editForm.lastName} onChange={(event) => setEditForm({ ...editForm, lastName: event.target.value })} required /></div>
                             </div>
-                            <div className="space-y-2"><Label>{t('userManager.email')}</Label><Input type="email" value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} required /></div>
+                            <div className="space-y-2"><Label htmlFor="edit-user-email">{t('userManager.email')}</Label><Input id="edit-user-email" type="email" value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} required /></div>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label>{t('userManager.thRole')}</Label>
-                                    <Select value={editForm.role} onValueChange={(role) => setEditForm({ ...editForm, role })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ROLE_OPTIONS.map((role) => <SelectItem key={role} value={role}>{t(`userManager.roles.${role}`)}</SelectItem>)}</SelectContent></Select>
+                                    <Label htmlFor="edit-user-role">{t('userManager.thRole')}</Label>
+                                    <Select value={editForm.role} onValueChange={(role) => setEditForm({ ...editForm, role })}><SelectTrigger id="edit-user-role"><SelectValue /></SelectTrigger><SelectContent>{ROLE_OPTIONS.map((role) => <SelectItem key={role} value={role}>{t(`userManager.roles.${role}`)}</SelectItem>)}</SelectContent></Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>{t('userManager.thStatus')}</Label>
-                                    <Select value={editForm.status} onValueChange={(status) => setEditForm({ ...editForm, status })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{t(`userManager.statuses.${status}`)}</SelectItem>)}</SelectContent></Select>
+                                    <Label htmlFor="edit-user-status">{t('userManager.thStatus')}</Label>
+                                    <Select value={editForm.status} onValueChange={(status) => setEditForm({ ...editForm, status })}><SelectTrigger id="edit-user-status"><SelectValue /></SelectTrigger><SelectContent>{STATUS_OPTIONS.map((status) => <SelectItem key={status} value={status}>{t(`userManager.statuses.${status}`)}</SelectItem>)}</SelectContent></Select>
                                 </div>
                             </div>
                         </form>

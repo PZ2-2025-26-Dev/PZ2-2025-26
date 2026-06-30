@@ -344,6 +344,9 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                     <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                     <AlertDescription className="flex items-center justify-between gap-3">
                         <span>{error}</span>
+                        <Button variant="ghost" size="sm" onClick={clearError} aria-label={t('a11y.dismiss')}>
+                            <span aria-hidden="true">✕</span>
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={clearError}>x</Button>
                     </AlertDescription>
                 </Alert>

@@ -678,6 +678,7 @@ export default function ItemDetailsModal({
             <Card>
                 <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
                     <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-900"><Lock className="size-5 text-slate-400" /></div>
+                    <strong className="text-sm text-slate-700 dark:text-slate-300">{t('itemDetailsModal.readOnly')}</strong>
                     <strong className="text-sm text-slate-700 dark:text-slate-300">{t('itemDetailsModal.readOnlyTitle')}</strong>
                     <p className="text-xs text-slate-500">{t('itemDetailsModal.readOnlyDesc', { owner: item.owner })}</p>
                 </CardContent>

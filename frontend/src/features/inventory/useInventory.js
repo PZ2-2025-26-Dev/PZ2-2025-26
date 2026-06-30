@@ -73,6 +73,7 @@ export const useInventory = () => {
      * @param {number} itemData.locationId - ID lokalizacji
      * @param {number} itemData.ownerId - ID właściciela/opiekuna
      * @param {string} [itemData.description] - Opis (opcjonalny)
+     * @param {Object<string, string|number|boolean>} [itemData.parameters] - Parametry (opcjonalne)
      * @returns {Promise<{success: boolean, data?: Object, error?: string, statusCode?: number}>}
      */
     const createItem = useCallback(async (itemData) => {
@@ -80,13 +81,19 @@ export const useInventory = () => {
         setError(null);
 
         try {
-            const response = await axiosClient.post(ENDPOINTS.ITEMS.BASE, {
+            const payload = {
                 name: itemData.name,
                 category_id: itemData.categoryId,
                 location_id: itemData.locationId,
                 owner_id: itemData.ownerId,
                 description: itemData.description || null,
-            });
+            };
+
+            if (itemData.parameters && Object.keys(itemData.parameters).length > 0) {
+                payload.parameters = itemData.parameters;
+            }
+
+            const response = await axiosClient.post(ENDPOINTS.ITEMS.BASE, payload);
 
             // HTTP 201: { id, inventory_number, status }
             return {

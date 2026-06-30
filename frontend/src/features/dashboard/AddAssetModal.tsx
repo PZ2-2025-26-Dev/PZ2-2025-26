@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, MapPin, Plus } from 'lucide-react';
+import { AlertCircle, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -22,11 +22,29 @@ import { ROLES } from '../auth/permissions';
 import { useInventory } from '../inventory/useInventory';
 import { useLocations } from '../locations/useLocations';
 import { useUsers } from '../users/useUsers';
-import { useCategories, type Category as CategoryType } from './useCategories';
+import { useCategories } from './useCategories';
 
 type Category = { id: number; name: string; parentId: number | null };
 type ApiUser = { id: number; firstName: string; lastName: string };
 type LocationOption = { id: number; path: string; type: string; isActive: boolean; ownerId: number | null };
+type ParameterField = { id: string; key: string; value: string };
+
+const createParameterField = (): ParameterField => ({
+    id: crypto.randomUUID(),
+    key: '',
+    value: '',
+});
+
+const buildParametersObject = (fields: ParameterField[]): Record<string, string> | null => {
+    const parameters = fields.reduce<Record<string, string>>((accumulator, field) => {
+        const key = field.key.trim();
+        if (!key) return accumulator;
+        accumulator[key] = field.value.trim();
+        return accumulator;
+    }, {});
+
+    return Object.keys(parameters).length > 0 ? parameters : null;
+};
 
 const getUserName = (user: Pick<ApiUser, 'firstName' | 'lastName'>) =>
     `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
@@ -75,6 +93,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         locationId: '',
         ownerId: '',
     });
+    const [parameterFields, setParameterFields] = useState<ParameterField[]>([]);
 
     const indentedCategories = useMemo(() => {
         const result: Array<Category & { depth: number }> = [];
@@ -94,6 +113,7 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         clearError();
         clearLocationError();
         setIsCategoryDialogOpen(false);
+        setParameterFields([]);
         setIsRemoteLocationFormOpen(false);
         setRemoteLocationName('');
         setRemoteLocationAddress('');
@@ -198,6 +218,20 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         setIsCategoryDialogOpen(false);
     };
 
+    const handleAddParameter = () => {
+        setParameterFields((current) => [...current, createParameterField()]);
+    };
+
+    const handleRemoveParameter = (fieldId: string) => {
+        setParameterFields((current) => current.filter((field) => field.id !== fieldId));
+    };
+
+    const handleParameterChange = (fieldId: string, fieldName: 'key' | 'value', nextValue: string) => {
+        setParameterFields((current) =>
+            current.map((field) => (field.id === fieldId ? { ...field, [fieldName]: nextValue } : field)),
+        );
+    };
+
     const handleAddRemoteLocation = async () => {
         const trimmedName = remoteLocationName.trim();
         if (!trimmedName) return;
@@ -231,12 +265,15 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         const locationId = Number(formData.locationId);
         if (!user || !ownerId || !locationId) return;
 
+        const parameters = buildParametersObject(parameterFields);
+
         const result = await createItem({
             name: formData.name,
             categoryId: Number(formData.categoryId),
             locationId,
             ownerId,
             description: formData.description || null,
+            parameters,
         });
 
         if (result.success && result.statusCode === 201) {
@@ -306,10 +343,10 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
                         <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                                 <Label>{t('addAssetModal.category')} *</Label>
+                                 <Label htmlFor="asset-category">{t('addAssetModal.category')} *</Label>
                                  <div className={isAdmin ? 'flex gap-2' : ''}>
                                      <Select value={formData.categoryId} onValueChange={(categoryId) => setFormData((current) => ({ ...current, categoryId }))} disabled={categoriesLoading}>
-                                         <SelectTrigger className={isAdmin ? undefined : 'w-full'}><SelectValue /></SelectTrigger>
+                                         <SelectTrigger id="asset-category" className={isAdmin ? undefined : 'w-full'}><SelectValue /></SelectTrigger>
                                          <SelectContent>
                                              {indentedCategories.map((category) => (
                                                  <SelectItem key={category.id} value={String(category.id)}>
@@ -326,14 +363,14 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                                  </div>
                              </div>
                             <div className="space-y-2">
-                                <Label>{t('addAssetModal.owner')} *</Label>
+                                <Label htmlFor="asset-owner">{t('addAssetModal.owner')} *</Label>
                                 {isAdmin ? (
                                     <Select
                                         value={formData.ownerId}
                                         onValueChange={(ownerId) => setFormData((current) => ({ ...current, ownerId }))}
                                         disabled={usersLoading}
                                     >
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                        <SelectTrigger id="asset-owner"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             {users.map((owner) => (
                                                 <SelectItem key={owner.id} value={String(owner.id)}>
@@ -358,40 +395,91 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                         <Separator />
 
                         <div className="space-y-3">
-                            <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <Label>{t('addAssetModal.locationTitle')} *</Label>
-                                {!isAdmin && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setIsRemoteLocationFormOpen((open) => !open)}
-                                    >
-                                        <MapPin className="size-4" />
-                                        {t('addAssetModal.addRemoteLocation')}
-                                    </Button>
-                                )}
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <Label>{t('addAssetModal.parametersTitle')}</Label>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{t('addAssetModal.parametersHint')}</p>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={handleAddParameter} disabled={isLoading}>
+                                    <Plus className="mr-1 h-4 w-4" />
+                                    {t('addAssetModal.addParameter')}
+                                </Button>
                             </div>
-                            <Select
-                                value={formData.locationId}
-                                onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
-                                disabled={locationsLoading || locations.length === 0}
-                            >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {locations.map((location) => (
-                                        <SelectItem key={location.id} value={String(location.id)}>
-                                            {location.path}
-                                        </SelectItem>
+
+                            {parameterFields.length > 0 && (
+                                <div className="space-y-2">
+                                    {parameterFields.map((field) => (
+                                        <div key={field.id} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                                            <Input
+                                                value={field.key}
+                                                onChange={(event) => handleParameterChange(field.id, 'key', event.target.value)}
+                                                placeholder={t('addAssetModal.parameterKey')}
+                                                disabled={isLoading}
+                                            />
+                                            <Input
+                                                value={field.value}
+                                                onChange={(event) => handleParameterChange(field.id, 'value', event.target.value)}
+                                                placeholder={t('addAssetModal.parameterValue')}
+                                                disabled={isLoading}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={() => handleRemoveParameter(field.id)}
+                                                aria-label={t('addAssetModal.removeParameter')}
+                                                disabled={isLoading}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     ))}
-                                </SelectContent>
-                            </Select>
-                            {!isAdmin && locations.length === 0 && (
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    {t('addAssetModal.noRemoteLocations')}
-                                </p>
+                                </div>
                             )}
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label htmlFor="asset-location">
+                                        {isAdmin ? t('addAssetModal.building') : t('addAssetModal.locationTitle')} *
+                                    </Label>
+                                    {!isAdmin && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsRemoteLocationFormOpen((open) => !open)}
+                                        >
+                                            <MapPin className="size-4" />
+                                            {t('addAssetModal.addRemoteLocation')}
+                                        </Button>
+                                    )}
+                                </div>
+                                <Select
+                                    value={formData.locationId}
+                                    onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
+                                    disabled={locationsLoading || locations.length === 0}
+                                >
+                                    <SelectTrigger id="asset-location"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {locations.map((location) => (
+                                            <SelectItem key={location.id} value={String(location.id)}>
+                                                {location.path}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {isAdmin && !locationsLoading && locations.length === 0 && (
+                                    <p className="text-xs text-rose-600 dark:text-rose-400">{t('addAssetModal.noLocations')}</p>
+                                )}
+                                {!isAdmin && locations.length === 0 && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {t('addAssetModal.noRemoteLocations')}
+                                    </p>
+                                )}
                             </div>
 
                             {!isAdmin && isRemoteLocationFormOpen && (
@@ -464,9 +552,9 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                             <Input id="category-name" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder={t('addAssetModal.categoryPlaceholder')} required />
                         </div>
                         <div className="space-y-2">
-                            <Label>{t('addAssetModal.categoryParentLabel')}</Label>
+                            <Label htmlFor="asset-new-category-parent">{t('addAssetModal.categoryParentLabel')}</Label>
                             <Select value={newCategoryParentId} onValueChange={setNewCategoryParentId}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger id="asset-new-category-parent"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="root">{t('addAssetModal.noParent')}</SelectItem>
                                     {categories.filter((category) => !category.parentId).map((category) => <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>)}

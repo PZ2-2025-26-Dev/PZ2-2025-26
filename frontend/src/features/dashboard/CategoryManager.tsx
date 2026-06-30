@@ -253,13 +253,13 @@ export default function CategoryManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
                             <Plus />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
+                        <Button variant="ghost" size="icon-sm" className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
                             <Pencil />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
+                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
                             <Trash2 />
                         </Button>
                     </div>
@@ -276,15 +276,15 @@ export default function CategoryManager() {
             <Card>
                 <CardHeader className="flex-row items-start justify-between gap-4">
                     <div>
-                        <CardTitle className="text-sm">Kategorie</CardTitle>
-                        <CardDescription className="text-xs">Hierarchia kategorii sprzętu</CardDescription>
+                        <CardTitle className="text-sm">{t('categoryManager.title')}</CardTitle>
+                        <CardDescription className="text-xs">{t('categoryManager.desc')}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon-sm" onClick={() => void refreshCategories()} disabled={isLoading} aria-label={t('categoryManager.refresh')}>
                             <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                         </Button>
                         <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_CATEGORY); setNewCategoryName(''); }}>
-                            <Plus className="mr-2" /> Dodaj kategorię
+                            <Plus className="mr-2" /> {t('categoryManager.addButton')}
                         </Button>
                     </div>
                 </CardHeader>
@@ -294,7 +294,7 @@ export default function CategoryManager() {
                             <AlertCircle />
                             <AlertTitle>{t('categoryManager.errorTitle')}</AlertTitle>
                             <AlertDescription>{error}</AlertDescription>
-                            <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError}>×</Button>
+                            <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError} aria-label={t('a11y.dismiss')}><span aria-hidden="true">×</span></Button>
                         </Alert>
                     )}
 
@@ -325,9 +325,9 @@ export default function CategoryManager() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>{t('categoryManager.parentLabel')}</Label>
+                            <Label htmlFor="new-category-parent">{t('categoryManager.parentLabel')}</Label>
                                 <Select value={selectedParentId} onValueChange={(v: string) => setSelectedParentId(v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger id="new-category-parent"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={ROOT_CATEGORY}>{t('categoryManager.rootLevel')}</SelectItem>
                                     {parentOptions.map((category) => (
@@ -364,9 +364,9 @@ export default function CategoryManager() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>{t('categoryManager.parentLabel')}</Label>
+                                <Label htmlFor="edit-category-parent">{t('categoryManager.parentLabel')}</Label>
                                 <Select value={editForm.parentId} onValueChange={(parentId: string) => setEditForm({ ...editForm, parentId })}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectTrigger id="edit-category-parent"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value={ROOT_CATEGORY}>{t('categoryManager.rootLevel')}</SelectItem>
                                         {editParentOptions.map((category) => (
@@ -397,9 +397,9 @@ export default function CategoryManager() {
                         </p>
                         {hasDeleteReplacementOptions ? (
                             <div className="space-y-2">
-                                <Label>{t('categoryManager.replacementLabel')}</Label>
+                                <Label htmlFor="delete-category-replacement">{t('categoryManager.replacementLabel')}</Label>
                                 <Select value={replacementCategoryId} onValueChange={setReplacementCategoryId}>
-                                    <SelectTrigger><SelectValue placeholder={t('categoryManager.replacementPlaceholder')} /></SelectTrigger>
+                                    <SelectTrigger id="delete-category-replacement"><SelectValue placeholder={t('categoryManager.replacementPlaceholder')} /></SelectTrigger>
                                     <SelectContent>
                                         {deleteReplacementOptions.map((category) => (
                                             <SelectItem key={category.id} value={String(category.id)}>{category.path}</SelectItem>
