@@ -21,6 +21,8 @@ const cleanParams = (params) => Object.fromEntries(
  * @property {string} owner
  * @property {number} ownerId
  * @property {string|null} description
+ * @property {string|null} oldID
+ * @property {Object|null} parameters
  * @property {string} status
  */
 
@@ -41,10 +43,25 @@ export const normalizeItem = (item) => ({
     owner: item.owner?.name ?? '',
     ownerId: item.owner?.id ?? null,
 
+    oldID: item.oldID ?? null,
+    parameters: item.parameters ?? null,
+
     description: item.description ?? null,
 
     status: item.status,
 });
+
+const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(new Blob([blob]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+};
+
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
  * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
@@ -191,6 +208,29 @@ export const useInventory = () => {
         }
     }, []);
 
+    const getItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.DETAILS(itemId));
+            return {
+                success: true,
+                item: normalizeItem(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     /**
      * Pobiera historię zmian przedmiotu
      * @param {number|string} itemId - ID przedmiotu
@@ -227,6 +267,28 @@ export const useInventory = () => {
                 success: false,
                 error: errorMessage,
                 statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const lookupItemByQrCode = useCallback(async (code) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.SCAN(code));
+            return {
+                success: true,
+                item: normalizeItem(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return {
+                success: false,
+                error: errorMessage,
             };
         } finally {
             setIsLoading(false);
@@ -306,17 +368,45 @@ export const useInventory = () => {
         }
     }, []);
 
+    const downloadItemQr = useCallback(async (itemId, format) => {
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.QR(itemId, format), {
+                responseType: 'blob',
+            });
+            downloadBlob(response.data, `item-${itemId}-qr.${format}`);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
+    const downloadItemLabel = useCallback(async (itemId, format, options = {}) => {
+        try {
+            const response = await axiosClient.post(ENDPOINTS.ITEMS.LABEL(itemId, format), options, {
+                responseType: 'blob',
+            });
+            downloadBlob(response.data, `item-${itemId}-label.${format}`);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
     return {
         createItem,
         updateItem,
+        getItem,
         listItems,
         isLoading,
         error,
         clearError,
         getItemHistory,
+        lookupItemByQrCode,
         listAttachments,
         uploadAttachments,
         downloadAttachment,
         deleteAttachment,
+        downloadItemQr,
+        downloadItemLabel,
     };
 };

@@ -17,6 +17,10 @@ export type InventoryItem = {
     locationId?: number;
     owner: string;
     ownerId: number;
-
     description?: string | null;
+    oldID?: string | null;
+    parameters?: Record<string, unknown> | null;
+    producer?: string | null;
+    model?: string | null;
+    serialNumber?: string | null;
 };

@@ -440,7 +440,23 @@
     "uploadFiles": "Dodaj pliki",
     "noAttachments": "Brak załączników",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Usuń"
+    "deleteAttachment": "Usuń",
+    "assetDownloadErrorTitle": "Nie udało się pobrać pliku",
+    "assetDownloadError": "Generowanie pliku nie powiodło się.",
+    "downloadQrPng": "QR PNG",
+    "downloadQrPdf": "QR PDF",
+    "labelExportTitle": "Etykieta przedmiotu",
+    "downloadLabelPng": "Etykieta PNG",
+    "downloadLabelPdf": "Etykieta PDF",
+    "labelFields": {
+      "name": "Nazwa",
+      "description": "Opis",
+      "status": "Status",
+      "category": "Kategoria",
+      "location": "Lokalizacja",
+      "owner": "Właściciel",
+      "oldID": "Stare ID"
+    }
   },
   "userManager": {
     "totalUsers": "Użytkownicy ogółem",

@@ -84,7 +84,7 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, error, clearError } = useInventory();
+    const { listItems, getItem, lookupItemByQrCode, error, clearError } = useInventory();
     const { listCategories } = useCategories();
     const { exportItemsXlsx } = useExport();
 
@@ -92,7 +92,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Dodane brakujące stany dla filtrów (pobierane docelowo z API)
     const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
     const [users, setUsers] = useState<Array<{ id: number; name: string }>>([]);
     const { listUsers } = useUsers();
@@ -101,7 +100,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    
     const [filters, setFilters] = useState<InventoryFiltersState>({
         uuid: '',
         name: '',
@@ -172,21 +170,19 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const refreshItems = useCallback(async () => {
         setIsLoading(true);
-        const result = await listItems({ ...filters, limit: 50 });
+        const result = await listItems({ ...filters, limit: filters.limit || 15 });
         if (result.success) {
             setItems(result.items);
             setTotal(result.total);
             
-            // Wyliczenie statystyk na żywo z pobranych przedmiotów
             const computedStats = { total: result.total, loaned: 0, pending: 0, broken: 0 };
-                result.items.forEach((item: InventoryItem) => {
-                    if (item.status === 'loaned') computedStats.loaned++;
-                    else if (item.status === 'pending_approval') computedStats.pending++;
-                    else if (item.status === 'broken') computedStats.broken++;
-                });
+            result.items.forEach((item: InventoryItem) => {
+                if (item.status === 'loaned') computedStats.loaned++;
+                else if (item.status === 'pending_approval') computedStats.pending++;
+                else if (item.status === 'broken') computedStats.broken++;
+            });
             setStats(computedStats);
         }
-
         setIsLoading(false);
     }, [listItems, filters]);
 
@@ -204,7 +200,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const refreshUsers = useCallback(async () => {
         const result = await listUsers({ status: 'active', limit: 100 });
-
         if (result.success) {
             setUsers(
                 result.users.map(u => ({
@@ -217,7 +212,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
-
         if (result.success) {
             setLocations(result.locations);
         }
@@ -225,18 +219,16 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     useEffect(() => {
         if (!canViewList) return;
-
         refreshItems();
         refreshCategories();
         refreshUsers();
         refreshLocations();
-    }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations, filters]);
+    }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations]);
 
     const handleSort = (field: SortField) => {
         setFilters(prev => {
             const isSameField = prev.sort_by === field;
             const nextOrder = isSameField && prev.sort_order === "asc" ? "desc" : "asc";
-
             return {
                 ...prev,
                 sort_by: field,
@@ -246,7 +238,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         });
     };
 
-    const renderSortIcon = (field: SortField ) => {
+    const renderSortIcon = (field: SortField) => {
         if (filters.sort_by !== field) return <ArrowUpDown className="ml-2 h-4 w-4 inline opacity-40" />;
         return filters.sort_order === "asc" 
             ? <ArrowUp className="ml-2 h-4 w-4 inline text-primary" />
@@ -257,10 +249,21 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         refreshItems();
     };
 
-    
-    const handleQrScan = (decodedText: string) => {
-        setSearchQuery(decodedText);
+    const handleQrScan = async (decodedText: string) => {
         setIsQrScannerOpen(false);
+        const result = await lookupItemByQrCode(decodedText);
+        if (result.success && result.item) {
+            setSelectedItem(result.item);
+            setIsDetailsModalOpen(true);
+            return;
+        }
+        setFilters(prev => ({ ...prev, search: decodedText, page: 1 }));
+    };
+
+    const openItemDetails = async (item: InventoryItem) => {
+        const result = await getItem(item.id);
+        setSelectedItem(result.success && result.item ? result.item : item);
+        setIsDetailsModalOpen(true);
     };
 
     const handleExportXlsx = useCallback(async () => {
@@ -269,6 +272,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             search: filters.search || searchQuery,
         });
     }, [exportItemsXlsx, filters, searchQuery]);
+
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
         setItems((current) => current.map((item) => item.id === itemId ? {
             ...item,
@@ -292,7 +296,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { id: 'locations', label: canManageSystem ? t('dashboard.locationsAndCategories') : t('dashboard.tabLocations'), icon: <MapPinned className="size-5" /> },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
-    
     ];
 
     const renderContent = () => {
@@ -325,6 +328,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h2>
                             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('dashboard.dashboardDesc')}</p>
                         </div>
+                        
                         <InventoryToolbar
                             user={user}
                             filters={filters}
@@ -335,127 +339,128 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             onAdd={() => setIsAddModalOpen(true)}
                             onExport={handleExportXlsx}
                             isLoading={isLoading}
-                            />
+                        />
 
-                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <Table className="min-w-full">
-                                    
-                                    {/* HEADER */}
-                                    <TableHeader>
-                                        <TableRow className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40">
-                                            {columns.map((col) => (
-                                                <TableHead
-                                                    key={String(col.field)}
-                                                    className={`
-                                                        whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
-                                                        ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
-                                                    `}
-                                                    onClick={() => col.sortable && col.field && handleSort(col.field)}
-                                                >
-                                                    <div className="flex items-center gap-1">
-                                                        {col.label}
-                                                        {col.sortable && col.field && renderSortIcon(col.field)}
-                                                    </div>
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-
-                                    {/* BODY */}
-                                    <TableBody>
-                                        {isLoading ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
-                                                    {t('common.loading')}
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : items.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
-                                                    {t('dashboard.noResults')}
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            items.map((item, index) => (
-                                                <TableRow
-                                                    key={item.id}
-                                                    onClick={() => {
-                                                        setSelectedItem(item);
-                                                        setIsDetailsModalOpen(true);
-                                                    }}
-                                                    className="
-                                                        group cursor-pointer border-b border-slate-100
-                                                        hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40
-                                                        transition-colors duration-150
-                                                    "
-                                                >
-                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">
-                                                        {item.id}
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-medium text-slate-900 dark:text-white">
-                                                                {item.name}
-                                                            </span>
-                                                            {item.description && (
-                                                                <span className="text-xs text-slate-400 line-clamp-1">
-                                                                    {item.description}
-                                                                </span>
-                                                            )}
+                        {/* Główna tabela danych zajmująca pełną szerokość */}
+                        <div className="space-y-4">
+                            <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <Table className="min-w-full">
+                                        <TableHeader>
+                                            <TableRow className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40">
+                                                {columns.map((col) => (
+                                                    <TableHead
+                                                        key={String(col.field)}
+                                                        className={`
+                                                            whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
+                                                            ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
+                                                        `}
+                                                        onClick={() => col.sortable && col.field && handleSort(col.field)}
+                                                    >
+                                                        <div className="flex items-center gap-1">
+                                                            {col.label}
+                                                            {col.sortable && col.field && renderSortIcon(col.field)}
                                                         </div>
-                                                    </TableCell>
+                                                    </TableHead>
+                                                ))}
+                                            </TableRow>
+                                        </TableHeader>
 
-                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                        {item.category}
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                        {item.location}
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3">
-                                                        <StatusBadge status={item.status} />
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                        {item.owner}
+                                        <TableBody>
+                                            {isLoading ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
+                                                        {t('common.loading')}
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </div>
+                                            ) : items.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
+                                                        {t('dashboard.noResults')}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                items.map((item) => (
+                                                    <TableRow
+                                                        key={item.id}
+                                                        onClick={() => {
+                                                            setSelectedItem(item);
+                                                            setIsDetailsModalOpen(true);
+                                                        }}
+                                                        className="
+                                                            group cursor-pointer border-b border-slate-100
+                                                            hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40
+                                                            transition-colors duration-150
+                                                        "
+                                                    >
+                                                        <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">
+                                                            {item.id}
+                                                        </TableCell>
 
-                        {/* Paginacja */}
-                        <div className="flex items-center justify-between space-x-2 py-4">
-                            <div className="text-sm text-muted-foreground">
-                                {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
-                            </div>
-                            <div className="flex space-x-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
-                                    disabled={filters.page === 1 || isLoading}
-                                >
-                                    {t("inventoryFilters.common.previous")}
-                                </Button>
-                                <div className="flex items-center justify-center text-sm font-medium px-2">
-                                    {t('inventoryFilters.common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                                                        <TableCell className="px-4 py-3">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-slate-900 dark:text-white">
+                                                                    {item.name}
+                                                                </span>
+                                                                {item.description && (
+                                                                    <span className="text-xs text-slate-400 line-clamp-1">
+                                                                        {item.description}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+
+                                                        <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                                            {item.category}
+                                                        </TableCell>
+
+                                                        <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                                            {item.location}
+                                                        </TableCell>
+
+                                                        <TableCell className="px-4 py-3">
+                                                            <StatusBadge status={item.status} />
+                                                        </TableCell>
+
+                                                        <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                                            {item.owner}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
-                                    disabled={items.length < (filters.limit || 15) || isLoading}
-                                >
-                                    {t("inventoryFilters.common.next")}
-                                </Button>
                             </div>
+
+                            {/* Paginacja serwerowa z HEAD */}
+                            <div className="flex items-center justify-between space-x-2 py-4">
+                                <div className="text-sm text-muted-foreground">
+                                    {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
+                                </div>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
+                                        disabled={filters.page === 1 || isLoading}
+                                    >
+                                        {t("inventoryFilters.common.previous")}
+                                    </Button>
+                                    <div className="flex items-center justify-center text-sm font-medium px-2">
+                                        {t('inventoryFilters.common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
+                                        disabled={items.length < (filters.limit || 15) || isLoading}
+                                    >
+                                        {t("inventoryFilters.common.next")}
+                                    </Button>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 );
@@ -482,14 +487,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         />
                     </div>
                 );
-            
             case 'directory':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
                         <UserDirectory user={user} />
                     </RoleGuard>
                 );
-
             case 'users':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
@@ -551,7 +554,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     <nav className="flex flex-col gap-1 overflow-y-auto px-2 py-2">
                         {menuItems.map((item) => {
                             const requiresPermission = item.requiresPermission ? hasPermission(user, item.requiresPermission) : true;
-                            
                             if (!requiresPermission) return null;
 
                             const isActive = activeSection === item.id;

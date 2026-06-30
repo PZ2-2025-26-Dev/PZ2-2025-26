@@ -376,7 +376,23 @@
     "uploadFiles": "Upload files",
     "noAttachments": "No attachments",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Delete"
+    "deleteAttachment": "Delete",
+    "assetDownloadErrorTitle": "Could not download file",
+    "assetDownloadError": "File generation failed.",
+    "downloadQrPng": "QR PNG",
+    "downloadQrPdf": "QR PDF",
+    "labelExportTitle": "Item label",
+    "downloadLabelPng": "Label PNG",
+    "downloadLabelPdf": "Label PDF",
+    "labelFields": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "category": "Category",
+      "location": "Location",
+      "owner": "Owner",
+      "oldID": "Old ID"
+    }
   },
   "inventoryFilters": {
     "searchPlaceholder": "Search by name, description...",
