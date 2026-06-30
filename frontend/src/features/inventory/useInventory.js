@@ -24,6 +24,8 @@ const cleanParams = (params) => Object.fromEntries(
  * @property {string|null} oldID
  * @property {Object|null} parameters
  * @property {string} status
+ * @property {string|null} borrower
+ * @property {string|null} dueDate
  */
 
 /**
@@ -49,6 +51,10 @@ export const normalizeItem = (item) => ({
     description: item.description ?? null,
 
     status: item.status,
+
+    // Mapowanie nowych pól zwracanych przez API do użytku w tabeli
+    borrower: item.borrower ?? null,
+    dueDate: item.dueDate ?? null,
 });
 
 const downloadBlob = (blob, filename) => {
@@ -93,7 +99,6 @@ export const useInventory = () => {
                 description: itemData.description || null,
             });
 
-            // HTTP 201: { id, inventory_number, status }
             return {
                 success: true,
                 data: response.data,
@@ -121,6 +126,7 @@ export const useInventory = () => {
      * @param {number} [filters.categoryId]
      * @param {number} [filters.locationId]
      * @param {number} [filters.ownerId]
+     * @param {string} [filters.sort] - Skonsolidowany ciąg sortowania, np. "status:desc,name:asc"
      * @param {number} [filters.page]
      * @param {number} [filters.limit]
      * @returns {Promise<{success: boolean, items?: InventoryItem[], total?: number, page?: number, limit?: number, error?: string}>}
@@ -130,6 +136,8 @@ export const useInventory = () => {
         setError(null);
 
         try {
+            console.log(filters)
+            console.log(filters.custom_params)
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
                     uuid: filters.uuid,
@@ -141,11 +149,13 @@ export const useInventory = () => {
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
                     borrower_id: filters.borrowerId,
-                    sort_by: filters.sort_by ?? "name",
-                    sort_order: filters.sort_order ?? "asc",
+                    
+                    // Wysłanie skonsolidowanego parametru 'sort' zamiast oddzielnych 'sort_by' i 'sort_order'
+                    sort: filters.sort ?? "name:asc",
+                    
                     page: filters.page ?? 1,
                     limit: filters.limit ?? 20,
-                    ...filters.parameters // Rozpakowanie parametrów jako query params
+                    custom_params: filters.custom_params // Rozpakowanie parametrów jako query params
                 }),
             });
 
@@ -238,7 +248,6 @@ export const useInventory = () => {
      * @param {number} [limit=ITEM_HISTORY_PAGE_LIMIT] - Liczba wpisów na stronie
      * @returns {Promise<{success: boolean, data?: Array, pagination?: Object, error?: string, statusCode?: number}>}
      */
-
     const getItemHistory = useCallback(async (itemId, page = 1, limit = ITEM_HISTORY_PAGE_LIMIT) => {
         setIsLoading(true);
         setError(null);
@@ -260,7 +269,6 @@ export const useInventory = () => {
             };
         } catch (err) {
             const errorMessage = parseApiError(err);
-
             setError(errorMessage);
 
             return {

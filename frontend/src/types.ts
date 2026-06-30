@@ -23,4 +23,6 @@ export type InventoryItem = {
     producer?: string | null;
     model?: string | null;
     serialNumber?: string | null;
+    borrower?: string | null;
+    dueDate?: string | null;
 };

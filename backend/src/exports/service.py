@@ -46,6 +46,14 @@ class ExportService:
             selectinload(Item.owner),
         )
 
+        sort_by = "name"
+        sort_order = "asc"
+
+        if data.sort and ":" in data.sort:
+            sort_by, sort_order = data.sort.split(":", 1)
+        elif data.sort:
+            sort_by = data.sort
+
         sort_field_map = {
             "id": Item.id,
             "name": Item.name,
@@ -55,16 +63,19 @@ class ExportService:
             "owner": User.last_name,
         }
 
-        if data.sort_by == "category":
+        if sort_by == "category":
             stmt = stmt.join(Item.category)
-        elif data.sort_by == "location":
+        elif sort_by == "location":
             stmt = stmt.join(Item.location)
-        elif data.sort_by == "owner":
+        elif sort_by == "owner":
             stmt = stmt.join(Item.owner)
 
-        sort_column = sort_field_map.get(data.sort_by, Item.id)
+        sort_column = sort_field_map.get(sort_by, Item.id)
 
-        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
+        if sort_order == "desc":
+            stmt = stmt.order_by(sort_column.desc())
+        else:
+            stmt = stmt.order_by(sort_column.asc())
 
         items = self.db.execute(stmt).scalars().all()
 

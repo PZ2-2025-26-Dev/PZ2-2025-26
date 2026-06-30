@@ -259,17 +259,28 @@ class ItemService:
         if data.borrower_id:
             loan_exists = exists().where(
                 Loan.item_id == Item.id,
-                Loan.status == LoanStatus.LOANED,
+                Loan.status == LoanStatus.ACTIVE,
                 or_(
                     Loan.user_id == data.borrower_id,
                     Loan.guest_id == data.borrower_id,
                 ),
             )
-
             stmt = stmt.where(loan_exists)
 
         if data.status:
             stmt = stmt.where(Item.status == data.status)
+
+        if data.custom_params:
+            pairs = data.custom_params.split(",")
+            for pair in pairs:
+                if ":" in pair:
+                    key, value = pair.split(":", 1)
+                    key = key.strip()
+                    value = value.strip()
+                    
+                    if value and value.lower() != "all":
+                        q = f"%{value.lower()}%"
+                        stmt = stmt.where(func.lower(Item.parameters[key].as_string()).like(q))
 
         return stmt
 
@@ -280,13 +291,14 @@ class ItemService:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.db.execute(count_stmt).scalar_one()
 
-        # doładowanie relacji
+        # doładowanie podstawowych relacji
         stmt = stmt.options(
             selectinload(Item.category),
             selectinload(Item.location),
             selectinload(Item.owner),
         )
 
+        # Mapa pól sortowania na kolumny bazodanowe
         sort_field_map = {
             "id": Item.id,
             "name": Item.name,
@@ -296,51 +308,105 @@ class ItemService:
             "owner": User.last_name,
         }
 
-        if data.sort_by == "category":
-            stmt = stmt.join(Item.category)
-        elif data.sort_by == "location":
-            stmt = stmt.join(Item.location)
-        elif data.sort_by == "owner":
-            stmt = stmt.join(Item.owner)
+        sort_criterias = []
+        if data.sort:
+            parts = data.sort.split(",")
+            for part in parts:
+                if ":" in part:
+                    field, order = part.split(":", 1)
+                else:
+                    field, order = part, "asc"
+                
+                field = field.strip().lower()
+                order = order.strip().lower()
+                if field in sort_field_map:
+                    sort_criterias.append((field, order))
 
-        sort_column = sort_field_map.get(data.sort_by, Item.id)
+        joined_tables = set()
+        for field, _ in sort_criterias:
+            if field == "category" and "category" not in joined_tables:
+                stmt = stmt.join(Item.category, isouter=True)
+                joined_tables.add("category")
+            elif field == "location" and "location" not in joined_tables:
+                stmt = stmt.join(Item.location, isouter=True)
+                joined_tables.add("location")
+            elif field == "owner" and "owner" not in joined_tables:
+                stmt = stmt.join(Item.owner, isouter=True)
+                joined_tables.add("owner")
 
-        stmt = stmt.order_by(sort_column.desc()) if data.sort_order == "desc" else stmt.order_by(sort_column.asc())
+        order_by_clauses = []
+        for field, order in sort_criterias:
+            if field == "borrower":
+                column = User.last_name
+            elif field == "duedate":
+                column = Loan.declared_return_date 
+            else:
+                column = sort_field_map.get(field, Item.id)
+
+            if order == "desc":
+                order_by_clauses.append(column.desc())
+            else:
+                order_by_clauses.append(column.asc())
+
+        if not order_by_clauses:
+            order_by_clauses.append(Item.id.desc())
+
+        stmt = stmt.order_by(*order_by_clauses)
 
         offset = (data.page - 1) * data.limit
         stmt = stmt.offset(offset).limit(data.limit)
 
         results = self.db.execute(stmt).scalars().all()
 
-        items = [
-            ItemSearchResponse(
-                id=item.uuid,
-                name=item.name,
-                status=item.status,
-                oldID=item.oldID,
-                category=ItemCategory(
-                    id=item.category.id,
-                    name=item.category.name,
-                    path=build_category_path(item.category),
+        items = []
+        for item in results:
+            # Zamiast selectinload(Loan.user) robimy ręczny, bezpieczny JOIN z tabelą User
+            loan_data = self.db.execute(
+                select(Loan, User)
+                .join(User, Loan.user_id == User.id, isouter=True)
+                .where(Loan.item_id == item.id, Loan.status == LoanStatus.ACTIVE)
+            ).first()
+
+            borrower_name = None
+            due_date_str = None
+            
+            if loan_data:
+                loan_obj, user_obj = loan_data
+                
+                if user_obj:
+                    borrower_name = f"{user_obj.first_name} {user_obj.last_name}".strip()
+                elif getattr(loan_obj, 'guest_id', None):
+                    borrower_name = f"Gość #{loan_obj.guest_id}"
+                
+                # Bezpieczne pobieranie daty z obiektu wypożyczenia
+                due_date_val = getattr(loan_obj, 'due_date', None) or getattr(loan_obj, 'declared_return_date', None)
+                if due_date_val:
+                    due_date_str = due_date_val.strftime("%Y-%m-%d")
+
+            items.append(
+                ItemSearchResponse(
+                    id=item.uuid,
+                    name=item.name,
+                    status=item.status,
+                    oldID=item.oldID,
+                    category=ItemCategory(
+                        id=item.category.id,
+                        name=item.category.name,
+                        path=build_category_path(item.category),
+                    ) if item.category else None,
+                    location=ItemLocation(
+                        id=item.location.id,
+                        path=build_location_path(item.location),
+                    ) if item.location else None,
+                    owner=ItemOwner(
+                        id=item.owner.id,
+                        name=self._owner_display_name(item.owner),
+                    ) if item.owner else None,
+                    description=item.description,
+                    borrower=borrower_name,
+                    dueDate=due_date_str
                 )
-                if item.category
-                else None,
-                location=ItemLocation(
-                    id=item.location.id,
-                    path=build_location_path(item.location),
-                )
-                if item.location
-                else None,
-                owner=ItemOwner(
-                    id=item.owner.id,
-                    name=self._owner_display_name(item.owner),
-                )
-                if item.owner
-                else None,
-                description=item.description,
             )
-            for item in results
-        ]
 
         return ItemsPaged(
             items=items,

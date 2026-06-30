@@ -107,7 +107,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         sort_order: 'asc',
         page: 1,
         limit: 15,
-        parameters: undefined,
+        custom_params: undefined
     });
 
     const [activeSection, setActiveSection] = useState<MenuSection>(() => {
@@ -137,12 +137,23 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { label: t('addAssetModal.owner'), field: "owner", sortable: true },
     ];
 
+    
+
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
     }, [isDarkMode]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
     const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+
+    type SortCriteria = {
+        field: SortField;
+        order: 'asc' | 'desc';
+    };
+
+    const [sortCriteria, setSortCriteria] = useState<SortCriteria[]>([
+        { field: 'name', order: 'asc' }
+    ]);
 
     useEffect(() => {
         localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
@@ -201,24 +212,66 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         refreshLocations();
     }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations]);
 
-    const handleSort = (field: SortField) => {
-        setFilters(prev => {
-            const isSameField = prev.sort_by === field;
-            const nextOrder = isSameField && prev.sort_order === "asc" ? "desc" : "asc";
-            return {
-                ...prev,
-                sort_by: field,
-                sort_order: nextOrder,
-                page: 1,
-            };
+    const handleSort = (field: SortField, event: React.MouseEvent) => {
+        setSortCriteria(prev => {
+            const isShiftPressed = event.shiftKey;
+            const existingIndex = prev.findIndex(c => c.field === field);
+
+            if (isShiftPressed) {
+                // Jeżeli kliknięto z Shiftem - dodajemy lub modyfikujemy wariant w tablicy
+                if (existingIndex > -1) {
+                    const currentOrder = prev[existingIndex].order;
+                    const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                    const updated = [...prev];
+                    updated[existingIndex] = { field, order: nextOrder };
+                    return updated;
+                } else {
+                    // Dodajemy nowe pole na koniec kolejki sortowania
+                    return [...prev, { field, order: 'asc' }];
+                }
+            } else {
+                // Bez Shifta - standardowe zachowanie (czyścimy resztę, zostaje tylko to jedno)
+                if (prev.length === 1 && prev[0].field === field) {
+                    // Jeśli to jedyne pole, odwracamy kierunek
+                    return [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
+                }
+                // W przeciwnym wypadku ustawiamy to pole jako jedyne rosnąco
+                return [{ field, order: 'asc' }];
+            }
         });
     };
 
+    useEffect(() => {
+        const sortString = sortCriteria
+            .map(c => `${c.field}:${c.order}`)
+            .join(',');
+
+        setFilters(prev => ({
+            ...prev,
+            sort: sortString, 
+            page: 1, 
+        }));
+    }, [sortCriteria]);
+
     const renderSortIcon = (field: SortField) => {
-        if (filters.sort_by !== field) return <ArrowUpDown className="ml-2 h-4 w-4 inline opacity-40" />;
-        return filters.sort_order === "asc" 
+        const index = sortCriteria.findIndex(c => c.field === field);
+        if (index === -1) return <ArrowUpDown className="ml-2 h-4 w-4 inline opacity-40" />;
+        
+        const criteria = sortCriteria[index];
+        const icon = criteria.order === "asc" 
             ? <ArrowUp className="ml-2 h-4 w-4 inline text-primary" />
             : <ArrowDown className="ml-2 h-4 w-4 inline text-primary" />;
+
+        return (
+            <div className="inline-flex items-center">
+                {icon}
+                {sortCriteria.length > 1 && (
+                    <span className="text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1 rounded ml-0.5 font-bold">
+                        {index + 1}
+                    </span>
+                )}
+            </div>
+        );
     };
 
     const stats = useMemo(() => ({
@@ -342,7 +395,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                             whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
                                                             ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
                                                         `}
-                                                        onClick={() => col.sortable && col.field && handleSort(col.field)}
+                                                        // PRZEKAZUJEMY EVENT DO HANDLE_SORT:
+                                                        onClick={(e) => col.sortable && col.field && handleSort(col.field, e)}
                                                     >
                                                         <div className="flex items-center gap-1">
                                                             {col.label}

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Dict, Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -75,11 +75,12 @@ class ItemSearch(BaseModel):
     borrower_id: UserID | None = None
     search: SearchStr | None = None
 
-    sort_by: ItemSortField = "name"
-    sort_order: SortOrder = "asc"
+    sort: str = "name:asc"
 
     page: Annotated[int, Field(ge=1)] = 1
     limit: Annotated[int, Field(ge=1, le=100)] = 20
+
+    custom_params: str | None = None
 
 
 class ItemSearchResponse(BaseModel):
@@ -91,6 +92,8 @@ class ItemSearchResponse(BaseModel):
     location: ItemLocation
     owner: ItemOwner
     description: ItemDescription | None
+    borrower: str | None = None
+    dueDate: str | None = None
 
 
 class ItemGetResponse(BaseModel):

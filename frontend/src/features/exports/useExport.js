@@ -39,7 +39,7 @@ export const useExport = () => {
                     sort_order: filters.sort_order ?? "asc",
                     page: filters.page ?? 1,
                     limit: filters.limit ?? 20,
-                    ...filters.parameters
+                    custom_params: filters.custom_params
                     }),
                     responseType: 'blob', 
                 }

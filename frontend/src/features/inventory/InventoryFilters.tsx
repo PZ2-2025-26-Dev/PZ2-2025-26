@@ -48,6 +48,7 @@ export type InventoryFiltersState = {
   page?: number;
   limit?: number;
   parameters?: Record<string, string>;
+  custom_params?: string; // DODANE: Typ dla zakodowanego ciągu parametrów customowych
 };
 
 type Props = {
@@ -56,7 +57,6 @@ type Props = {
   categories: Category[];
   locations: Location[];
   users: User[];
-
 
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
@@ -115,46 +115,49 @@ export default function InventoryFilters({
   }, [categories]);
 
   // Obsługa zmian w dynamicznych wierszach parametrów
+  // Ta funkcja zbiera tablicę [{key, value}] i tworzy string dla API
+  const buildCustomParamsString = (paramsArray: TechParamRow[]): string | undefined => {
+    const filledParams = paramsArray
+      .filter(p => p.key.trim() !== '' && p.value.trim() !== '') // tylko wypełnione pola
+      .map(p => `${p.key.trim()}:${p.value.trim()}`);
+    
+    return filledParams.length > 0 ? filledParams.join(',') : undefined;
+  };
+
+  // Obsługa zmiany wartości w dynamicznych polach tekstowych parametrów customowych
   const handleParamChange = (index: number, field: keyof TechParamRow, value: string) => {
-    const updated = [...techParams];
-    updated[index][field] = value;
-    setTechParams(updated);
+    const updatedParams = [...techParams];
+    updatedParams[index][field] = value;
+    setTechParams(updatedParams); // Twój stan lokalny komponentu
 
-    // Budowanie obiektu parameters (Record<string, string>) dla backendu
-    const paramsObj: Record<string, string> = {};
-    updated.forEach(p => {
-      if (p.key.trim() && p.value.trim()) {
-        paramsObj[p.key.trim()] = p.value.trim();
-      }
-    });
+    // Generujemy string na backend
+    const customParamsString = buildCustomParamsString(updatedParams);
 
+    // POPRAWKA: Zmiana onFiltersChange na onChange zgodnie z deklaracją komponentu
     onChange({
       ...filters,
-      parameters: Object.keys(paramsObj).length > 0 ? paramsObj : undefined,
-      page: 1, 
-    });
-  };
-
-  const addParamCriterion = () => {
-    setTechParams([...techParams, { key: "", value: "" }]);
-  };
-
-  const removeParamCriterion = (index: number) => {
-    const updated = techParams.filter((_, i) => i !== index);
-    setTechParams(updated.length > 0 ? updated : [{ key: "", value: "" }]);
-
-    const paramsObj: Record<string, string> = {};
-    updated.forEach(p => {
-      if (p.key.trim() && p.value.trim()) {
-        paramsObj[p.key.trim()] = p.value.trim();
-      }
-    });
-
-    onChange({
-      ...filters,
-      parameters: Object.keys(paramsObj).length > 0 ? paramsObj : undefined,
+      custom_params: customParamsString,
       page: 1,
     });
+  };
+
+  // Usuwanie kryterium z listy parametrów customowych
+  const removeParamCriterion = (index: number) => {
+    const updatedParams = techParams.filter((_, i) => i !== index);
+    setTechParams(updatedParams);
+    
+    const customParamsString = buildCustomParamsString(updatedParams);
+    
+    // POPRAWKA: Zmiana onFiltersChange na onChange zgodnie z deklaracją komponentu
+    onChange({
+      ...filters,
+      custom_params: customParamsString,
+      page: 1,
+    });
+  };
+  
+  const addParamCriterion = () => {
+    setTechParams([...techParams, { key: "", value: "" }]);
   };
 
   const updateFilterField = (field: keyof InventoryFiltersState, value: string) => {
