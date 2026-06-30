@@ -62,4 +62,3 @@ def api_client(db: Session) -> Iterator[TestClient]:
             app.dependency_overrides.pop(get_db, None)
         else:
             app.dependency_overrides[get_db] = previous_override
-
