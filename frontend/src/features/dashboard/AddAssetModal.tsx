@@ -22,7 +22,7 @@ import { ROLES } from '../auth/permissions';
 import { useInventory } from '../inventory/useInventory';
 import { useLocations } from '../locations/useLocations';
 import { useUsers } from '../users/useUsers';
-import { useCategories, type Category as CategoryType } from './useCategories';
+import { useCategories } from './useCategories';
 
 type Category = { id: number; name: string; parentId: number | null };
 type ApiUser = { id: number; firstName: string; lastName: string };
