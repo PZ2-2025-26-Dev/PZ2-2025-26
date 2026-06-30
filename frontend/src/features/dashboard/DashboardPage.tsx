@@ -362,11 +362,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
-    const openItemDetails = (item: InventoryItem) => {
-        setSelectedItem(item);
-        setIsDetailsModalOpen(true);
-    };
-
     // Menu items with role-based visibility
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
@@ -513,7 +508,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         <AlertDescription className="flex items-center justify-between gap-3">
                                             <span>{error}</span>
                                             <Button variant="outline" size="sm" onClick={clearError} aria-label={t('a11y.dismiss')}><span aria-hidden="true">✕</span></Button>
-                                            <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -578,32 +572,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                     className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/70"
                                                     tabIndex={0}
                                                     role="button"
-                                                    aria-label={t('dashboard.openItemDetails', { name: item.name })}
-                                                    onClick={() => openItemDetails(item)}
-                                                    onKeyDown={(event) => {
-                                                        if (event.key === 'Enter' || event.key === ' ') {
-                                                            event.preventDefault();
-                                                            openItemDetails(item);
-                                            ) : filteredItems.length > 0 ? filteredItems.map((item) => {
-                                                const openDetails = () => { setSelectedItem(item); setIsDetailsModalOpen(true); };
-                                                return (
-                                                <TableRow
-                                                    key={item.id}
-                                                    role="button"
-                                                    tabIndex={0}
                                                     aria-label={t('a11y.openItemDetails', { name: item.name })}
-                                                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
-                                                    onClick={openDetails}
+                                                    onClick={() => void openItemDetails(item)}
                                                     onKeyDown={(event) => {
                                                         if (event.key === 'Enter' || event.key === ' ') {
                                                             event.preventDefault();
-                                                            openDetails();
+                                                            void openItemDetails(item);
                                                         }
                                                     }}
                                                 >
-
-                                                <TableRow key={item.id} className="cursor-pointer" onClick={() => void openItemDetails(item) }>
-
                                                     <TableCell className="font-mono text-xs text-slate-400">{item.inventory_number ?? item.id}</TableCell>
                                                     <TableCell>
                                                         <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
@@ -619,8 +596,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                     </TableCell>
                                                     <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
                                                 </TableRow>
-                                                );
-                                            }) : (
+                                            )) : (
                                                 <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
                                             )}
                                         </TableBody>

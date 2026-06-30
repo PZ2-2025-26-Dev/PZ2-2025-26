@@ -630,13 +630,7 @@
      "dismiss": "Dismiss message",
      "closeSidebar": "Close sidebar",
      "close": "Close"
-   }
- }
-    "registerErrorTitle": "Registration failed",
-    "registerSuccessTitle": "Registration successful",
-    "registering": "Creating account...",
-    "emailAlreadyExists": "An account with this email already exists"
-  },
+   },
   "guests": {
     "title": "Users and guests directory",
     "desc": "Browse people in the system and add guest accounts for lending.",
