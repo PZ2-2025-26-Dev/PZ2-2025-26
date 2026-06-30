@@ -308,15 +308,15 @@ export default function CategoryManager() {
             <Card>
                 <CardHeader className="flex-row items-start justify-between gap-4">
                     <div>
-                        <CardTitle className="text-sm">Kategorie</CardTitle>
-                        <CardDescription className="text-xs">Hierarchia kategorii sprzętu</CardDescription>
+                        <CardTitle className="text-sm">{t("dashboard.tabCategories")}</CardTitle>
+                        <CardDescription className="text-xs">{t("categoryManager.desc")}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon-sm" onClick={() => void refreshCategories()} disabled={isLoading} aria-label={t('categoryManager.refresh')}>
                             <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                         </Button>
                         <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_CATEGORY); setNewCategoryName(''); }}>
-                            <Plus className="mr-2" /> Dodaj kategorię
+                            <Plus className="mr-2" /> {t("categoryManager.addTitle")}
                         </Button>
                     </div>
                 </CardHeader>
