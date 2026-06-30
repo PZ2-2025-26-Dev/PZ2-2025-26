@@ -72,10 +72,7 @@ class ExportService:
 
         sort_column = sort_field_map.get(sort_by, Item.id)
 
-        if sort_order == "desc":
-            stmt = stmt.order_by(sort_column.desc())
-        else:
-            stmt = stmt.order_by(sort_column.asc())
+        stmt = stmt.order_by(sort_column.desc()) if sort_order == "desc" else stmt.order_by(sort_column.asc())
 
         items = self.db.execute(stmt).scalars().all()
 

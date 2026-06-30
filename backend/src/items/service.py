@@ -277,7 +277,7 @@ class ItemService:
                     key, value = pair.split(":", 1)
                     key = key.strip()
                     value = value.strip()
-                    
+
                     if value and value.lower() != "all":
                         q = f"%{value.lower()}%"
                         stmt = stmt.where(func.lower(Item.parameters[key].as_string()).like(q))
@@ -316,7 +316,7 @@ class ItemService:
                     field, order = part.split(":", 1)
                 else:
                     field, order = part, "asc"
-                
+
                 field = field.strip().lower()
                 order = order.strip().lower()
                 if field in sort_field_map:
@@ -339,7 +339,7 @@ class ItemService:
             if field == "borrower":
                 column = User.last_name
             elif field == "duedate":
-                column = Loan.declared_return_date 
+                column = Loan.declared_return_date
             else:
                 column = sort_field_map.get(field, Item.id)
 
@@ -369,17 +369,17 @@ class ItemService:
 
             borrower_name = None
             due_date_str = None
-            
+
             if loan_data:
                 loan_obj, user_obj = loan_data
-                
+
                 if user_obj:
                     borrower_name = f"{user_obj.first_name} {user_obj.last_name}".strip()
-                elif getattr(loan_obj, 'guest_id', None):
+                elif getattr(loan_obj, "guest_id", None):
                     borrower_name = f"Gość #{loan_obj.guest_id}"
-                
+
                 # Bezpieczne pobieranie daty z obiektu wypożyczenia
-                due_date_val = getattr(loan_obj, 'due_date', None) or getattr(loan_obj, 'declared_return_date', None)
+                due_date_val = getattr(loan_obj, "due_date", None) or getattr(loan_obj, "declared_return_date", None)
                 if due_date_val:
                     due_date_str = due_date_val.strftime("%Y-%m-%d")
 
@@ -393,18 +393,24 @@ class ItemService:
                         id=item.category.id,
                         name=item.category.name,
                         path=build_category_path(item.category),
-                    ) if item.category else None,
+                    )
+                    if item.category
+                    else None,
                     location=ItemLocation(
                         id=item.location.id,
                         path=build_location_path(item.location),
-                    ) if item.location else None,
+                    )
+                    if item.location
+                    else None,
                     owner=ItemOwner(
                         id=item.owner.id,
                         name=self._owner_display_name(item.owner),
-                    ) if item.owner else None,
+                    )
+                    if item.owner
+                    else None,
                     description=item.description,
                     borrower=borrower_name,
-                    dueDate=due_date_str
+                    dueDate=due_date_str,
                 )
             )
 

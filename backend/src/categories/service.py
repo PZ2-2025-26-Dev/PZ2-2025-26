@@ -106,17 +106,17 @@ class CategoryService:
             .group_by(Category.id)
             .order_by(Category.id)
         )
-        
+
         # 2. Obliczamy całkowitą ilość kategorii (total) dla paginacji
         # Ponieważ zapytanie ma group_by, najbezpieczniej policzyć ogólną liczbę kategorii osobnym selectem
         total = self.db.scalar(select(func.count(Category.id))) or 0
-        
+
         # 3. Nakładamy paginację (offset i limit)
         offset = (page - 1) * limit
         stmt = stmt.offset(offset).limit(limit)
-        
+
         results = self.db.execute(stmt).all()
-        
+
         categories_out: list[CategoryResponse] = []
         for category, item_count in results:
             categories_out.append(
@@ -125,10 +125,10 @@ class CategoryService:
                     name=category.name,
                     parent_id=category.parent_id,
                     path=build_category_path(category),
-                    item_count=item_count
+                    item_count=item_count,
                 )
             )
-            
+
         return categories_out, total
 
     def get_category_items(self, category_id: int, page: int, limit: int) -> tuple[list[CategoryItem], int]:

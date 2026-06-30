@@ -40,6 +40,6 @@ def test_category_update_accepts_parentless_category():
 
 
 def test_category_response_accepts_public_path():
-    response = CategoryResponse(id=1, name="Telefony", parent_id=2, path="Elektronika / Telefony")
+    response = CategoryResponse(id=1, name="Telefony", parent_id=2, path="Elektronika / Telefony", item_count=0)
 
     assert response.path == "Elektronika / Telefony"
