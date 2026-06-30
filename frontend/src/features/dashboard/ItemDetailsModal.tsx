@@ -966,7 +966,7 @@ export default function ItemDetailsModal({
                                             <p className="mt-1 break-all font-mono text-xs text-slate-500 dark:text-slate-400">{item.id}</p>
                                         </div>
                                     </div>
-                                    {isOwner && (
+                                    {isOwnerOrAdmin && (
                                         <div className="mt-4 space-y-4">
                                             {assetDownloadError && (
                                                 <Alert variant="destructive">
