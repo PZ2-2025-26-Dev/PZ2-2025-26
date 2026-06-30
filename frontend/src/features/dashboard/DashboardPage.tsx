@@ -186,7 +186,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [listCategories]);
 
     const refreshUsers = useCallback(async () => {
-        const result = await listUsers({ status: 'active', limit: 100 });
+        const result = await listUsers({ status: 'active', limit: 100 }, { browse: true });
         if (result.success) {
             setUsers(
                 result.users.map((u: { id: number; firstName?: string | null; lastName?: string | null }) => ({
@@ -353,9 +353,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     <div className="space-y-5">
                         <div className="flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.tabInventory')}</h2>
-                            <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
-                                <Button size="sm" onClick={() => setIsAddModalOpen(true)}><Plus className="size-4" />{t('dashboard.addAsset')}</Button>
-                            </RoleGuard>
+                           
                         </div>
 
                         <div className="space-y-4">

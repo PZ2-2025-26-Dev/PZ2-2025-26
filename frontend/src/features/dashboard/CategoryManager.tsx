@@ -275,7 +275,7 @@ export default function CategoryManager() {
                             <span className={level === 0 ? 'truncate text-sm font-semibold' : 'truncate text-sm text-slate-600 dark:text-slate-400'}>
                                 {node.name}
                                 <span className="ml-2 text-xs text-muted-foreground font-normal">
-                                    ({node.itemCount} / {node.totalItemCount})
+                                    ({node.totalItemCount})
                                 </span>
                             </span>
                         </div>
