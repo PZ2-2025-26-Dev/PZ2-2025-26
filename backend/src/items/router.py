@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from src.auth.dependencies import CurrentUser, RequireAdmin
+from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.acl_service import ItemACLService
 from src.items.attachment_service import (
@@ -15,7 +15,6 @@ from src.items.attachment_service import (
 )
 from src.items.dependencies import (
     ItemByUuid,
-    RequireItemOwnerOrAdmin,
     RequireItemReader,
     RequireItemWriter,
     assert_can_assign_owner_on_create,

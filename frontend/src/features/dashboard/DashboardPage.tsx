@@ -80,7 +80,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const { t, i18n } = useTranslation();
     const { listItems, isLoading, getItem, lookupItemByQrCode, error, clearError } = useInventory();
     const { listCategories } = useCategories();
-    const { exportItemsXlsx } = useExport();
+    const { exportItemsXlsx, isLoading: isExporting, error: exportError, clearError: clearExportError } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [total, setTotal] = useState(0);
@@ -297,11 +297,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     };
 
     const handleExportXlsx = useCallback(async () => {
+        clearExportError();
         await exportItemsXlsx({
             ...filters,
             search: filters.search || searchQuery,
         });
-    }, [exportItemsXlsx, filters, searchQuery]);
+    }, [clearExportError, exportItemsXlsx, filters, searchQuery]);
     const handleItemUpdated = (updatedItem: InventoryItem) => {
         setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
         setSelectedItem(updatedItem);
@@ -367,6 +368,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 </Alert>
                             )}
 
+                            {exportError && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle />
+                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                    <AlertDescription className="flex items-center justify-between gap-3">
+                                        <span>{exportError}</span>
+                                        <Button variant="outline" size="sm" onClick={() => clearExportError()}>✕</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
                             <InventoryToolbar
                                 user={user}
                                 filters={filters}
@@ -377,7 +389,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 onAdd={() => setIsAddModalOpen(true)}
                                 onExport={handleExportXlsx}
                                 onQrScan={() => setIsQrScannerOpen(true)}
-                                isLoading={isLoading}
+                                isLoading={isLoading || isExporting}
                             />
 
                             <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">

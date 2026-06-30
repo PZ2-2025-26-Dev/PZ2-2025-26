@@ -62,6 +62,8 @@
     "thOwner": "Supervisor",
     "noResults": "No equipment matches the chosen filter metrics.",
     "exportXlsx": "Export (.xlsx)",
+    "exportingXlsx": "Exporting...",
+    "exportError": "Failed to export inventory to Excel.",
     "addAsset": "Add Item",
     "accessDeniedTitle": "Access Restriction",
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",

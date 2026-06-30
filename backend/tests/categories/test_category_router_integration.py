@@ -202,7 +202,9 @@ def test_delete_category_endpoint_requires_admin_role(api_client: TestClient, se
 
 
 def test_read_categories_endpoint_returns_paged_categories(api_client: TestClient, seeded_db: Session):
-    response = api_client.get("/categories", params={"page": 1, "limit": 2}, headers=auth_headers(SEED_IDS.regular_user))
+    response = api_client.get(
+        "/categories", params={"page": 1, "limit": 2}, headers=auth_headers(SEED_IDS.regular_user)
+    )
 
     assert response.status_code == 200
     body = response.json()

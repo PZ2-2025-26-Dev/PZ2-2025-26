@@ -60,6 +60,8 @@
     "thOwner": "Opiekun",
     "noResults": "Brak przyrządów pomiarowych spełniających zadane kryteria filtrowania.",
     "exportXlsx": "Eksportuj (.xlsx)",
+    "exportingXlsx": "Eksportowanie...",
+    "exportError": "Nie udało się wyeksportować inwentarza do Excela.",
     "addAsset": "Dodaj przedmiot",
     "accessDeniedTitle": "Brak aktywnego dostępu",
     "accessDeniedDesc": "Twoje konto nie posiada uprawnień odczytu. Oczekuj na konfigurację ról przez Administratora.",

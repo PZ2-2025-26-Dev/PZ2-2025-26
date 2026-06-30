@@ -12,10 +12,7 @@ def test_export_items_xlsx_allows_regular_user(api_client: TestClient, seeded_db
     response = api_client.get("/exports/items/xlsx", headers=auth_headers(SEED_IDS.regular_user))
 
     assert response.status_code == 200
-    assert (
-        response.headers["content-type"]
-        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+    assert response.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 def test_export_items_xlsx_allows_admin(api_client: TestClient, seeded_db: Session):
