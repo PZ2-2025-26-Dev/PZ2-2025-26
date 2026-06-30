@@ -568,13 +568,7 @@
      "dismiss": "Zamknij komunikat",
      "closeSidebar": "Zamknij menu boczne",
      "close": "Zamknij"
-   }
- }
-    "registerErrorTitle": "Rejestracja nie powiodła się",
-    "registerSuccessTitle": "Rejestracja zakończona sukcesem",
-    "registering": "Tworzenie konta...",
-    "emailAlreadyExists": "Konto z tym adresem e-mail już istnieje"
-  },
+   },
   "guests": {
     "title": "Katalog użytkowników i gości",
     "desc": "Przeglądaj osoby w systemie oraz dodawaj konta gości do wypożyczeń.",

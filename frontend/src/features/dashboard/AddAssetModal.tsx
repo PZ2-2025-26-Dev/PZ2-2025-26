@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, Plus, Trash2 } from 'lucide-react';
-import { AlertCircle, MapPin, Plus } from 'lucide-react';
+import { AlertCircle, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -27,7 +26,7 @@ import { useCategories, type Category as CategoryType } from './useCategories';
 
 type Category = { id: number; name: string; parentId: number | null };
 type ApiUser = { id: number; firstName: string; lastName: string };
-type LocationOption = { id: number; path: string };
+type LocationOption = { id: number; path: string; type: string; isActive: boolean; ownerId: number | null };
 type ParameterField = { id: string; key: string; value: string };
 
 const createParameterField = (): ParameterField => ({
@@ -46,7 +45,6 @@ const buildParametersObject = (fields: ParameterField[]): Record<string, string>
 
     return Object.keys(parameters).length > 0 ? parameters : null;
 };
-type LocationOption = { id: number; path: string; type: string; isActive: boolean; ownerId: number | null };
 
 const getUserName = (user: Pick<ApiUser, 'firstName' | 'lastName'>) =>
     `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
@@ -232,6 +230,8 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         setParameterFields((current) =>
             current.map((field) => (field.id === fieldId ? { ...field, [fieldName]: nextValue } : field)),
         );
+    };
+
     const handleAddRemoteLocation = async () => {
         const trimmedName = remoteLocationName.trim();
         if (!trimmedName) return;
@@ -440,44 +440,46 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
                         <Separator />
 
-                        <div className="space-y-2">
-                            <Label htmlFor="asset-location">{t('addAssetModal.building')} *</Label>
+                        <div className="space-y-3">
                             <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                                <Label>{t('addAssetModal.locationTitle')} *</Label>
-                                {!isAdmin && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setIsRemoteLocationFormOpen((open) => !open)}
-                                    >
-                                        <MapPin className="size-4" />
-                                        {t('addAssetModal.addRemoteLocation')}
-                                    </Button>
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label htmlFor="asset-location">
+                                        {isAdmin ? t('addAssetModal.building') : t('addAssetModal.locationTitle')} *
+                                    </Label>
+                                    {!isAdmin && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsRemoteLocationFormOpen((open) => !open)}
+                                        >
+                                            <MapPin className="size-4" />
+                                            {t('addAssetModal.addRemoteLocation')}
+                                        </Button>
+                                    )}
+                                </div>
+                                <Select
+                                    value={formData.locationId}
+                                    onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
+                                    disabled={locationsLoading || locations.length === 0}
+                                >
+                                    <SelectTrigger id="asset-location"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {locations.map((location) => (
+                                            <SelectItem key={location.id} value={String(location.id)}>
+                                                {location.path}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {isAdmin && !locationsLoading && locations.length === 0 && (
+                                    <p className="text-xs text-rose-600 dark:text-rose-400">{t('addAssetModal.noLocations')}</p>
                                 )}
-                            </div>
-                            <Select
-                                value={formData.locationId}
-                                onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
-                                disabled={locationsLoading || locations.length === 0}
-                            >
-                                <SelectTrigger id="asset-location"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {locations.map((location) => (
-                                        <SelectItem key={location.id} value={String(location.id)}>
-                                            {location.path}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {!locationsLoading && locations.length === 0 && (
-                                <p className="text-xs text-rose-600 dark:text-rose-400">{t('addAssetModal.noLocations')}</p>
-                            {!isAdmin && locations.length === 0 && (
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    {t('addAssetModal.noRemoteLocations')}
-                                </p>
-                            )}
+                                {!isAdmin && locations.length === 0 && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {t('addAssetModal.noRemoteLocations')}
+                                    </p>
+                                )}
                             </div>
 
                             {!isAdmin && isRemoteLocationFormOpen && (

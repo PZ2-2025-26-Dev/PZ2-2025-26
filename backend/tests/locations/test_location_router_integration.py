@@ -116,13 +116,6 @@ def test_list_locations_endpoint_allows_regular_user(api_client: TestClient, see
     body = response.json()
     assert len(body["locations"]) == 4
     assert body["pagination"]["total"] == 4
-        "/locations",
-        params={"page": 1, "limit": 2},
-        headers=auth_headers(SEED_IDS.regular_user),
-    )
-
-    assert response.status_code == 200
-    assert len(response.json()["locations"]) == 2
 
 
 def test_list_locations_endpoint_requires_authentication(api_client: TestClient):
