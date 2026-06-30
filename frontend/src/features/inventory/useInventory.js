@@ -70,7 +70,7 @@ const downloadBlob = (blob, filename) => {
 
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, updateItem: Function, getItem: Function, getItemHistory: Function, listItems: Function, lookupItemByQrCode: Function, listAttachments: Function, uploadAttachments: Function, downloadAttachment: Function, deleteAttachment: Function, downloadItemQr: Function, downloadItemLabel: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -185,39 +185,6 @@ export const useInventory = () => {
         }
     }, []);
 
-    const updateItem = useCallback(async (itemId, itemData) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), cleanParams({
-                name: itemData.name,
-                category_id: itemData.categoryId,
-                location_id: itemData.locationId,
-                owner_id: itemData.ownerId,
-                description: itemData.description,
-                parameters: itemData.parameters,
-            }));
-
-            return {
-                success: true,
-                data: response.data,
-                statusCode: response.status,
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-
-            return {
-                success: false,
-                error: errorMessage,
-                statusCode: err.response?.status,
-            };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
     const getItem = useCallback(async (itemId) => {
         setIsLoading(true);
         setError(null);
@@ -231,7 +198,57 @@ export const useInventory = () => {
         } catch (err) {
             const errorMessage = parseApiError(err);
             setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
+    const updateItem = useCallback(async (itemId, updates) => {
+        setIsLoading(true);
+        setError(null);
+
+        const payload = {};
+        if (updates.name !== undefined) payload.name = updates.name;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.locationId !== undefined) payload.location_id = updates.locationId;
+        if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
+        if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
+        if (updates.parameters !== undefined) payload.parameters = updates.parameters;
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const lookupItemByQrCode = useCallback(async (code) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.SCAN(code));
+            return {
+                success: true,
+                item: normalizeItem(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
             return {
                 success: false,
                 error: errorMessage,
@@ -281,28 +298,6 @@ export const useInventory = () => {
         }
     }, []);
 
-    const lookupItemByQrCode = useCallback(async (code) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await axiosClient.get(ENDPOINTS.ITEMS.SCAN(code));
-            return {
-                success: true,
-                item: normalizeItem(response.data),
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-            return {
-                success: false,
-                error: errorMessage,
-            };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-    
     const clearError = useCallback(() => {
         setError(null);
     }, []);

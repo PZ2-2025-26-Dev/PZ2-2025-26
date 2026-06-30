@@ -17,6 +17,7 @@ from src.items.constants import (
     ITEM_HISTORY_PAGE_LIMIT_MAX,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
+    ItemPermissionType,
     ItemStatus,
 )
 from src.locations.schemas import LocationID, LocationPath
@@ -222,3 +223,24 @@ class ItemAttachmentResponse(BaseModel):
 
 class ItemAttachmentsListResponse(BaseModel):
     attachments: list[ItemAttachmentResponse]
+
+
+class ItemACLUser(BaseModel):
+    id: UserID
+    name: UserName
+
+
+class ItemACLCreate(BaseModel):
+    user_id: UserID
+    permission: ItemPermissionType
+
+
+class ItemACLResponse(BaseModel):
+    id: int
+    user_id: UserID
+    user: ItemACLUser
+    permission: ItemPermissionType
+
+
+class ItemACLListResponse(BaseModel):
+    entries: list[ItemACLResponse]

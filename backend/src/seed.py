@@ -14,8 +14,8 @@ from src.categories.models import Category
 from src.config import config
 from src.constants import Environment
 from src.database import Base, SessionLocal, engine
-from src.items.constants import ItemChangeLogType, ItemStatus
-from src.items.models import Item, ItemHistory
+from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
+from src.items.models import Item, ItemACL, ItemHistory
 from src.loans import models as loan_models  # noqa: F401
 from src.locations.constants import LocationType
 from src.locations.models import Location
@@ -39,6 +39,11 @@ class SeedIds:
     admin_user: int = 10_001
     regular_user: int = 10_002
     observer_user: int = 10_003
+    delegate_user_1: int = 10_004
+    delegate_user_2: int = 10_005
+    delegate_user_3: int = 10_006
+    delegate_user_4: int = 10_007
+    delegate_user_5: int = 10_008
 
     building: int = 20_001
     room: int = 20_002
@@ -70,6 +75,9 @@ class SeedIds:
     laptop_location_history_5: int = 50_012
     laptop_category_history_2: int = 50_013
     laptop_loan_history_3: int = 50_014
+
+    projector_acl_edit_attachments: int = 60_001
+    projector_acl_auto_approved_loan: int = 60_002
 
     guest_user: int = 60_001
 
@@ -153,6 +161,44 @@ def seed_database(session: Session) -> SeedIds:
         ),
     )
     for user_id, email, values in users:
+        _upsert(
+            session,
+            User,
+            user_id,
+            select(User).where(User.email == email),
+            email=email,
+            **values,
+        )
+    session.flush()
+
+    extra_users = (
+        (
+            SEED_IDS.delegate_user_1,
+            "piotr.seed@example.com",
+            {"first_name": "Piotr", "last_name": "Kowalski", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_2,
+            "maria.seed@example.com",
+            {"first_name": "Maria", "last_name": "Nowak", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_3,
+            "tomek.seed@example.com",
+            {"first_name": "Tomek", "last_name": "Wiśniewski", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_4,
+            "ewa.seed@example.com",
+            {"first_name": "Ewa", "last_name": "Zielińska", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+        (
+            SEED_IDS.delegate_user_5,
+            "adam.seed@example.com",
+            {"first_name": "Adam", "last_name": "Testowy", "role": UserRole.USER, "status": UserStatus.ACTIVE},
+        ),
+    )
+    for user_id, email, values in extra_users:
         _upsert(
             session,
             User,
@@ -473,6 +519,29 @@ def seed_database(session: Session) -> SeedIds:
         role=UserRole.GUEST,
         status=UserStatus.ACTIVE,
     )
+
+    item_acl_entries = (
+        (
+            SEED_IDS.projector_acl_auto_approved_loan,
+            SEED_IDS.projector,
+            SEED_IDS.regular_user,
+            ItemPermissionType.AUTO_APPROVED_LOAN,
+        ),
+    )
+    for acl_id, item_id, user_id, permission in item_acl_entries:
+        _upsert(
+            session,
+            ItemACL,
+            acl_id,
+            select(ItemACL).where(
+                ItemACL.item_id == item_id,
+                ItemACL.user_id == user_id,
+                ItemACL.permission == permission,
+            ),
+            item_id=item_id,
+            user_id=user_id,
+            permission=permission,
+        )
 
     session.flush()
     return SEED_IDS
