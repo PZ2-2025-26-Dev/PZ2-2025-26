@@ -74,7 +74,7 @@ def test_list_browse_users_masks_regular_user_details(db):
 
     assert total >= 1
     matched = next(item for item in users if item.first_name == "VisibleUnique")
-    assert not hasattr(matched, "id")
+    assert matched.id == user.id
     assert matched.last_name == "Name"
 
 

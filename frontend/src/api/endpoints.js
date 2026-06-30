@@ -15,6 +15,8 @@ export const ENDPOINTS = {
     ITEMS: {
         BASE: '/items',
         DETAILS: (id) => `/items/${id}`,
+        ACL: (id) => `/items/${id}/acl`,
+        ACL_ENTRY: (itemId, aclId) => `/items/${itemId}/acl/${aclId}`,
         BORROW: (id) => `/items/${id}/borrow`,
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,

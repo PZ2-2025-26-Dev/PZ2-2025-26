@@ -152,6 +152,29 @@ def _assert_delegated_user_can_update_fields(
             )
 
 
+def assert_can_manage_item_acl(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tylko właściciel przedmiotu lub administrator może zarządzać uprawnieniami.",
+    )
+
+
+def assert_can_manage_item_attachments(user: User, item: Item, db: Session) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    if has_item_permission(db, item.id, user.id, ItemPermissionType.EDIT_ATTACHMENTS):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Brak uprawnień do zarządzania załącznikami tego przedmiotu.",
+    )
+
+
 def assert_can_change_owner(user: User) -> None:
     if user.role != UserRole.ADMIN:
         raise HTTPException(

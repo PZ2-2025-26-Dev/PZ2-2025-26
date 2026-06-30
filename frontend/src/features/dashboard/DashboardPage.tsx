@@ -305,6 +305,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         setIsDetailsModalOpen(true);
     };
 
+    const handleItemUpdated = (updatedItem: InventoryItem) => {
+        setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+        setSelectedItem(updatedItem);
+    };
+
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
         setItems((current) => current.map((item) => item.id === itemId ? {
             ...item,
@@ -713,6 +718,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 item={selectedItem}
                 user={user}
                 onUpdateStatus={handleUpdateItemStatus}
+                onItemUpdated={handleItemUpdated}
                 onLocationChanged={handleItemLocationChanged}
             />
             <QrScannerDialog

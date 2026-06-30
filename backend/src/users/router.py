@@ -103,9 +103,10 @@ def browse_users(
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     search: SearchStr | None = None,
+    role: UserRole | None = None,
 ) -> UsersBrowsePaged:
     service = UserService(db)
-    users, total_count = service.list_browse_users(page=page, limit=limit, search=search)
+    users, total_count = service.list_browse_users(page=page, limit=limit, search=search, role=role)
     return UsersBrowsePaged(users=users, total_count=total_count)
 
 
