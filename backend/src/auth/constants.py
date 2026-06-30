@@ -13,6 +13,7 @@ class UserRole(Enum):
     ADMIN = "admin"
     USER = "user"
     OBSERVER = "observer"
+    GUEST = "guest"
 
 
 class AuthProvider(Enum):

@@ -6,6 +6,8 @@ ATTACHMENT_FILENAME_MAX_LENGTH = 255
 ATTACHMENT_MIME_TYPE_MAX_LENGTH = 127
 ATTACHMENT_MAX_SIZE_BYTES = 50 * 1024 * 1024
 BASIC_LENGTH = 100
+ITEM_HISTORY_PAGE_LIMIT_DEFAULT = 10
+ITEM_HISTORY_PAGE_LIMIT_MAX = 100
 
 
 class ItemStatus(Enum):
@@ -14,6 +16,8 @@ class ItemStatus(Enum):
     RESERVED = "reserved"
     LOANED = "loaned"
     BROKEN = "broken"
+    MISSING = "missing"
+    OVERDUE = "overdue"
 
 
 class ItemChangeLogType(Enum):
@@ -29,9 +33,9 @@ class ItemPermissionType(Enum):
     EDIT_LOCATION = "edit_location"
     EDIT_DESCRIPTION = "edit_description"
     EDIT_PARAMETERS = "edit_parameters"
+    EDIT_ATTACHMENTS = "edit_attachments"
 
 
-# Pola ItemUpdate wymagające delegacji przez ItemACL (niekrytyczne).
 ITEM_UPDATE_FIELD_PERMISSIONS: dict[str, ItemPermissionType] = {
     "location_id": ItemPermissionType.EDIT_LOCATION,
     "description": ItemPermissionType.EDIT_DESCRIPTION,

@@ -1,19 +1,23 @@
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
-from src.categories.schemas import CategoryID, CategoryName
+from src.categories.schemas import CategoryID, CategoryName, CategoryPath
 from src.items.constants import (
     ATTACHMENT_FILENAME_MAX_LENGTH,
     ATTACHMENT_MIME_TYPE_MAX_LENGTH,
     BASIC_LENGTH,
     ITEM_DESC_LENGTH,
+    ITEM_HISTORY_PAGE_LIMIT_DEFAULT,
+    ITEM_HISTORY_PAGE_LIMIT_MAX,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
+    ItemPermissionType,
     ItemStatus,
 )
 from src.locations.schemas import LocationID, LocationPath
@@ -43,6 +47,7 @@ class ItemCreateResponse(ItemCreate):
 class ItemCategory(BaseModel):
     id: CategoryID
     name: CategoryName
+    path: CategoryPath
 
 
 class ItemLocation(BaseModel):
@@ -121,6 +126,42 @@ class ItemUpdateResponse(BaseModel):
     updated_at: datetime
 
 
+class ItemLabelField(StrEnum):
+    NAME = "name"
+    DESCRIPTION = "description"
+    STATUS = "status"
+    CATEGORY = "category"
+    LOCATION = "location"
+    OWNER = "owner"
+    OLD_ID = "oldID"
+
+
+class ItemLabelRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "fields": [],
+                    "width_mm": 76.2,
+                    "height_mm": 30.48,
+                },
+                {
+                    "fields": ["name", "category", "location", "parameters.serial_number"],
+                    "width_mm": 50,
+                    "height_mm": 25,
+                },
+            ]
+        }
+    )
+
+    fields: list[str] = Field(
+        default_factory=list,
+        examples=[["name", "category", "location", "parameters.serial_number"]],
+    )
+    width_mm: Annotated[float, Field(ge=20, le=200)] = 76.2
+    height_mm: Annotated[float, Field(ge=10, le=150)] = 30.48
+
+
 class ItemDeleteResponse(BaseModel):
     deleted: bool
 
@@ -133,8 +174,17 @@ class ItemHistoryGet(BaseModel):
     description: str | None
 
 
+class ItemHistorySearch(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    change_type: ItemChangeLogType | None = Field(default=None, alias="type")
+    page: Annotated[int, Field(ge=1)] = 1
+    limit: Annotated[int, Field(ge=1, le=ITEM_HISTORY_PAGE_LIMIT_MAX)] = ITEM_HISTORY_PAGE_LIMIT_DEFAULT
+
+
 class ItemHistoryGetResponse(BaseModel):
     entries: list[ItemHistoryGet]
+    pagination: ItemPagination
 
 
 type AttachmentID = int
@@ -158,3 +208,24 @@ class ItemAttachmentResponse(BaseModel):
 
 class ItemAttachmentsListResponse(BaseModel):
     attachments: list[ItemAttachmentResponse]
+
+
+class ItemACLUser(BaseModel):
+    id: UserID
+    name: UserName
+
+
+class ItemACLCreate(BaseModel):
+    user_id: UserID
+    permission: ItemPermissionType
+
+
+class ItemACLResponse(BaseModel):
+    id: int
+    user_id: UserID
+    user: ItemACLUser
+    permission: ItemPermissionType
+
+
+class ItemACLListResponse(BaseModel):
+    entries: list[ItemACLResponse]

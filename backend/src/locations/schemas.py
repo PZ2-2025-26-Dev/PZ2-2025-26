@@ -43,6 +43,7 @@ class LocationDetails(BaseModel):
     name: LocationName
     type: LocationType
     parent_id: LocationID | None
+    owner_id: int | None
     description: str | None
     address: str | None
     is_active: bool

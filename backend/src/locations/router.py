@@ -2,10 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.auth.dependencies import RequireAdmin
+from src.auth.constants import UserRole
+from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.dependencies import DBDep
 from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.dependencies import RequireLocationReader
+from src.locations.constants import LOCATION_PAGE_LIMIT_MAX, LocationType
 from src.locations.schemas import (
     LocationCreate,
     LocationDeleteResponse,
@@ -49,9 +51,18 @@ router = APIRouter(prefix="/locations", tags=["locations"])
         },
     },
 )
-def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
+def create_location(data: LocationCreate, db: DBDep, user: CurrentUser) -> LocationDetails:
+    can_create_location = user.role == UserRole.ADMIN or (
+        user.role == UserRole.USER and data.type == LocationType.REMOTE
+    )
+    if not can_create_location:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create regular locations. Users can create remote locations only.",
+        )
+
     try:
-        return LocationService(db).create_location(data)
+        return LocationService(db).create_location(data, changed_by=user.id)
     except InvalidLocationParentError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,6 +81,7 @@ def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> Lo
             "description": "Zwrócono stronicowaną listę lokalizacji.",
         },
         status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
@@ -80,6 +92,7 @@ def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> Lo
 def read_locations(
     db: DBDep,
     _reader: RequireLocationReader,
+    _user: CurrentUser,
     parent_id: LocationID | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=LOCATION_PAGE_LIMIT_MAX)] = 20,
@@ -104,14 +117,12 @@ def read_locations(
             "description": "Nie znaleziono lokalizacji.",
         },
         status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
             "description": "Brak poprawnego tokena uwierzytelniającego.",
-        },
-        status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
         },
     },
 )
-def read_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
+def read_location(location_id: LocationID, db: DBDep, _user: CurrentUser) -> LocationDetails:
     try:
         return LocationService(db).get_location(location_id)
     except LocationNotFoundError as err:
@@ -147,13 +158,21 @@ def read_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> L
         },
     },
 )
-def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
+def update_location(location_id: LocationID, data: LocationUpdate, db: DBDep, admin: RequireAdmin) -> LocationDetails:
     try:
-        return LocationService(db).update_location(location_id, data)
+        return LocationService(db).update_location(location_id, data, changed_by=admin.id)
     except InvalidLocationParentError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ErrorResponse(code=status.HTTP_400_BAD_REQUEST, detail="Invalid parent location.").model_dump(),
+        ) from err
+    except LocationHasAssignedItemsError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ErrorResponse(
+                code=status.HTTP_400_BAD_REQUEST,
+                detail="Location cannot be hidden because it or its descendants contain assigned items.",
+            ).model_dump(),
         ) from err
     except LocationNotFoundError as err:
         raise HTTPException(

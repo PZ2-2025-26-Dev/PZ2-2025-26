@@ -1,7 +1,7 @@
 /**
  * Parsuje obiekt błędu rzucony przez Axios i wyciąga czytelny komunikat dla użytkownika.
  * Uwzględnia standardowe formaty odpowiedzi z FastAPI.
- * * @param {Error} error - Obiekt błędu złapany w bloku catch
+ * * @param {any} error - Obiekt błędu złapany w bloku catch
  * @param {string} fallbackMsg - Domyślna wiadomość, gdy nie uda się odczytać błędu
  * @returns {string} Sformatowany komunikat
  */

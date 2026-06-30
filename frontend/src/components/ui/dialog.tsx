@@ -28,6 +28,9 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+const isSelectPortalTarget = (target: EventTarget | null) =>
+    target instanceof Element && target.closest('[data-slot="select-content"]') !== null;
+
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }
@@ -35,6 +38,7 @@ const DialogContent = React.forwardRef<
     const { t } = useTranslation();
 
     return (
+>(({ className, children, showCloseButton = true, onInteractOutside, onPointerDownOutside, ...props }, ref) => (
         <DialogPortal>
             <DialogOverlay />
             <DialogPrimitive.Content
@@ -43,6 +47,18 @@ const DialogContent = React.forwardRef<
                     'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100',
                     className,
                 )}
+                onInteractOutside={(event) => {
+                    if (isSelectPortalTarget(event.target)) {
+                        event.preventDefault();
+                    }
+                    onInteractOutside?.(event);
+                }}
+                onPointerDownOutside={(event) => {
+                    if (isSelectPortalTarget(event.target)) {
+                        event.preventDefault();
+                    }
+                    onPointerDownOutside?.(event);
+                }}
                 {...props}
             >
                 {children}

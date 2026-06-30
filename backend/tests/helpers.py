@@ -19,6 +19,34 @@ def admin_headers() -> dict[str, str]:
     return auth_headers(SEED_IDS.admin_user)
 
 
+DEFAULT_GUEST_PAYLOAD: dict[str, Any] = {
+    "first_name": "Jan",
+    "last_name": "Gość",
+    "email": None,
+}
+
+
+def make_guest_payload(**overrides: Any) -> dict[str, Any]:
+    payload = DEFAULT_GUEST_PAYLOAD.copy()
+    payload.update(overrides)
+    return payload
+
+
+def create_guest_via_api(
+    client: TestClient,
+    *,
+    user_id: int = SEED_IDS.regular_user,
+    **overrides: Any,
+) -> dict[str, Any]:
+    response = client.post(
+        "/users/guests",
+        json=make_guest_payload(**overrides),
+        headers=auth_headers(user_id),
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 # Valid payload built from deterministic seed records. Tests can override only
 # fields relevant to the scenario instead of repeating all foreign keys.
 DEFAULT_ITEM_PAYLOAD: dict[str, Any] = {

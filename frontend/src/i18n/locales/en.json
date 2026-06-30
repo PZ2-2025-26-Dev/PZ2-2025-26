@@ -37,6 +37,7 @@
     "mainPanel": "Main Dashboard",
     "tabInventory": "Inventory",
     "tabUsers": "Users",
+    "tabDirectory": "People directory",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
     "locationsAndCategories": "Locations and Categories",
@@ -64,10 +65,10 @@
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",
     "userReqTitle": "Local Registration Management",
     "userReqDesc": "Accounts created outside of AGH SSO require your verification and manual role assignment.",
-     "approveBtn": "Approve",
-     "rejectBtn": "Reject",
-     "refresh": "Refresh",
-     "itemStatuses": {
+    "approveBtn": "Approve",
+    "rejectBtn": "Reject",
+    "refresh": "Refresh",
+    "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
@@ -82,7 +83,7 @@
     "itemLabel": "Equipment",
     "itemPlaceholder": "Select equipment",
     "selectDueDate": "Planned return date",
-    "requestInfo": "After submission, the request will appear in the rental history as pending.",
+    "requestInfo": "Your request will be sent to the equipment owner. The owner will approve or reject the request.",
     "noAvailableInDialog": "No equipment is available for borrowing.",
     "cancel": "Cancel",
     "submitting": "Submitting...",
@@ -91,7 +92,82 @@
     "requests": "requests",
     "dueDate": "Due date",
     "requested": "Requested",
-    "noRequests": "No requests"
+    "noRequests": "No requests submitted",
+    "availableEquipment": "Available Equipment",
+    "itemsAvailable": "items available",
+    "action": "Action",
+    "requestBorrow": "Borrow",
+    "noAvailable": "No equipment available",
+    "subtitle": "Manage equipment rental requests",
+    "purposeLabel": "Loan purpose",
+    "purposePlaceholder": "Describe the purpose of borrowing...",
+    "pendingApprovals": "Pending approvals",
+    "pendingCount": "requests awaiting approval",
+    "borrower": "Requested by",
+    "purpose": "Purpose",
+    "approve": "Approve",
+    "deny": "Reject",
+    "awaitingHandover": "Awaiting handover",
+    "handoverCount": "to hand over",
+    "confirmHandover": "Confirm handover",
+    "activeLoans": "Active loans",
+    "activeCount": "in the field",
+    "guest": "Guest",
+    "confirmReturn": "Confirm return",
+    "externalRent": "Loan to guest",
+    "externalRentTitle": "External rental",
+    "externalRentDesc": "Issue an item directly to an external guest.",
+    "guestLabel": "Guest",
+    "guestSearch": "Search guest...",
+    "guestPlaceholder": "Select guest",
+    "noOwnedAvailable": "No available items you own.",
+    "confirmHandoverBtn": "Loan",
+    "denyTitle": "Reject request",
+    "returnTitle": "Confirm return",
+    "returnIssueHint": "Optionally describe any issues with the returned item.",
+    "denyComment": "Comment (optional)",
+    "returnComment": "Return notes (optional)",
+    "returnIssuePlaceholder": "e.g. damaged cable...",
+    "owner": "Owner",
+    "statusFilter": "Status filter",
+    "refresh": "Refresh",
+    "noteLabel": "Note (optional)",
+    "reportReturn": "Report return",
+    "rejectReturn": "Reject return",
+    "returnCondition": "Return condition",
+    "returnDocumentationHint": "During pickup you can document the item's current condition with photos or files.",
+    "addGuestInline": "Add new guest",
+    "addGuest": "Add guest",
+    "saveAction": "Save",
+    "tabs": {
+      "my": "My loans",
+      "owned": "My equipment",
+      "all": "All loans"
+    },
+    "actions": {
+      "reject": "Reject request",
+      "return": "Report return",
+      "confirm-return": "Confirm return",
+      "reject-return": "Reject reported return"
+    },
+    "conditions": {
+      "ok": "OK",
+      "broken": "Broken",
+      "missing": "Missing"
+    },
+    "statuses": {
+      "all": "All statuses",
+      "pending_approval": "Pending approval",
+      "active": "Active",
+      "return_pending_confirmation": "Return pending confirmation",
+      "closed": "Closed",
+      "rejected": "Rejected",
+      "pending": "Pending approval",
+      "approved": "Approved",
+      "denied": "Rejected",
+      "loaned": "On loan",
+      "returned": "Returned"
+    }
   },
   "categoryManager": {
     "title": "Categories",
@@ -130,12 +206,20 @@
   "locationManager": {
     "treeTitle": "Locations",
     "treeDesc": "Location hierarchy",
-    "emptyTree": "No locations returned by the API.",
+    "emptyTree": "No available locations.",
     "loading": "Loading locations...",
     "refresh": "Refresh",
+    "refreshItems": "Refresh items",
+    "itemsTitle": "Items in location: {{name}}",
+    "itemsLoading": "Loading items...",
+    "itemsEmpty": "No items are assigned directly to this location.",
+    "itemsErrorTitle": "Could not load items",
+    "itemsLimited": "Showing {{shown}} of {{total}} items.",
     "addTitle": "Add Location",
+    "addRemoteTitle": "Add remote location",
     "addDesc": "Create a building, room, cabinet, or shelf and optionally assign a parent location.",
     "addButton": "Add location",
+    "addRemoteButton": "Add remote",
     "nameLabel": "Location Name",
     "namePlaceholder": "e.g., D10, Room 204, Cabinet A",
     "typeLabel": "Location Type",
@@ -157,6 +241,8 @@
     "deleting": "Deleting...",
     "deleteErrorTitle": "Location cannot be deleted",
     "deleteErrorDesc": "Move all items from \"{{name}}\" and its child locations first, then try again.",
+    "hideErrorTitle": "Location cannot be hidden",
+    "hideErrorDesc": "Move all items from \"{{name}}\" and its child locations first, then try again.",
     "close": "Close",
     "statusLabel": "Status",
     "cancel": "Cancel",
@@ -186,6 +272,18 @@
     "status": "Initial Status",
     "category": "Category (Tree view)",
     "locationTitle": "Target Location",
+    "addRemoteLocation": "Add remote",
+    "noRemoteLocations": "You do not have a remote location yet. Add one here to assign this item to it.",
+    "remoteLocationName": "Location name",
+    "remoteLocationNamePlaceholder": "e.g. Home laboratory",
+    "remoteLocationAddress": "Address",
+    "remoteLocationAddressPlaceholder": "e.g. Example Street 1, Krakow",
+    "remoteLocationDescription": "Description",
+    "remoteLocationDescriptionPlaceholder": "Optional location description",
+    "remoteLocationErrorTitle": "Could not add location",
+    "cancelRemoteLocation": "Cancel",
+    "saveRemoteLocation": "Add and select",
+    "savingRemoteLocation": "Adding...",
     "building": "Building",
     "room": "Room / Lab",
     "cabinet": "Cabinet / Shelf (Optional)",
@@ -220,6 +318,24 @@
     "location": "Target Location:",
     "ownerPanel": "Owner Panel",
     "ownerDesc": "Manage the status and rentals of this device.",
+    "itemLocationTitle": "Item location",
+    "itemLocationDesc": "Select any active location or add a new remote place.",
+    "locationSelectPlaceholder": "Select location",
+    "locationSave": "Save location",
+    "locationSaving": "Saving...",
+    "locationUpdateErrorTitle": "Could not change location",
+    "remoteLocationTitle": "Remote location",
+    "remoteLocationDesc": "Add a place outside the university structure and assign this item to it.",
+    "remoteLocationAction": "Add remote location",
+    "remoteLocationName": "Location name",
+    "remoteLocationNamePlaceholder": "e.g. Home laboratory",
+    "remoteLocationAddress": "Address",
+    "remoteLocationAddressPlaceholder": "e.g. Example Street 1, Krakow",
+    "remoteLocationDescription": "Description",
+    "remoteLocationDescriptionPlaceholder": "Optional location description",
+    "remoteLocationSubmit": "Save and assign",
+    "remoteLocationSaving": "Saving...",
+    "remoteLocationErrorTitle": "Could not save location",
     "reqPending": "New Rental Request",
     "reqDesc": "{{borrower}} requested to borrow this asset.",
     "btnAccept": "Approve (Reserve)",
@@ -247,11 +363,147 @@
     "save": "Save",
     "openLink": "Open link",
     "history": "History of changes",
+    "historyLoading": "Loading history...",
+    "historyEmpty": "No change history.",
+    "historyShowMore": "Show more",
+    "historyLoadError": "Could not load the change history.",
+    "historyErrorTitle": "History error",
+    "historyAuthor": "User #{{id}}",
+    "historyTypes": {
+      "created": "Created",
+      "loaned": "Loaned",
+      "owner_changed": "Owner changed",
+      "location_changed": "Location changed",
+      "category_changed": "Category changed"
+    },
     "attachments": "Attachments",
     "uploadFiles": "Upload files",
     "noAttachments": "No attachments",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
-    "deleteAttachment": "Delete"
+    "deleteAttachment": "Delete",
+    "editName": "Edit name",
+    "editLocation": "Edit location",
+    "locationPlaceholder": "Select location",
+    "saveFailed": "Failed to save changes.",
+    "readOnlyTitle": "Read only",
+    "delegatedPanel": "Your delegated permissions",
+    "delegatedDesc": "You can edit selected fields of this item.",
+    "parameters": "Parameters",
+    "noParameters": "No parameters",
+    "editParameters": "Edit parameters",
+    "parameterKeyPlaceholder": "Key, e.g. cpu",
+    "parameterValuePlaceholder": "Value, e.g. Intel i7",
+    "parameterComplexPlaceholder": "[\"USB-C\", \"HDMI\"]",
+    "parameterValueHint": "For lists and objects use brackets — e.g. [\"USB-C\"] or {\"slot\": 1}. The field expands when you type [ or {.",
+    "addParameter": "Add parameter",
+    "removeParameter": "Remove parameter",
+    "duplicateParameterKeys": "Parameter keys must be unique.",
+    "invalidParameterValue": "Invalid JSON value in field \"{{key}}\".",
+    "assetDownloadErrorTitle": "Could not download file",
+    "assetDownloadError": "File generation failed.",
+    "downloadQrPng": "QR PNG",
+    "downloadQrPdf": "QR PDF",
+    "labelExportTitle": "Item label",
+    "downloadLabelPng": "Label PNG",
+    "downloadLabelPdf": "Label PDF",
+    "labelFields": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "category": "Category",
+      "location": "Location",
+      "owner": "Owner",
+      "oldID": "Old ID"
+    }
+  },
+  "itemAcl": {
+    "title": "Delegated permissions",
+    "description": "Grant other users selected permissions for this item. Observers cannot receive delegations.",
+    "empty": "No delegated permissions yet.",
+    "grantTitle": "Grant permission",
+    "userLabel": "User",
+    "userPlaceholder": "Select user",
+    "userSearchPlaceholder": "Search by first or last name...",
+    "noUsersFound": "No users with the user role found.",
+    "noUsersAvailable": "No other users with the user role available for delegation.",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "pageInfo": "Page {{page}} of {{total}}",
+    "permissionLabel": "Permission",
+    "grantButton": "Grant permission",
+    "revoke": "Remove permission",
+    "userRequired": "Select a user from the list.",
+    "grantFailed": "Failed to grant permission.",
+    "revokeFailed": "Failed to remove permission.",
+    "permissions": {
+      "auto_approved_loan": "Auto-approved loans",
+      "edit_location": "Edit location",
+      "edit_description": "Edit description",
+      "edit_parameters": "Edit parameters",
+      "edit_attachments": "Manage attachments"
+    }
+  },
+  "inventoryFilters": {
+    "searchPlaceholder": "Search by name, description...",
+
+    "labels": {
+      "advancedFilters": "Advanced filters"
+    },
+
+    "sections": {
+      "deviceData": "Device data",
+      "locationTree": "Location tree",
+      "users": "Users"
+    },
+
+    "fields": {
+      "deviceId": "Device ID",
+      "deviceName": "Device name",
+      "category": "Category",
+      "status": "Status",
+      "location": "Location",
+      "owner": "Owner (Assigned Owner)",
+      "borrower": "Borrower (Current Borrower)"
+    },
+
+    "placeholders": {
+      "category": "Select category",
+      "status": "All statuses",
+      "location": "Select location",
+      "owner": "e.g. Dr. Smith",
+      "borrower": "e.g. Johnson"
+    },
+
+    "options": {
+      "allCategories": "All categories",
+      "allStatuses": "All statuses",
+      "allLocations": "All locations",
+      "allOwners": "All owners",
+      "allBorrowers": "All borrowers"
+    },
+
+    "status": {
+      "available": "Available",
+      "reserved": "Reserved",
+      "loaned": "Loaned",
+      "pendingApproval": "Pending approval",
+      "broken": "Broken"
+    },
+
+    "buttons": {
+      "addParam": "Add parameter filter"
+    },
+
+    "parameters": {
+      "title": "Technical parameters",
+      "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
+      "valuePlaceholder": "Value (e.g. Rigol)"
+    },
+    "common":{
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page"
+    }
   },
   "userManager": {
     "totalUsers": "Total users",
@@ -289,7 +541,8 @@
     "roles": {
       "admin": "Administrator",
       "user": "User",
-      "observer": "Observer"
+      "observer": "Observer",
+      "guest": "Guest"
     },
     "statuses": {
       "active": "Active",
@@ -318,13 +571,10 @@
     "password": "Password",
     "firstName": "First Name",
     "lastName": "Last Name",
-
     "loginButton": "Sign In",
     "registerButton": "Register",
-
     "googleLogin": "Sign in with Google",
     "googleRegister": "Register with Google",
-
     "dontHaveAccount": "Don't have an account?",
     "alreadyHaveAccount": "Already have an account?",
     "loginError": "Login failed. Please check your credentials.",
@@ -382,3 +632,32 @@
      "close": "Close"
    }
  }
+    "registerErrorTitle": "Registration failed",
+    "registerSuccessTitle": "Registration successful",
+    "registering": "Creating account...",
+    "emailAlreadyExists": "An account with this email already exists"
+  },
+  "guests": {
+    "title": "Users and guests directory",
+    "desc": "Browse people in the system and add guest accounts for lending.",
+    "tabList": "List",
+    "tabCreate": "New guest",
+    "search": "Search",
+    "searchPlaceholder": "First name, last name or email...",
+    "addTitle": "Add guest",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "emailOptional": "Optional",
+    "actions": "Actions",
+    "edit": "Edit",
+    "editDesc": "Update guest account details.",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete guest {{name}}?",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "noResults": "No results match the criteria.",
+    "readOnly": "Read only"
+  }
+}

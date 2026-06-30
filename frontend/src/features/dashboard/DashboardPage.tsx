@@ -17,10 +17,12 @@ import {
     X,
     ChevronDown,
     ChevronRight,
+    UserPlus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
+import QrScannerDialog from '@/components/QrScannerDialog';
 import { StatusBadge } from '@/components/StatusBadge';
 import SystemClock from '@/components/SystemClock';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,6 +40,7 @@ import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
 import UserManager from '../users/UserManager';
+import UserDirectory from '../guests/UserDirectory';
 import LocationManager from '../locations/LocationManager';
 import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
@@ -51,12 +54,12 @@ type CategoryOption = {
     path: string;
 };
 
-type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'users';
+type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
 function isMenuSection(value: string | null): value is MenuSection {
-    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'users';
+    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
 }
 
 type DashboardPageProps = {
@@ -68,7 +71,7 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, isLoading, error, clearError } = useInventory();
+    const { listItems, isLoading, getItem, lookupItemByQrCode, error, clearError } = useInventory();
     const { listCategories } = useCategories();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
@@ -83,6 +86,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         return isMenuSection(storedSection) ? storedSection : 'dashboard';
     });
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
@@ -129,17 +133,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [isSidebarOpen]);
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
+    const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
 
     useEffect(() => {
         localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
     }, [activeSection]);
 
     useEffect(() => {
-        const restrictedSection = activeSection === 'users' || activeSection === 'locations';
-        if (restrictedSection && !hasPermission(user, PERMISSIONS.SYSTEM_MANAGE)) {
+        if (activeSection === 'users' && !canManageSystem) {
             setActiveSection('dashboard');
         }
-    }, [activeSection, user]);
+    }, [activeSection, canManageSystem]);
 
     const refreshItems = useCallback(async () => {
         const result = await listItems({ limit: 50 });
@@ -315,20 +319,45 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         damaged: items.filter((item) => item.status === 'broken').length,
     }), [items, totalCount]);
 
-    const handleUpdateItemStatus = (
-        itemId: string | number,
-        newStatus: string,
-        clearBorrower = false,
-        newBorrower: string | null = null,
-        newDueDate: string | null = null,
-    ) => {
+    const handleUpdateItemStatus = () => {
+        refreshItems();
+    };
+
+    const handleQrScan = async (decodedText: string) => {
+        setIsQrScannerOpen(false);
+        const result = await lookupItemByQrCode(decodedText);
+        if (result.success && result.item) {
+            setSelectedItem(result.item);
+            setIsDetailsModalOpen(true);
+            return;
+        }
+
+        setSearchQuery(decodedText);
+    };
+
+    const openItemDetails = async (item: InventoryItem) => {
+        const result = await getItem(item.id);
+        setSelectedItem(result.success && result.item ? result.item : item);
+        setIsDetailsModalOpen(true);
+    };
+
+    const handleItemUpdated = (updatedItem: InventoryItem) => {
+        setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+        setSelectedItem(updatedItem);
+    };
+
+    const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
         setItems((current) => current.map((item) => item.id === itemId ? {
             ...item,
-            status: newStatus,
-            borrower: newBorrower ?? (clearBorrower ? null : item.borrower),
-            dueDate: newDueDate ?? (clearBorrower ? null : item.dueDate),
+            location: location.path,
+            locationId: location.id,
         } : item));
-        setIsDetailsModalOpen(false);
+        setSelectedItem((current) => current?.id === itemId ? {
+            ...current,
+            location: location.path,
+            locationId: location.id,
+        } : current);
+        void refreshItems();
     };
 
     const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
@@ -343,7 +372,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
-        { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
+        { id: 'locations', label: canManageSystem ? t('dashboard.locationsAndCategories') : t('dashboard.tabLocations'), icon: <MapPinned className="size-5" /> },
+        { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
 
@@ -483,6 +513,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         <AlertDescription className="flex items-center justify-between gap-3">
                                             <span>{error}</span>
                                             <Button variant="outline" size="sm" onClick={clearError} aria-label={t('a11y.dismiss')}><span aria-hidden="true">✕</span></Button>
+                                            <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
                                         </AlertDescription>
                                     </Alert>
                                 )}
@@ -496,6 +527,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                 <Input id="inventory-search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
                                             </div>
                                             <div className="flex gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => setIsQrScannerOpen(true)} aria-label={t('qrScanner.button')}>
+                                                    <Search />
+                                                    {t('qrScanner.button')}
+                                                </Button>
                                                 <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
                                                     <Button variant="secondary" size="sm"><Download />{t('dashboard.exportXlsx')}</Button>
                                                 </RoleGuard>
@@ -537,7 +572,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         {t('userManager.loading')}
                                                     </TableCell>
                                                 </TableRow>
-<<<<<<< Updated upstream
                                             ) : filteredItems.length > 0 ? filteredItems.map((item) => (
                                                 <TableRow
                                                     key={item.id}
@@ -550,7 +584,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         if (event.key === 'Enter' || event.key === ' ') {
                                                             event.preventDefault();
                                                             openItemDetails(item);
-=======
                                             ) : filteredItems.length > 0 ? filteredItems.map((item) => {
                                                 const openDetails = () => { setSelectedItem(item); setIsDetailsModalOpen(true); };
                                                 return (
@@ -565,10 +598,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                         if (event.key === 'Enter' || event.key === ' ') {
                                                             event.preventDefault();
                                                             openDetails();
->>>>>>> Stashed changes
                                                         }
                                                     }}
                                                 >
+
+                                                <TableRow key={item.id} className="cursor-pointer" onClick={() => void openItemDetails(item) }>
+
                                                     <TableCell className="font-mono text-xs text-slate-400">{item.inventory_number ?? item.id}</TableCell>
                                                     <TableCell>
                                                         <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
@@ -600,21 +635,34 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 return <RentalCenter user={user} />;
             
             case 'locations':
-                return (
-                    <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
+                return canManageSystem ? (
                         <div className="grid gap-6 lg:grid-cols-2">
                             <div>
                                 <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                                <LocationManager />
+                                <LocationManager canManage />
                             </div>
                             <div>
                                 <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabCategories')}</h3>
                                 <CategoryManager />
                             </div>
                         </div>
-                    </RoleGuard>
+                ) : (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
+                        <LocationManager
+                            canManage={false}
+                            canCreateRemote={user.role === 'user'}
+                        />
+                    </div>
                 );
             
+            case 'directory':
+                return (
+                    <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
+                        <UserDirectory user={user} />
+                    </RoleGuard>
+                );
+
             case 'users':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_MANAGE}>
@@ -765,7 +813,20 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onSave={() => refreshItems()}
                 user={user}
             />
-            <ItemDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} item={selectedItem} user={user} onUpdateStatus={handleUpdateItemStatus} />
+            <ItemDetailsModal
+                isOpen={isDetailsModalOpen}
+                onClose={() => setIsDetailsModalOpen(false)}
+                item={selectedItem}
+                user={user}
+                onUpdateStatus={handleUpdateItemStatus}
+                onItemUpdated={handleItemUpdated}
+                onLocationChanged={handleItemLocationChanged}
+            />
+            <QrScannerDialog
+                isOpen={isQrScannerOpen}
+                onClose={() => setIsQrScannerOpen(false)}
+                onScan={handleQrScan}
+            />
         </div>
     );
 }

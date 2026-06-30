@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, MapPin, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -45,6 +46,7 @@ const buildParametersObject = (fields: ParameterField[]): Record<string, string>
 
     return Object.keys(parameters).length > 0 ? parameters : null;
 };
+type LocationOption = { id: number; path: string; type: string; isActive: boolean; ownerId: number | null };
 
 const getUserName = (user: Pick<ApiUser, 'firstName' | 'lastName'>) =>
     `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
@@ -61,7 +63,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     const { t } = useTranslation();
     const { createItem, isLoading, error, clearError } = useInventory();
     const { listUsers } = useUsers();
-    const { listLocations } = useLocations();
+    const {
+        listLocations,
+        createLocation,
+        isLoading: isLocationSaving,
+        error: locationError,
+        clearError: clearLocationError,
+    } = useLocations();
     const { listCategories } = useCategories();
 
     const isAdmin = user?.role === ROLES.ADMIN;
@@ -73,8 +81,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
     const [locationsLoading, setLocationsLoading] = useState(false);
     const [categoriesLoading, setCategoriesLoading] = useState(false);
     const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+    const [isRemoteLocationFormOpen, setIsRemoteLocationFormOpen] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [newCategoryParentId, setNewCategoryParentId] = useState('root');
+    const [remoteLocationName, setRemoteLocationName] = useState('');
+    const [remoteLocationAddress, setRemoteLocationAddress] = useState('');
+    const [remoteLocationDescription, setRemoteLocationDescription] = useState('');
+    const [pendingLocationId, setPendingLocationId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -100,8 +113,14 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         if (!isOpen || !user) return;
 
         clearError();
+        clearLocationError();
         setIsCategoryDialogOpen(false);
         setParameterFields([]);
+        setIsRemoteLocationFormOpen(false);
+        setRemoteLocationName('');
+        setRemoteLocationAddress('');
+        setRemoteLocationDescription('');
+        setPendingLocationId(null);
 
         const defaultOwnerId = isAdmin ? '' : String(user.id ?? '');
 
@@ -144,11 +163,14 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                     return;
                 }
 
-                setLocations(result.locations);
-                if (result.locations.length > 0) {
+                const availableLocations = result.locations
+                    .filter((location) => location.isActive);
+
+                setLocations(availableLocations);
+                if (availableLocations.length > 0) {
                     setFormData((current) => ({
                         ...current,
-                        locationId: String(result.locations[0].id),
+                        locationId: String(availableLocations[0].id),
                     }));
                 }
             })
@@ -174,6 +196,13 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
             })
             .finally(() => setUsersLoading(false));
     }, [isOpen, clearError, isAdmin, user?.id, listUsers, listLocations, listCategories]);
+
+    useEffect(() => {
+        if (!pendingLocationId || !locations.some((location) => String(location.id) === pendingLocationId)) return;
+
+        setFormData((current) => ({ ...current, locationId: pendingLocationId }));
+        setPendingLocationId(null);
+    }, [locations, pendingLocationId]);
 
     const handleAddCategory = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -203,6 +232,29 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
         setParameterFields((current) =>
             current.map((field) => (field.id === fieldId ? { ...field, [fieldName]: nextValue } : field)),
         );
+    const handleAddRemoteLocation = async () => {
+        const trimmedName = remoteLocationName.trim();
+        if (!trimmedName) return;
+
+        clearLocationError();
+
+        const result = await createLocation({
+            name: trimmedName,
+            type: 'remote',
+            parentId: null,
+            description: remoteLocationDescription.trim() || null,
+            address: remoteLocationAddress.trim() || null,
+        });
+
+        if (!result.success || !result.location) return;
+
+        const newLocation = result.location;
+        setLocations((current) => [...current, newLocation]);
+        setPendingLocationId(String(newLocation.id));
+        setRemoteLocationName('');
+        setRemoteLocationAddress('');
+        setRemoteLocationDescription('');
+        setIsRemoteLocationFormOpen(false);
     };
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -390,6 +442,21 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
 
                         <div className="space-y-2">
                             <Label htmlFor="asset-location">{t('addAssetModal.building')} *</Label>
+                            <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                                <Label>{t('addAssetModal.locationTitle')} *</Label>
+                                {!isAdmin && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setIsRemoteLocationFormOpen((open) => !open)}
+                                    >
+                                        <MapPin className="size-4" />
+                                        {t('addAssetModal.addRemoteLocation')}
+                                    </Button>
+                                )}
+                            </div>
                             <Select
                                 value={formData.locationId}
                                 onValueChange={(locationId) => setFormData((current) => ({ ...current, locationId }))}
@@ -406,13 +473,65 @@ export default function AddAssetModal({ isOpen, onClose, onSave, user }: AddAsse
                             </Select>
                             {!locationsLoading && locations.length === 0 && (
                                 <p className="text-xs text-rose-600 dark:text-rose-400">{t('addAssetModal.noLocations')}</p>
+                            {!isAdmin && locations.length === 0 && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {t('addAssetModal.noRemoteLocations')}
+                                </p>
+                            )}
+                            </div>
+
+                            {!isAdmin && isRemoteLocationFormOpen && (
+                                <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                                    {locationError && (
+                                        <Alert variant="destructive">
+                                            <AlertCircle />
+                                            <AlertTitle>{t('addAssetModal.remoteLocationErrorTitle')}</AlertTitle>
+                                            <AlertDescription>{locationError}</AlertDescription>
+                                        </Alert>
+                                    )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="remote-location-name">{t('addAssetModal.remoteLocationName')} *</Label>
+                                        <Input
+                                            id="remote-location-name"
+                                            value={remoteLocationName}
+                                            onChange={(event) => setRemoteLocationName(event.target.value)}
+                                            placeholder={t('addAssetModal.remoteLocationNamePlaceholder')}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="remote-location-address">{t('addAssetModal.remoteLocationAddress')}</Label>
+                                        <Input
+                                            id="remote-location-address"
+                                            value={remoteLocationAddress}
+                                            onChange={(event) => setRemoteLocationAddress(event.target.value)}
+                                            placeholder={t('addAssetModal.remoteLocationAddressPlaceholder')}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="remote-location-description">{t('addAssetModal.remoteLocationDescription')}</Label>
+                                        <Textarea
+                                            id="remote-location-description"
+                                            value={remoteLocationDescription}
+                                            onChange={(event) => setRemoteLocationDescription(event.target.value)}
+                                            placeholder={t('addAssetModal.remoteLocationDescriptionPlaceholder')}
+                                        />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                        <Button type="button" variant="outline" onClick={() => setIsRemoteLocationFormOpen(false)}>
+                                            {t('addAssetModal.cancelRemoteLocation')}
+                                        </Button>
+                                        <Button type="button" onClick={() => void handleAddRemoteLocation()} disabled={isLocationSaving || !remoteLocationName.trim()}>
+                                            {isLocationSaving ? t('addAssetModal.savingRemoteLocation') : t('addAssetModal.saveRemoteLocation')}
+                                        </Button>
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </form>
 
                     <DialogFooter>
-                         <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || categoriesLoading}>{t('addAssetModal.cancel')}</Button>
-                         <Button type="submit" form="add-asset-form" disabled={isLoading || locationsLoading || locations.length === 0 || (isAdmin && usersLoading) || categoriesLoading || categories.length === 0 || !formData.categoryId}>
+                         <Button type="button" variant="outline" onClick={onClose} disabled={isLoading || isLocationSaving || categoriesLoading}>{t('addAssetModal.cancel')}</Button>
+                         <Button type="submit" form="add-asset-form" disabled={isLoading || isLocationSaving || locationsLoading || locations.length === 0 || (isAdmin && usersLoading) || categoriesLoading || categories.length === 0 || !formData.categoryId}>
                              {isLoading ? t('addAssetModal.saving') : t('addAssetModal.save')}
                          </Button>
                      </DialogFooter>

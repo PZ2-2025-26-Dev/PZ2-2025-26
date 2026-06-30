@@ -1,4 +1,5 @@
 import pytest
+from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -60,6 +61,37 @@ def test_create_location_endpoint_requires_admin_role(api_client: TestClient, se
     assert response.status_code == 403
 
 
+def test_create_remote_location_endpoint_allows_regular_user(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        "/locations",
+        json={
+            "name": "Domowe laboratorium",
+            "type": "remote",
+            "address": "ul. Testowa 1",
+            "description": "Lokalizacja zewnętrzna właściciela",
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Domowe laboratorium"
+    assert body["type"] == "remote"
+    assert body["parent_id"] is None
+    assert body["owner_id"] == SEED_IDS.regular_user
+    assert body["address"] == "ul. Testowa 1"
+
+
+def test_create_remote_location_endpoint_rejects_observer(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        "/locations",
+        json={"name": "Lokalizacja obserwatora", "type": "remote"},
+        headers=auth_headers(SEED_IDS.observer_user),
+    )
+
+    assert response.status_code == 403
+
+
 def test_list_locations_endpoint_returns_paged_locations(api_client: TestClient, seeded_db: Session):
     assert seeded_db.get(Location, SEED_IDS.building) is not None
 
@@ -84,6 +116,19 @@ def test_list_locations_endpoint_allows_regular_user(api_client: TestClient, see
     body = response.json()
     assert len(body["locations"]) == 4
     assert body["pagination"]["total"] == 4
+        "/locations",
+        params={"page": 1, "limit": 2},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["locations"]) == 2
+
+
+def test_list_locations_endpoint_requires_authentication(api_client: TestClient):
+    response = api_client.get("/locations")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_location_details_endpoint_returns_full_path(api_client: TestClient, seeded_db: Session):
@@ -93,6 +138,22 @@ def test_location_details_endpoint_returns_full_path(api_client: TestClient, see
 
     assert response.status_code == 200
     assert response.json()["path"] == "Budynek D / Sala D10 / Szafa A"
+
+
+def test_location_details_endpoint_allows_regular_user(api_client: TestClient, seeded_db: Session):
+    response = api_client.get(
+        f"/locations/{SEED_IDS.cabinet}",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["path"] == "Budynek D / Sala D10 / Szafa A"
+
+
+def test_location_details_endpoint_requires_authentication(api_client: TestClient):
+    response = api_client.get(f"/locations/{SEED_IDS.cabinet}")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 def test_update_location_endpoint_updates_database_and_history(api_client: TestClient, seeded_db: Session):
@@ -119,6 +180,17 @@ def test_update_location_endpoint_updates_database_and_history(api_client: TestC
         )
     ).all()
     assert len(history) == 1
+
+
+def test_update_location_endpoint_blocks_hiding_subtree_with_items(api_client: TestClient, seeded_db: Session):
+    response = api_client.put(
+        f"/locations/{SEED_IDS.room}",
+        json={"is_active": False},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 400
+    assert seeded_db.get(Location, SEED_IDS.room).is_active is True
 
 
 def test_delete_location_endpoint_blocks_when_subtree_contains_items(api_client: TestClient, seeded_db: Session):

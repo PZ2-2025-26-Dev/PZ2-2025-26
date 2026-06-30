@@ -1,13 +1,11 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
-from sqlalchemy import select
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.dependencies import DBDep
+from src.items.acl_service import ItemACLService
 from src.items.attachment_service import (
     AttachmentNotFoundError,
     AttachmentStorageError,
@@ -17,37 +15,45 @@ from src.items.attachment_service import (
 )
 from src.items.dependencies import (
     ItemByUuid,
+    RequireItemOwnerOrAdmin,
     RequireItemReader,
     RequireItemWriter,
     assert_can_assign_owner_on_create,
+    assert_can_generate_item_assets,
+    assert_can_manage_item_acl,
+    assert_can_manage_item_attachments,
     assert_can_update_item,
 )
-from src.items.models import Item
+from src.items.label_service import generate_label_image, generate_label_pdf
+from src.items.qr_service import generate_qr_image, generate_qr_pdf
 from src.items.schemas import (
+    ItemACLCreate,
+    ItemACLListResponse,
+    ItemACLResponse,
     ItemAttachmentsListResponse,
     ItemCreate,
     ItemCreateResponse,
     ItemGetResponse,
     ItemHistoryGetResponse,
+    ItemHistorySearch,
     ItemID,
+    ItemLabelRequest,
     ItemSearch,
     ItemsPaged,
     ItemUpdate,
     ItemUpdateResponse,
 )
-from src.items.service import ItemService
+from src.items.service import InvalidScanCodeError, ItemService
 from src.schemas import ErrorResponse
-from src.users.models import User
 
-router = APIRouter(prefix="/items")
+router = APIRouter(prefix="/items", tags=["items"])
 
 
-def _ensure_item_owner(item_id: UUID, user: User, db: DBDep) -> None:
-    item = db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
-    if item is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
-    if item.owner_id != user.id and user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only item owner can manage attachments")
+def error_response(status_code: int, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content=ErrorResponse(code=status_code, detail=detail).model_dump(),
+    )
 
 
 @router.get(
@@ -109,6 +115,239 @@ def create_item(
         return service.add_item(data)
     except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+
+
+@router.get(
+    "/scan/{code}",
+    response_model=ItemGetResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz przedmiot po zeskanowanym kodzie QR",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemGetResponse,
+            "description": "Pomyślnie zwrócono przedmiot przypisany do kodu QR",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Niepoprawny kod QR",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def scan_item(
+    code: str,
+    db: DBDep,
+    _reader: RequireItemReader,
+) -> ItemGetResponse | JSONResponse:
+    try:
+        return ItemService(db).get_item_by_scan_code(code)
+    except InvalidScanCodeError:
+        return error_response(status.HTTP_400_BAD_REQUEST, "Invalid QR code")
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+
+@router.get(
+    "/{item_id}/qr.png",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz kod QR przedmiotu jako PNG",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"image/png": {}},
+            "description": "Pomyślnie wygenerowano kod QR",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do generowania kodu QR",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def download_item_qr_png(
+    item_id: ItemID,
+    db: DBDep,
+    user: CurrentUser,
+) -> StreamingResponse | JSONResponse:
+    service = ItemService(db)
+
+    try:
+        item = service.get_item_for_label(item_id)
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    assert_can_generate_item_assets(user, item)
+    filename = f"item-{item.uuid}-qr.png"
+
+    return StreamingResponse(
+        generate_qr_image(item.uuid, "PNG"),
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/{item_id}/qr.pdf",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz kod QR przedmiotu jako PDF",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"application/pdf": {}},
+            "description": "Pomyślnie wygenerowano kod QR",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do generowania kodu QR",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def download_item_qr_pdf(
+    item_id: ItemID,
+    db: DBDep,
+    user: CurrentUser,
+) -> StreamingResponse | JSONResponse:
+    service = ItemService(db)
+
+    try:
+        item = service.get_item_for_label(item_id)
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    assert_can_generate_item_assets(user, item)
+    filename = f"item-{item.uuid}-qr.pdf"
+
+    return StreamingResponse(
+        generate_qr_pdf(item.uuid),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post(
+    "/{item_id}/label.pdf",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz etykietę przedmiotu jako PDF",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"application/pdf": {}},
+            "description": "Pomyślnie wygenerowano etykietę",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Niepoprawna konfiguracja etykiety",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do generowania etykiety",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def download_item_label_pdf(
+    item_id: ItemID,
+    db: DBDep,
+    user: CurrentUser,
+    data: ItemLabelRequest | None = None,
+) -> StreamingResponse | JSONResponse:
+    service = ItemService(db)
+    label_request = data or ItemLabelRequest()
+
+    try:
+        item = service.get_item_for_label(item_id)
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    assert_can_generate_item_assets(user, item)
+
+    try:
+        label = generate_label_pdf(item, label_request.fields, label_request.width_mm, label_request.height_mm)
+    except ValueError as err:
+        return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+
+    filename = f"item-{item.uuid}-label.pdf"
+
+    return StreamingResponse(
+        label,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post(
+    "/{item_id}/label.png",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz etykietę przedmiotu jako PNG",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"image/png": {}},
+            "description": "Pomyślnie wygenerowano etykietę",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Niepoprawna konfiguracja etykiety",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do generowania etykiety",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def download_item_label_png(
+    item_id: ItemID,
+    db: DBDep,
+    user: CurrentUser,
+    data: ItemLabelRequest | None = None,
+) -> StreamingResponse | JSONResponse:
+    service = ItemService(db)
+    label_request = data or ItemLabelRequest()
+
+    try:
+        item = service.get_item_for_label(item_id)
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    assert_can_generate_item_assets(user, item)
+
+    try:
+        label = generate_label_image(item, label_request.fields, "PNG", label_request.width_mm, label_request.height_mm)
+    except ValueError as err:
+        return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+
+    filename = f"item-{item.uuid}-label.png"
+
+    return StreamingResponse(
+        label,
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get(
@@ -241,18 +480,138 @@ def delete_item(
     },
 )
 def read_item_history(
-    item_id: ItemID,
+    item: RequireItemOwnerOrAdmin,
     db: DBDep,
-    _reader: RequireItemReader,
+    data: Annotated[ItemHistorySearch, Depends()],
 ) -> ItemHistoryGetResponse:
     service = ItemService(db)
 
     try:
-        return service.get_item_history(item_id)
+        return service.get_item_history(item.uuid, data)
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Nie znaleziono przedmiotu",
+        ) from err
+
+
+@router.get(
+    "/{item_id}/acl",
+    response_model=ItemACLListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Wylistuj uprawnienia delegowane dla przedmiotu",
+    responses={
+        status.HTTP_200_OK: {
+            "model": ItemACLListResponse,
+            "description": "Pomyślnie zwrócono listę uprawnień delegowanych.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania listy ACL przedmiotu.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def read_item_acl(
+    item_id: ItemID,
+    db: DBDep,
+    user: RequireItemReader,
+    item: ItemByUuid,
+) -> ItemACLListResponse:
+    service = ItemACLService(db)
+
+    try:
+        return service.list_acl(item, user)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(err),
+        ) from err
+
+
+@router.post(
+    "/{item_id}/acl",
+    response_model=ItemACLResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Nadaj delegowane uprawnienie do przedmiotu",
+    responses={
+        status.HTTP_201_CREATED: {
+            "model": ItemACLResponse,
+            "description": "Uprawnienie zostało nadane.",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Błędne dane lub duplikat uprawnienia.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Tylko właściciel lub administrator może nadawać uprawnienia.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Nie znaleziono przedmiotu",
+        },
+    },
+)
+def create_item_acl(
+    item_id: ItemID,
+    data: ItemACLCreate,
+    db: DBDep,
+    user: RequireItemWriter,
+    item: ItemByUuid,
+) -> ItemACLResponse:
+    assert_can_manage_item_acl(user, item)
+    service = ItemACLService(db)
+
+    try:
+        return service.add_acl(item, data.user_id, data.permission)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        ) from err
+
+
+@router.delete(
+    "/{item_id}/acl/{acl_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Usuń delegowane uprawnienie do przedmiotu",
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Uprawnienie zostało usunięte.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Tylko właściciel lub administrator może usuwać uprawnienia.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Nie znaleziono przedmiotu lub wpisu ACL.",
+        },
+    },
+)
+def delete_item_acl(
+    item_id: ItemID,
+    acl_id: int,
+    db: DBDep,
+    user: RequireItemWriter,
+    item: ItemByUuid,
+) -> None:
+    assert_can_manage_item_acl(user, item)
+    service = ItemACLService(db)
+
+    try:
+        service.remove_acl(item, acl_id)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(err),
         ) from err
 
 
@@ -309,7 +668,7 @@ def read_item_attachments(
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
-            "description": "Tylko właściciel przedmiotu może dodawać pliki.",
+            "description": "Brak uprawnień do zarządzania załącznikami przedmiotu.",
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
@@ -321,9 +680,10 @@ def upload_item_attachments(
     item_id: ItemID,
     db: DBDep,
     user: CurrentUser,
+    item: ItemByUuid,
     files: Annotated[list[UploadFile], File()],
 ) -> ItemAttachmentsListResponse:
-    _ensure_item_owner(item_id, user, db)
+    assert_can_manage_item_attachments(user, item, db)
     service = ItemAttachmentService(db)
 
     try:
@@ -393,7 +753,7 @@ def download_item_attachment(
         },
         status.HTTP_403_FORBIDDEN: {
             "model": ErrorResponse,
-            "description": "Tylko właściciel przedmiotu może usuwać pliki.",
+            "description": "Brak uprawnień do zarządzania załącznikami przedmiotu.",
         },
         status.HTTP_404_NOT_FOUND: {
             "model": ErrorResponse,
@@ -406,8 +766,9 @@ def delete_item_attachment(
     attachment_id: int,
     db: DBDep,
     user: CurrentUser,
+    item: ItemByUuid,
 ) -> None:
-    _ensure_item_owner(item_id, user, db)
+    assert_can_manage_item_attachments(user, item, db)
     service = ItemAttachmentService(db)
 
     try:

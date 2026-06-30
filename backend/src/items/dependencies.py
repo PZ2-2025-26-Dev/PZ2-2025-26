@@ -70,6 +70,18 @@ def get_item_by_uuid(
     return item
 
 
+ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
+
+
+def require_item_owner_or_admin(item: ItemByUuid, user: CurrentUser) -> Item:
+    if user.role != UserRole.ADMIN and item.owner_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
+        )
+    return item
+
+
 def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
     fields: set[str] = set()
 
@@ -140,6 +152,29 @@ def _assert_delegated_user_can_update_fields(
             )
 
 
+def assert_can_manage_item_acl(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tylko właściciel przedmiotu lub administrator może zarządzać uprawnieniami.",
+    )
+
+
+def assert_can_manage_item_attachments(user: User, item: Item, db: Session) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    if has_item_permission(db, item.id, user.id, ItemPermissionType.EDIT_ATTACHMENTS):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Brak uprawnień do zarządzania załącznikami tego przedmiotu.",
+    )
+
+
 def assert_can_change_owner(user: User) -> None:
     if user.role != UserRole.ADMIN:
         raise HTTPException(
@@ -161,6 +196,16 @@ def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
     )
 
 
+def assert_can_generate_item_assets(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tylko administrator lub właściciel przedmiotu może generować jego kod QR i etykiety.",
+    )
+
+
 RequireItemReader = Annotated[User, Depends(require_item_reader)]
 RequireItemWriter = Annotated[User, Depends(require_item_writer)]
-ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
+RequireItemOwnerOrAdmin = Annotated[Item, Depends(require_item_owner_or_admin)]

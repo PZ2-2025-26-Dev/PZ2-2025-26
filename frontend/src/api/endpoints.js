@@ -15,9 +15,15 @@ export const ENDPOINTS = {
     ITEMS: {
         BASE: '/items',
         DETAILS: (id) => `/items/${id}`,
+        ACL: (id) => `/items/${id}/acl`,
+        ACL_ENTRY: (itemId, aclId) => `/items/${itemId}/acl/${aclId}`,
         BORROW: (id) => `/items/${id}/borrow`,
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,
+        HISTORY: (id) => `/items/${id}/history`,
+        SCAN: (code) => `/items/scan/${encodeURIComponent(code)}`,
+        QR: (id, format) => `/items/${id}/qr.${format}`,
+        LABEL: (id, format) => `/items/${id}/label.${format}`,
         ATTACHMENTS: (id) => `/items/${id}/attachments`,
         ATTACHMENT_DOWNLOAD: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}/download`,
         ATTACHMENT_DELETE: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}`,
@@ -34,6 +40,17 @@ export const ENDPOINTS = {
     },
     USERS: {
         BASE: '/users',
+        BROWSE: '/users/browse',
+        GUESTS: '/users/guests',
         DETAILS: (id) => `/users/${id}`,
-    }
+    },
+    LOANS: {
+        BASE: '/loans',
+        EXTERNAL: '/loans/external',
+        DETAILS: (id) => `/loans/${id}`,
+        APPROVE: (id) => `/loans/${id}/approve`,
+        DENY: (id) => `/loans/${id}/deny`,
+        RETURN: (id) => `/loans/${id}/return`,
+        CONFIRM_RETURN: (id) => `/loans/${id}/confirm-return`,
+    },
 };

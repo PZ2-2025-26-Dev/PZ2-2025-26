@@ -3,7 +3,8 @@ from uuid import UUID, uuid7
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from src.items.constants import ItemChangeLogType, ItemStatus
+from src.categories.service import build_category_path
+from src.items.constants import BASIC_LENGTH, ItemChangeLogType, ItemStatus
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
 from src.items.schemas import (
@@ -14,6 +15,7 @@ from src.items.schemas import (
     ItemGetResponse,
     ItemHistoryGet,
     ItemHistoryGetResponse,
+    ItemHistorySearch,
     ItemLocation,
     ItemOwner,
     ItemPagination,
@@ -26,12 +28,27 @@ from src.items.schemas import (
 from src.utils import now
 
 
+class InvalidScanCodeError(ValueError):
+    pass
+
+
 class ItemService:
     def __init__(self, db: Session):
         self.db = db
 
     def _get_item_by_uuid(self, item_id: UUID) -> Item | None:
         return self.db.execute(select(Item).where(Item.uuid == item_id)).scalar_one_or_none()
+
+    def _get_item_by_uuid_with_relations(self, item_id: UUID) -> Item | None:
+        return self.db.execute(
+            select(Item)
+            .where(Item.uuid == item_id)
+            .options(
+                selectinload(Item.category),
+                selectinload(Item.location),
+                selectinload(Item.owner),
+            )
+        ).scalar_one_or_none()
 
     def _owner_display_name(self, owner) -> str:
         if owner.last_name:
@@ -149,9 +166,37 @@ class ItemService:
         )
 
     def get_item(self, item_id: UUID) -> ItemGetResponse:
+        item = self._get_item_by_uuid_with_relations(item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        return self.to_get_response(item)
+
+    def get_item_for_label(self, item_id: UUID) -> Item:
+        item = self._get_item_by_uuid_with_relations(item_id)
+
+        if item is None:
+            raise ValueError("Item not found")
+
+        return item
+
+    def get_item_by_scan_code(self, code: str) -> ItemGetResponse:
+        if not code.strip() or len(code) > BASIC_LENGTH:
+            raise InvalidScanCodeError("Invalid QR code")
+
+        try:
+            item_uuid = UUID(code)
+        except ValueError:
+            criterion = Item.oldID == code
+        else:
+            if code != str(item_uuid):
+                raise InvalidScanCodeError("Invalid QR code")
+            criterion = Item.uuid == item_uuid
+
         item = self.db.execute(
             select(Item)
-            .where(Item.uuid == item_id)
+            .where(criterion)
             .options(
                 selectinload(Item.category),
                 selectinload(Item.location),
@@ -162,26 +207,7 @@ class ItemService:
         if item is None:
             raise ValueError("Item not found")
 
-        return ItemGetResponse(
-            id=item.uuid,
-            name=item.name,
-            description=item.description,
-            status=item.status,
-            oldID=item.oldID,
-            category=ItemCategory(
-                id=item.category.id,
-                name=item.category.name,
-            ),
-            location=ItemLocation(
-                id=item.location.id,
-                path=build_location_path(item.location),
-            ),
-            owner=ItemOwner(
-                id=item.owner.id,
-                name=self._owner_display_name(item.owner),
-            ),
-            parameters=item.parameters,
-        )
+        return self.to_get_response(item)
 
     def delete_item(self, item_id: UUID) -> ItemDeleteResponse:
         item = self._get_item_by_uuid(item_id)
@@ -236,6 +262,7 @@ class ItemService:
                 category=ItemCategory(
                     id=item.category.id,
                     name=item.category.name,
+                    path=build_category_path(item.category),
                 ),
                 location=ItemLocation(
                     id=item.location.id,
@@ -252,13 +279,24 @@ class ItemService:
         pagination = ItemPagination(page=data.page, limit=data.limit, total=total)
         return ItemsPaged(items=items, pagination=pagination)
 
-    def get_item_history(self, item_id: UUID) -> ItemHistoryGetResponse:
+    def get_item_history(self, item_id: UUID, data: ItemHistorySearch) -> ItemHistoryGetResponse:
         item = self._get_item_by_uuid(item_id)
 
         if item is None:
             raise ValueError("Item not found")
 
-        stmt = select(ItemHistory).where(ItemHistory.item_id == item.id).order_by(ItemHistory.updated_at.desc())
+        conditions = [ItemHistory.item_id == item.id]
+        if data.change_type is not None:
+            conditions.append(ItemHistory.change_type == data.change_type)
+
+        total = self.db.scalar(select(func.count(ItemHistory.id)).where(*conditions)) or 0
+        stmt = (
+            select(ItemHistory)
+            .where(*conditions)
+            .order_by(ItemHistory.updated_at.desc(), ItemHistory.id.desc())
+            .offset((data.page - 1) * data.limit)
+            .limit(data.limit)
+        )
 
         results = self.db.execute(stmt).scalars().all()
         return ItemHistoryGetResponse(
@@ -271,5 +309,29 @@ class ItemService:
                     description=entry.description,
                 )
                 for entry in results
-            ]
+            ],
+            pagination=ItemPagination(page=data.page, limit=data.limit, total=total),
+        )
+
+    def to_get_response(self, item: Item) -> ItemGetResponse:
+        return ItemGetResponse(
+            id=item.uuid,
+            name=item.name,
+            description=item.description,
+            status=item.status,
+            oldID=item.oldID,
+            category=ItemCategory(
+                id=item.category.id,
+                name=item.category.name,
+                path=build_category_path(item.category),
+            ),
+            location=ItemLocation(
+                id=item.location.id,
+                path=build_location_path(item.location),
+            ),
+            owner=ItemOwner(
+                id=item.owner.id,
+                name=self._owner_display_name(item.owner),
+            ),
+            parameters=item.parameters,
         )
