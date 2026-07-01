@@ -93,7 +93,8 @@
     "sections": {
       "deviceData": "Dane urządzenia",
       "locationTree": "Drzewo lokalizacji",
-      "users": "Użytkownicy"
+      "users": "Użytkownicy",
+      "sorting": "Sortowanie"
     },
 
     "fields": {
@@ -135,13 +136,20 @@
     },
 
     "buttons": {
-      "addParam": "Dodaj kryterium parametru"
+      "addParam": "Dodaj kryterium parametru",
+      "showSorting": "Pokaż sortowanie",
+      "hideSorting": "Ukryj sortowanie"
     },
 
     "parameters": {
       "title": "Parametry techniczne",
       "keyPlaceholder": "Nazwa parametru (np. Producent)",
       "valuePlaceholder": "Wartość (np. Rigol)"
+    },
+    "sorting": {
+      "addColumn": "Dodaj kolumnę sortowania:",
+      "selectColumn": "Wybierz kolumnę do sortowania",
+      "noColumns": "Brak dostępnych kolumn"
     }
   },
   "rentalCenter": {

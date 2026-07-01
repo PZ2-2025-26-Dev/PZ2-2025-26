@@ -450,7 +450,8 @@
     "sections": {
       "deviceData": "Device data",
       "locationTree": "Location tree",
-      "users": "Users"
+      "users": "Users",
+      "sorting": "Sorting"
     },
 
     "fields": {
@@ -488,13 +489,20 @@
     },
 
     "buttons": {
-      "addParam": "Add parameter filter"
+      "addParam": "Add parameter filter",
+      "showSorting": "Show sorting",
+      "hideSorting": "Hide sorting"
     },
 
     "parameters": {
       "title": "Technical parameters",
       "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
       "valuePlaceholder": "Value (e.g. Rigol)"
+    },
+    "sorting": {
+      "addColumn": "Add sorting column:",
+      "selectColumn": "Select column to sort by",
+      "noColumns": "No columns available"
     },
     "common":{
       "previous": "Previous",
