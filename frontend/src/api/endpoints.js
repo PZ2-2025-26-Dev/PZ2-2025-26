@@ -47,6 +47,7 @@ export const ENDPOINTS = {
     EXPORT: {
         BASE: '/exports',
         ITEMS_XLSX: '/exports/items/xlsx',
+        ITEM_REPORT: (id) => `/exports/items/${id}/report/xlsx`,
     },
     LOANS: {
         BASE: '/loans',

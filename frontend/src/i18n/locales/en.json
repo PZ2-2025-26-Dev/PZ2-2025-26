@@ -366,6 +366,8 @@
     "historyLoadError": "Could not load the change history.",
     "historyErrorTitle": "History error",
     "historyAuthor": "User #{{id}}",
+    "report": "Excel Report",
+    "downloading": "Downloading...",
     "historyTypes": {
       "created": "Created",
       "loaned": "Loaned",

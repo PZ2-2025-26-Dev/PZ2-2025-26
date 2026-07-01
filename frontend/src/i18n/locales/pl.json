@@ -437,6 +437,8 @@
     "historyLoadError": "Nie udało się pobrać historii zmian.",
     "historyErrorTitle": "Błąd historii",
     "historyAuthor": "Użytkownik #{{id}}",
+    "report": "Raport - Excel",
+    "downloading": "Pobieranie...",
     "historyTypes": {
       "created": "Utworzenie",
       "loaned": "Wypożyczenie",

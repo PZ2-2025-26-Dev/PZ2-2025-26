@@ -77,10 +77,55 @@ export const useExport = () => {
         }
     }, []);
 
+    const exportItemReportXlsx = useCallback(async (itemId) => {
+        if (!itemId) return { success: false, error: 'Missing item ID' };
+        
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            console.log('Exporting item report for ID:', itemId);
+            const response = await axiosClient.get(
+                ENDPOINTS.EXPORT.ITEM_REPORT(itemId),
+                {
+                    responseType: 'blob',
+                }
+            );
+
+            const blob = new Blob([response.data], {
+                type:
+                    response.headers['content-type'] ||
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Plik nazwie się np. report-item-00000...-2026-07-01.xlsx
+            link.download = `report-item-${itemId}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+            document.body.appendChild(link);
+            link.click();
+
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            return { success: true };
+        } catch (err) {
+            console.error('Export item report error:', err);
+            setError('Export item report failed');
+            return { success: false, error: 'Export failed' };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => setError(null), []);
 
     return {
         exportItemsXlsx,
+        exportItemReportXlsx, 
         isLoading,
         error,
         clearError,

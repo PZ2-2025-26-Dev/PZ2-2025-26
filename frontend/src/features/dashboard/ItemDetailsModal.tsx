@@ -49,6 +49,8 @@ import { useItemAcl } from '../inventory/useItemAcl';
 import { useItemAttachments } from '../inventory/useItemAttachments';
 import { ITEM_HISTORY_PAGE_LIMIT, useInventory } from '../inventory/useInventory';
 import { useLocations, type Location } from '../locations/useLocations';
+import { useExport } from '@/features/exports/useExport';
+
 
 const SCROLLABLE_SECTION_CLASS = 'max-h-44 overflow-y-auto overflow-x-hidden pr-1';
 
@@ -164,6 +166,7 @@ export default function ItemDetailsModal({
     const [labelFields, setLabelFields] = useState<string[]>(DEFAULT_LABEL_FIELDS);
     const [assetDownloadError, setAssetDownloadError] = useState<string | null>(null);
     const [isAssetDownloading, setIsAssetDownloading] = useState(false);
+    const { exportItemReportXlsx, isLoading: isExporting } = useExport();
 
     const itemId = item?.id ?? null;
     const {
@@ -340,6 +343,12 @@ export default function ItemDetailsModal({
         setIsDescriptionOpen(true);
     };
 
+    const handleDownloadReport = async () => {
+        if (item?.id) {
+            await exportItemReportXlsx(item.id);
+        }
+    };
+
     const handleSaveLocation = async () => {
         const locationId = Number(editedLocationId);
         if (!locationId || locationId === item.locationId) {
@@ -394,6 +403,7 @@ export default function ItemDetailsModal({
 
     const loadHistory = async (page: number, replace = false) => {
         setHistoryError(null);
+        console.log(item.id)
         const result = await getItemHistory(item.id, page, ITEM_HISTORY_PAGE_LIMIT);
 
         if (!result.success) {
@@ -728,6 +738,18 @@ export default function ItemDetailsModal({
                                         <Pencil className="size-4 text-slate-400" />
                                     </Button>
                                 )}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleDownloadReport}
+                                    disabled={isExporting}
+                                    className="flex items-center gap-1.5 text-xs h-8"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                    <span>
+                                        {isExporting ? t('itemDetailsModal.downloading') : t('itemDetailsModal.report')}
+                                    </span>
+                                </Button>
                             </div>
                         )}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
