@@ -22,6 +22,7 @@ export const useExport = () => {
         setError(null);
 
         try {
+            console.log('Exporting items with filters:', filters);
             const response = await axiosClient.get(
                 ENDPOINTS.EXPORT.ITEMS_XLSX,
                 {
@@ -35,8 +36,7 @@ export const useExport = () => {
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
                     borrower_id: filters.borrowerId,
-                    sort_by: filters.sort_by ?? "name",
-                    sort_order: filters.sort_order ?? "asc",
+                    sort: filters.sort ?? "name:asc",
                     page: filters.page ?? 1,
                     limit: filters.limit ?? 20,
                     custom_params: filters.custom_params

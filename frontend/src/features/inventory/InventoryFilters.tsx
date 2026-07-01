@@ -43,12 +43,11 @@ export type InventoryFiltersState = {
   ownerId: string;
   borrowerId?: string;
   search?: string;
-  sort_by?: "id" | "name" | "status" | "created_at" | "category" | "location" | "owner";
-  sort_order?: "asc" | "desc";
+  sort?: string; 
   page?: number;
   limit?: number;
   parameters?: Record<string, string>;
-  custom_params?: string; // DODANE: Typ dla zakodowanego ciągu parametrów customowych
+  custom_params?: string; 
 };
 
 type Props = {

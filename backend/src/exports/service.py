@@ -44,14 +44,7 @@ class ExportService:
             selectinload(Item.owner),
         )
 
-        sort_by = "name"
-        sort_order = "asc"
-
-        if data.sort and ":" in data.sort:
-            sort_by, sort_order = data.sort.split(":", 1)
-        elif data.sort:
-            sort_by = data.sort
-
+        # Mapa pól sortowania na kolumny bazodanowe
         sort_field_map = {
             "id": Item.id,
             "name": Item.name,
@@ -61,16 +54,48 @@ class ExportService:
             "owner": User.last_name,
         }
 
-        if sort_by == "category":
-            stmt = stmt.join(Item.category)
-        elif sort_by == "location":
-            stmt = stmt.join(Item.location)
-        elif sort_by == "owner":
-            stmt = stmt.join(Item.owner)
+        # Parse multiple sort criteria: "name:asc,status:desc,category:asc"
+        sort_criterias = []
+        if data.sort:
+            parts = data.sort.split(",")
+            for part in parts:
+                if ":" in part:
+                    field, order = part.split(":", 1)
+                else:
+                    field, order = part, "asc"
 
-        sort_column = sort_field_map.get(sort_by, Item.id)
+                field = field.strip().lower()
+                order = order.strip().lower()
+                if field in sort_field_map:
+                    sort_criterias.append((field, order))
 
-        stmt = stmt.order_by(sort_column.desc()) if sort_order == "desc" else stmt.order_by(sort_column.asc())
+        # Apply joins for related fields if needed
+        joined_tables = set()
+        for field, _ in sort_criterias:
+            if field == "category" and "category" not in joined_tables:
+                stmt = stmt.join(Item.category, isouter=True)
+                joined_tables.add("category")
+            elif field == "location" and "location" not in joined_tables:
+                stmt = stmt.join(Item.location, isouter=True)
+                joined_tables.add("location")
+            elif field == "owner" and "owner" not in joined_tables:
+                stmt = stmt.join(Item.owner, isouter=True)
+                joined_tables.add("owner")
+
+        # Build order_by clauses for all sort criteria
+        order_by_clauses = []
+        for field, order in sort_criterias:
+            column = sort_field_map.get(field, Item.id)
+            if order == "desc":
+                order_by_clauses.append(column.desc())
+            else:
+                order_by_clauses.append(column.asc())
+
+        # If no sort criteria specified, default to name ascending
+        if not order_by_clauses:
+            order_by_clauses.append(Item.name.asc())
+
+        stmt = stmt.order_by(*order_by_clauses)
 
         items = self.db.execute(stmt).scalars().all()
 
@@ -99,7 +124,7 @@ class ExportService:
                     item.oldID or "",
                     item.category.name if item.category else "",
                     item.location.name if item.location else "",
-                    item.owner.first_name if item.owner else "",
+                    f"{item.owner.first_name} {item.owner.last_name}".strip() if item.owner else "",
                     item.status.value,
                     item.description or "",
                 ]

@@ -103,8 +103,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         ownerId: '',
         borrowerId: '',
         search: '',
-        sort_by: 'name',
-        sort_order: 'asc',
+        sort: 'name:asc',
         page: 1,
         limit: 15,
         custom_params: undefined
@@ -322,7 +321,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         void refreshItems();
     };
 
-    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
+    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);   
 
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
