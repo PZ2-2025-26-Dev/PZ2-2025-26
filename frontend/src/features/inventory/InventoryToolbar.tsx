@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Download, SlidersHorizontal, X } from "lucide-react"; // Jeśli masz ikonę QrCode w pakiecie, możesz zmienić Search na QrCode
+import { Search, Plus, Download, SlidersHorizontal, Tags, X } from "lucide-react"; // Jeśli masz ikonę QrCode w pakiecie, możesz zmienić Search na QrCode
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +20,9 @@ type Props = {
 
   onAdd: () => void;
   onExport: () => void;
+  onBatchLabelExport: () => void;
   onQrScan: () => void; // <-- Dodana nowa właściwość w Props
+  selectedCount: number;
 
   isLoading?: boolean;
 };
@@ -34,7 +36,9 @@ export default function InventoryToolbar({
   users,
   onAdd,
   onExport,
+  onBatchLabelExport,
   onQrScan, // <-- Destrukturyzacja nowej właściwości
+  selectedCount,
   isLoading,
 }: Props) {
   const [openFilters, setOpenFilters] = useState(false);
@@ -67,7 +71,7 @@ export default function InventoryToolbar({
           </div>
 
           {/* ACTIONS */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
 
             <Button
               variant={openFilters ? "secondary" : "outline"}
@@ -100,6 +104,16 @@ export default function InventoryToolbar({
                 {t('dashboard.exportXlsx')}
               </Button>
             </RoleGuard>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBatchLabelExport}
+              disabled={selectedCount === 0 || isLoading}
+            >
+              <Tags className="size-4 mr-2" />
+              {t('batchLabels.action')} ({selectedCount})
+            </Button>
 
             {/* Dodany przycisk skanowania QR zaraz po eksporcie */}
             <Button variant="secondary" size="sm" onClick={onQrScan}>

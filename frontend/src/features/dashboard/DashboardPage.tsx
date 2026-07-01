@@ -50,6 +50,10 @@ import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
 import InventoryToolbar from '../inventory/InventoryToolbar';
+import BatchLabelExportDialog, {
+    type BatchLabelFormat,
+    type BatchLabelOptions,
+} from '../inventory/BatchLabelExportDialog';
 import { InventoryFiltersState } from '../inventory/InventoryFilters';
 import { useUsers } from '../users/useUsers';
 import { useLocations } from '../locations/useLocations';
@@ -78,7 +82,15 @@ type DashboardPageProps = {
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, isLoading, getItem, lookupItemByQrCode, error, clearError } = useInventory();
+    const {
+        listItems,
+        isLoading,
+        getItem,
+        lookupItemByQrCode,
+        downloadBatchLabels,
+        error,
+        clearError,
+    } = useInventory();
     const { listCategories } = useCategories();
     const { exportItemsXlsx, isLoading: isExporting, error: exportError, clearError: clearExportError } = useExport();
 
@@ -118,6 +130,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [isBatchLabelDialogOpen, setIsBatchLabelDialogOpen] = useState(false);
+    const [selectedLabelItems, setSelectedLabelItems] = useState<Map<string, InventoryItem>>(() => new Map());
+    const [labelSelectionError, setLabelSelectionError] = useState<string | null>(null);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -144,6 +159,30 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
     const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+    const selectedLabelItemsList = useMemo(
+        () => [...selectedLabelItems.values()],
+        [selectedLabelItems],
+    );
+    const selectionScope = useMemo(() => JSON.stringify({
+        ...filters,
+        page: undefined,
+    }), [filters]);
+    const canSelectItemForLabel = useCallback((item: InventoryItem) => (
+        canManageSystem || item.ownerId === Number(user.id)
+    ), [canManageSystem, user.id]);
+    const selectablePageItems = useMemo(
+        () => items.filter(canSelectItemForLabel),
+        [canSelectItemForLabel, items],
+    );
+    const allSelectablePageItemsAreSelected = (
+        selectablePageItems.length > 0
+        && selectablePageItems.every((item) => selectedLabelItems.has(item.id))
+    );
+
+    useEffect(() => {
+        setSelectedLabelItems(new Map());
+        setLabelSelectionError(null);
+    }, [selectionScope]);
 
     type SortCriteria = {
         field: SortField;
@@ -303,9 +342,72 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             search: filters.search || searchQuery,
         });
     }, [clearExportError, exportItemsXlsx, filters, searchQuery]);
+
+    const toggleItemForLabel = (item: InventoryItem) => {
+        if (!canSelectItemForLabel(item)) return;
+
+        const next = new Map(selectedLabelItems);
+        if (next.has(item.id)) {
+            next.delete(item.id);
+            setLabelSelectionError(null);
+            setSelectedLabelItems(next);
+            return;
+        }
+
+        if (next.size >= 100) {
+            setLabelSelectionError(t('batchLabels.limitError'));
+            return;
+        }
+
+        next.set(item.id, item);
+        setLabelSelectionError(null);
+        setSelectedLabelItems(next);
+    };
+
+    const toggleSelectablePageItems = () => {
+        const next = new Map(selectedLabelItems);
+
+        if (allSelectablePageItemsAreSelected) {
+            selectablePageItems.forEach((item) => next.delete(item.id));
+            setLabelSelectionError(null);
+            setSelectedLabelItems(next);
+            return;
+        }
+
+        for (const item of selectablePageItems) {
+            if (next.has(item.id)) continue;
+            if (next.size >= 100) {
+                setLabelSelectionError(t('batchLabels.limitError'));
+                setSelectedLabelItems(next);
+                return;
+            }
+            next.set(item.id, item);
+        }
+
+        setLabelSelectionError(null);
+        setSelectedLabelItems(next);
+    };
+
+    const handleBatchLabelExport = async (
+        itemIds: string[],
+        format: BatchLabelFormat,
+        options: BatchLabelOptions,
+    ) => downloadBatchLabels(itemIds, format, options);
+
+    const clearLabelSelection = () => {
+        setSelectedLabelItems(new Map());
+        setLabelSelectionError(null);
+    };
+
     const handleItemUpdated = (updatedItem: InventoryItem) => {
         setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
         setSelectedItem(updatedItem);
+        setSelectedLabelItems((current) => {
+            if (!current.has(updatedItem.id)) return current;
+            const next = new Map(current);
+            next.set(updatedItem.id, updatedItem);
+            return next;
+        });
     };
 
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
@@ -388,15 +490,36 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 users={users}
                                 onAdd={() => setIsAddModalOpen(true)}
                                 onExport={handleExportXlsx}
+                                onBatchLabelExport={() => setIsBatchLabelDialogOpen(true)}
                                 onQrScan={() => setIsQrScannerOpen(true)}
+                                selectedCount={selectedLabelItems.size}
                                 isLoading={isLoading || isExporting}
                             />
+
+                            {labelSelectionError && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="size-4" />
+                                    <AlertTitle>{t('batchLabels.selectionErrorTitle')}</AlertTitle>
+                                    <AlertDescription>{labelSelectionError}</AlertDescription>
+                                </Alert>
+                            )}
 
                             <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
                                 <div className="overflow-x-auto">
                                     <Table className="min-w-full">
                                         <TableHeader>
                                             <TableRow className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40">
+                                                <TableHead className="w-12 px-4 py-3">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allSelectablePageItemsAreSelected}
+                                                        onChange={toggleSelectablePageItems}
+                                                        disabled={selectablePageItems.length === 0}
+                                                        aria-label={t('batchLabels.selectPage')}
+                                                        title={t('batchLabels.selectPage')}
+                                                        className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                    />
+                                                </TableHead>
                                                 {columns.map((col) => (
                                                     <TableHead
                                                         key={String(col.field)}
@@ -417,12 +540,33 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         <TableBody>
                                             {isLoading && items.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="py-10 text-center text-slate-400">
+                                                    <TableCell colSpan={7} className="py-10 text-center text-slate-400">
                                                         {t('userManager.loading')}
                                                     </TableCell>
                                                 </TableRow>
                                             ) : items.length > 0 ? items.map((item) => (
                                                 <TableRow key={item.id} className="cursor-pointer group border-b border-slate-100 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40 transition-colors duration-150" onClick={() => void openItemDetails(item) }>
+                                                    <TableCell
+                                                        className="w-12 px-4 py-3"
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedLabelItems.has(item.id)}
+                                                            onChange={() => toggleItemForLabel(item)}
+                                                            disabled={
+                                                                !canSelectItemForLabel(item)
+                                                                || (selectedLabelItems.size >= 100 && !selectedLabelItems.has(item.id))
+                                                            }
+                                                            aria-label={t('batchLabels.selectItem', { name: item.name })}
+                                                            title={
+                                                                canSelectItemForLabel(item)
+                                                                    ? t('batchLabels.selectItem', { name: item.name })
+                                                                    : t('batchLabels.notAllowed')
+                                                            }
+                                                            className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                                        />
+                                                    </TableCell>
                                                     <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{item.oldID ?? item.id}</TableCell>
                                                     <TableCell className="px-4 py-3">
                                                         <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
@@ -439,7 +583,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                     <TableCell className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
                                                 </TableRow>
                                             )) : (
-                                                <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
+                                                <TableRow><TableCell colSpan={7} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
                                             )}
                                         </TableBody>
                                     </Table>
@@ -649,6 +793,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onUpdateStatus={handleUpdateItemStatus}
                 onItemUpdated={handleItemUpdated}
                 onLocationChanged={handleItemLocationChanged}
+            />
+            <BatchLabelExportDialog
+                open={isBatchLabelDialogOpen}
+                onOpenChange={setIsBatchLabelDialogOpen}
+                items={selectedLabelItemsList}
+                onExport={handleBatchLabelExport}
+                onCompleted={clearLabelSelection}
             />
             <QrScannerDialog
                 isOpen={isQrScannerOpen}

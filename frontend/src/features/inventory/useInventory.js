@@ -70,7 +70,7 @@ const downloadBlob = (blob, filename) => {
 
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, updateItem: Function, getItem: Function, getItemHistory: Function, listItems: Function, lookupItemByQrCode: Function, listAttachments: Function, uploadAttachments: Function, downloadAttachment: Function, deleteAttachment: Function, downloadItemQr: Function, downloadItemLabel: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, updateItem: Function, getItem: Function, getItemHistory: Function, listItems: Function, lookupItemByQrCode: Function, listAttachments: Function, uploadAttachments: Function, downloadAttachment: Function, deleteAttachment: Function, downloadItemQr: Function, downloadItemLabel: Function, downloadBatchLabels: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -419,6 +419,25 @@ export const useInventory = () => {
         }
     }, []);
 
+    const downloadBatchLabels = useCallback(async (itemIds, format, options = {}) => {
+        try {
+            const response = await axiosClient.post(
+                ENDPOINTS.ITEMS.BATCH_LABELS(format),
+                {
+                    item_ids: itemIds,
+                    ...options,
+                },
+                {
+                    responseType: 'blob',
+                },
+            );
+            downloadBlob(response.data, `item-labels.${format}`);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
     return {
         createItem,
         updateItem,
@@ -436,5 +455,6 @@ export const useInventory = () => {
         deleteAttachment,
         downloadItemQr,
         downloadItemLabel,
+        downloadBatchLabels,
     };
 };
