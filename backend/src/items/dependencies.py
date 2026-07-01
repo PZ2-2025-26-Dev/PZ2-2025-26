@@ -75,12 +75,14 @@ ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
 
 
 def require_item_owner_or_admin(item: ItemByUuid, user: CurrentUser) -> Item:
-    if user.role != UserRole.ADMIN and item.owner_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
-        )
-    return item
+    if user.role in (UserRole.ADMIN, UserRole.OBSERVER):
+        return item
+    if item.owner_id == user.id:
+        return item
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
+    )
 
 
 def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
