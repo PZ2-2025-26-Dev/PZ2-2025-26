@@ -376,6 +376,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 users={users}
                                 onAdd={() => setIsAddModalOpen(true)}
                                 onExport={handleExportXlsx}
+                                onQrScan={() => setIsQrScannerOpen(true)}
                                 isLoading={isLoading}
                             />
 

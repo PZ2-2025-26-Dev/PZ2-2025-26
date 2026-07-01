@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Download, SlidersHorizontal, X } from "lucide-react";
+import { Search, Plus, Download, SlidersHorizontal, X } from "lucide-react"; // Jeśli masz ikonę QrCode w pakiecie, możesz zmienić Search na QrCode
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +7,6 @@ import InventoryFilters, { InventoryFiltersState } from "./InventoryFilters";
 import RoleGuard from "../auth/RoleGuard";
 import { PERMISSIONS } from "../auth/permissions";
 import { useTranslation } from 'react-i18next';
-
 
 type Props = {
   user: any;
@@ -21,6 +20,7 @@ type Props = {
 
   onAdd: () => void;
   onExport: () => void;
+  onQrScan: () => void; // <-- Dodana nowa właściwość w Props
 
   isLoading?: boolean;
 };
@@ -34,6 +34,7 @@ export default function InventoryToolbar({
   users,
   onAdd,
   onExport,
+  onQrScan, // <-- Destrukturyzacja nowej właściwości
   isLoading,
 }: Props) {
   const [openFilters, setOpenFilters] = useState(false);
@@ -99,6 +100,12 @@ export default function InventoryToolbar({
                 {t('dashboard.exportXlsx')}
               </Button>
             </RoleGuard>
+
+            {/* Dodany przycisk skanowania QR zaraz po eksporcie */}
+            <Button variant="secondary" size="sm" onClick={onQrScan}>
+              <Search className="size-4 mr-2" />
+              {t('qrScanner.button')}
+            </Button>
 
           </div>
         </div>
