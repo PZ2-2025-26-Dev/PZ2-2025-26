@@ -31,6 +31,7 @@
   },
   "dashboard": {
     "dashboard": "Panel Inwentaryzacyjny",
+    "dashboardDesc": "Lista przedmiotów",
     "welcome": "Witaj",
     "role": "Rola",
     "logout": "Wyloguj",
@@ -47,7 +48,7 @@
     "borrowedAssets": "Wypożyczone",
     "pendingApprovals": "Oczekujące wnioski",
     "damagedAssets": "Uszkodzone",
-    "searchPlaceholder": "Szukaj po nazwie, producencie, nr seryjnym...",
+    "searchPlaceholder": "Szukaj po nazwie, opisie...",
     "filterStatus": "Status",
     "filterCategory": "Kategoria",
     "all": "Wszystkie",
@@ -67,12 +68,88 @@
     "approveBtn": "Zatwierdź",
     "rejectBtn": "Odrzuć",
     "refresh": "Odśwież",
+    "shown": "Wyświetlane",
+    "of": "z",
+    "items": "przedmiotów",
     "itemStatuses": {
       "available": "Dostępny",
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
       "broken": "Uszkodzony"
+    },
+    "filters":{
+      "advancedFilters": "Zawansowane filtrowanie",
+      "ads":"wedsa"
+    }
+  },
+  "inventoryFilters": {
+    "searchPlaceholder": "Szukaj po nazwie, opisie...",
+
+    "labels": {
+      "advancedFilters": "Filtry zaawansowane"
+    },
+
+    "sections": {
+      "deviceData": "Dane urządzenia",
+      "locationTree": "Drzewo lokalizacji",
+      "users": "Użytkownicy",
+      "sorting": "Sortowanie"
+    },
+
+    "fields": {
+      "deviceId": "ID urządzenia",
+      "deviceName": "Nazwa urządzenia",
+      "category": "Kategoria",
+      "status": "Status",
+      "location": "Lokalizacja",
+      "owner": "Właściciel (Assigned Owner)",
+      "borrower": "Wypożyczający (Current Borrower)"
+    },
+
+    "placeholders": {
+      "category": "Wybierz kategorię",
+      "status": "Wszystkie statusy",
+      "location": "Wybierz lokalizację",
+      "owner": "np. Dr. Kowalski",
+      "borrower": "np. Zieliński"
+    },
+    "common":{
+      "previous": "Poprzednia",
+      "next": "Następna",
+      "page": "Strona"
+    },
+    "options": {
+      "allCategories": "Wszystkie kategorie",
+      "allStatuses": "Wszystkie statusy",
+      "allLocations": "Wszystkie lokalizacje",
+      "allOwners": "Wszyscy właściciele",
+      "allBorrowers": "Wszyscy wypożyczający"
+    },
+
+    "status": {
+      "available": "Dostępny",
+      "reserved": "Zarezerwowany",
+      "loaned": "Wypożyczony",
+      "pendingApproval": "Oczekuje",
+      "broken": "Uszkodzony"
+    },
+
+    "buttons": {
+      "addParam": "Dodaj kryterium parametru",
+      "showSorting": "Pokaż sortowanie",
+      "hideSorting": "Ukryj sortowanie"
+    },
+
+    "parameters": {
+      "title": "Parametry techniczne",
+      "keyPlaceholder": "Nazwa parametru (np. Producent)",
+      "valuePlaceholder": "Wartość (np. Rigol)"
+    },
+    "sorting": {
+      "addColumn": "Dodaj kolumnę sortowania:",
+      "selectColumn": "Wybierz kolumnę do sortowania",
+      "noColumns": "Brak dostępnych kolumn"
     }
   },
   "rentalCenter": {
@@ -360,6 +437,8 @@
     "historyLoadError": "Nie udało się pobrać historii zmian.",
     "historyErrorTitle": "Błąd historii",
     "historyAuthor": "Użytkownik #{{id}}",
+    "report": "Raport - Excel",
+    "downloading": "Pobieranie...",
     "historyTypes": {
       "created": "Utworzenie",
       "loaned": "Wypożyczenie",

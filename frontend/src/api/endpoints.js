@@ -44,6 +44,11 @@ export const ENDPOINTS = {
         GUESTS: '/users/guests',
         DETAILS: (id) => `/users/${id}`,
     },
+    EXPORT: {
+        BASE: '/exports',
+        ITEMS_XLSX: '/exports/items/xlsx',
+        ITEM_REPORT: (id) => `/exports/items/${id}/report/xlsx`,
+    },
     LOANS: {
         BASE: '/loans',
         EXTERNAL: '/loans/external',

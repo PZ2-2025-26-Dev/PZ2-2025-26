@@ -31,7 +31,10 @@
   },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
+    "dashboardDesc": "Items list",
     "welcome": "Welcome",
+    "title": "Inventory Dashboard",      
+    "description": "Items list",        
     "role": "Role",
     "logout": "Sign Out",
     "mainPanel": "Main Dashboard",
@@ -47,7 +50,7 @@
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
     "damagedAssets": "Damaged",
-    "searchPlaceholder": "Search by asset name, producer, serial...",
+    "searchPlaceholder": "Search by asset name, description...",
     "filterStatus": "Status",
     "filterCategory": "Category",
     "all": "All",
@@ -67,6 +70,9 @@
     "approveBtn": "Approve",
     "rejectBtn": "Reject",
     "refresh": "Refresh",
+    "shown": "Shown",
+    "of": "of",
+    "items": "items",
     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
@@ -360,6 +366,8 @@
     "historyLoadError": "Could not load the change history.",
     "historyErrorTitle": "History error",
     "historyAuthor": "User #{{id}}",
+    "report": "Excel Report",
+    "downloading": "Downloading...",
     "historyTypes": {
       "created": "Created",
       "loaned": "Loaned",
@@ -444,7 +452,8 @@
     "sections": {
       "deviceData": "Device data",
       "locationTree": "Location tree",
-      "users": "Users"
+      "users": "Users",
+      "sorting": "Sorting"
     },
 
     "fields": {
@@ -482,13 +491,20 @@
     },
 
     "buttons": {
-      "addParam": "Add parameter filter"
+      "addParam": "Add parameter filter",
+      "showSorting": "Show sorting",
+      "hideSorting": "Hide sorting"
     },
 
     "parameters": {
       "title": "Technical parameters",
       "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
       "valuePlaceholder": "Value (e.g. Rigol)"
+    },
+    "sorting": {
+      "addColumn": "Add sorting column:",
+      "selectColumn": "Select column to sort by",
+      "noColumns": "No columns available"
     },
     "common":{
       "previous": "Previous",

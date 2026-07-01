@@ -24,6 +24,8 @@ const cleanParams = (params) => Object.fromEntries(
  * @property {string|null} oldID
  * @property {Object|null} parameters
  * @property {string} status
+ * @property {string|null} borrower
+ * @property {string|null} dueDate
  */
 
 /**
@@ -33,17 +35,26 @@ const cleanParams = (params) => Object.fromEntries(
 export const normalizeItem = (item) => ({
     id: item.id,
     name: item.name,
+
     category: item.category?.name ?? '',
-    categoryPath: item.category?.path ?? '',
-    categoryId: item.category?.id,
+    categoryId: item.category?.id ?? null,
+
     location: item.location?.path ?? '',
-    locationId: item.location?.id,
+    locationId: item.location?.id ?? null,
+
     owner: item.owner?.name ?? '',
-    ownerId: item.owner?.id ?? 0,
-    description: item.description ?? null,
+    ownerId: item.owner?.id ?? null,
+
     oldID: item.oldID ?? null,
     parameters: item.parameters ?? null,
+
+    description: item.description ?? null,
+
     status: item.status,
+
+    // Mapowanie nowych pól zwracanych przez API do użytku w tabeli
+    borrower: item.borrower ?? null,
+    dueDate: item.dueDate ?? null,
 });
 
 const downloadBlob = (blob, filename) => {
@@ -88,7 +99,6 @@ export const useInventory = () => {
                 description: itemData.description || null,
             });
 
-            // HTTP 201: { id, inventory_number, status }
             return {
                 success: true,
                 data: response.data,
@@ -116,6 +126,7 @@ export const useInventory = () => {
      * @param {number} [filters.categoryId]
      * @param {number} [filters.locationId]
      * @param {number} [filters.ownerId]
+     * @param {string} [filters.sort] - Skonsolidowany ciąg sortowania, np. "status:desc,name:asc"
      * @param {number} [filters.page]
      * @param {number} [filters.limit]
      * @returns {Promise<{success: boolean, items?: InventoryItem[], total?: number, page?: number, limit?: number, error?: string}>}
@@ -125,15 +136,26 @@ export const useInventory = () => {
         setError(null);
 
         try {
+            console.log(filters)
+            console.log(filters.custom_params)
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
+                    uuid: filters.uuid,
                     name: filters.name,
+                    description: filters.description,
+                    search: filters.search,
                     status: filters.status,
                     category_id: filters.categoryId,
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
+                    borrower_id: filters.borrowerId,
+                    
+                    // Wysłanie skonsolidowanego parametru 'sort' zamiast oddzielnych 'sort_by' i 'sort_order'
+                    sort: filters.sort ?? "name:asc",
+                    
                     page: filters.page ?? 1,
-                    limit: filters.limit ?? 50,
+                    limit: filters.limit ?? 20,
+                    custom_params: filters.custom_params // Rozpakowanie parametrów jako query params
                 }),
             });
 
@@ -243,7 +265,6 @@ export const useInventory = () => {
      * @param {number} [limit=ITEM_HISTORY_PAGE_LIMIT] - Liczba wpisów na stronie
      * @returns {Promise<{success: boolean, data?: Array, pagination?: Object, error?: string, statusCode?: number}>}
      */
-
     const getItemHistory = useCallback(async (itemId, page = 1, limit = ITEM_HISTORY_PAGE_LIMIT) => {
         setIsLoading(true);
         setError(null);
@@ -265,7 +286,6 @@ export const useInventory = () => {
             };
         } catch (err) {
             const errorMessage = parseApiError(err);
-
             setError(errorMessage);
 
             return {

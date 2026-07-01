@@ -24,6 +24,7 @@ class CategoryResponse(BaseModel):
     name: CategoryName
     parent_id: CategoryID | None
     path: CategoryPath
+    item_count: int = 0
 
 
 class CategoryPagination(BaseModel):

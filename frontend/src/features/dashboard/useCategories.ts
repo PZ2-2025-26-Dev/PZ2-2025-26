@@ -11,6 +11,7 @@ export type Category = {
     description: string | null;
     isActive: boolean;
     path: string;
+    itemCount?: number | null;
 };
 
 type CategoryApiResponse = {
@@ -22,6 +23,7 @@ type CategoryApiResponse = {
     is_active?: boolean;
     isActive?: boolean;
     path: string;
+    item_count?: number;
 };
 
 type CategoriesPagedResponse = {
@@ -48,6 +50,7 @@ const normalizeCategory = (category: CategoryApiResponse): Category => ({
     description: category.description ?? null,
     isActive: category.isActive ?? category.is_active ?? true,
     path: category.path,
+    itemCount: category.item_count ?? 0,
 });
 
 const toCreatePayload = (category: CategoryCreateInput) => ({
@@ -73,14 +76,14 @@ export const useCategories = () => {
                 params: { page: 1, limit: 100 },
             });
             const categories = response.data.categories ?? response.data.items ?? [];
-
+            console.log(response.data)
             return {
                 success: true,
                 categories: categories.map(normalizeCategory),
                 totalCount: response.data.pagination?.total ?? categories.length,
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as any);
             setError(errorMessage);
             return { success: false, categories: [], totalCount: 0, error: errorMessage };
         } finally {
@@ -103,7 +106,7 @@ export const useCategories = () => {
                 category: normalizeCategory(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as any);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -126,7 +129,7 @@ export const useCategories = () => {
                 category: normalizeCategory(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as any);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -146,7 +149,7 @@ export const useCategories = () => {
 
             return { success: true };
         } catch (err) {
-            const errorMessage = parseApiError(err);
+            const errorMessage = parseApiError(err as any);
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
