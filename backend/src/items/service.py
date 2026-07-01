@@ -186,6 +186,27 @@ class ItemService:
 
         return item
 
+    def get_items_for_labels(self, item_ids: list[UUID]) -> list[Item]:
+        items = (
+            self.db.execute(
+                select(Item)
+                .where(Item.uuid.in_(item_ids))
+                .options(
+                    selectinload(Item.category),
+                    selectinload(Item.location),
+                    selectinload(Item.owner),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        items_by_uuid = {item.uuid: item for item in items}
+
+        if any(item_id not in items_by_uuid for item_id in item_ids):
+            raise ValueError("Item not found")
+
+        return [items_by_uuid[item_id] for item_id in item_ids]
+
     def get_item_by_scan_code(self, code: str) -> ItemGetResponse:
         if not code.strip() or len(code) > BASIC_LENGTH:
             raise InvalidScanCodeError("Invalid QR code")
