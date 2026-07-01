@@ -112,7 +112,7 @@ export default function InventoryToolbar({
 
         {/* ADVANCED FILTERS */}
         {openFilters && (
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
             <InventoryFilters
                 filters={filters}
                 onChange={onChange}

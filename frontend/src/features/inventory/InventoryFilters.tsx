@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Search, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, X } from "lucide-react";
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
   DndContext,
@@ -89,11 +88,10 @@ interface SortCriteriaItem {
   label: string;
 }
 
-// Sortable item component
-function SortableItem({ item, onToggleOrder, onRemove }: {
+// Sortable item component (Usunięto przycisk usuwania X, ponieważ wszystkie kolumny są stałe)
+function SortableItem({ item, onToggleOrder }: {
   item: SortCriteriaItem;
   onToggleOrder: (field: string) => void;
-  onRemove: (field: string) => void;
 }) {
   const {
     attributes,
@@ -114,7 +112,7 @@ function SortableItem({ item, onToggleOrder, onRemove }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700"
+      className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800"
     >
       <button
         {...attributes}
@@ -138,13 +136,6 @@ function SortableItem({ item, onToggleOrder, onRemove }: {
           <ChevronDown className="h-4 w-4" />
         )}
       </button>
-
-      <button
-        onClick={() => onRemove(item.field)}
-        className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400"
-      >
-        <X className="h-4 w-4" />
-      </button>
     </div>
   );
 }
@@ -160,7 +151,7 @@ export default function InventoryFilters({
 }: Props) {
   const { t } = useTranslation();
   
-  // Sortable columns
+  // Definicja wszystkich dostępnych kolumn
   const SORTABLE_COLUMNS = [
     { field: "id", labelKey: "ID" },
     { field: "name", labelKey: "dashboard.thName" },
@@ -170,21 +161,49 @@ export default function InventoryFilters({
     { field: "owner", labelKey: "addAssetModal.owner" },
   ];
 
-  // State for sort criteria (parsed from filters.sort)
+  // NOWA LOGIKA: Budowanie kompletnej listy kryteriów
   const [sortCriteria, setSortCriteria] = useState<SortCriteriaItem[]>(() => {
-    if (!filters.sort) return [];
-    return filters.sort.split(",").map((part) => {
-      const [field, order] = part.split(":");
-      const column = SORTABLE_COLUMNS.find((col) => col.field === field.trim());
-      return {
-        field: field.trim(),
-        order: (order?.trim() || "asc") as "asc" | "desc",
-        label: column ? t(column.labelKey) : field.trim(),
-      };
+    const activeCriteria: SortCriteriaItem[] = [];
+    const activeFields = new Set<string>();
+
+    // 1. Wyciągamy to co dostaliśmy z nadrzędnego elementu (filters.sort) i wrzucamy na górę
+    if (filters.sort) {
+      filters.sort.split(",").forEach((part) => {
+        const [field, order] = part.split(":");
+        const trimmedField = field.trim();
+        const column = SORTABLE_COLUMNS.find((col) => col.field === trimmedField);
+        
+        if (column) {
+          activeCriteria.push({
+            field: trimmedField,
+            order: (order?.trim() || "asc") as "asc" | "desc",
+            label: t(column.labelKey),
+          });
+          activeFields.add(trimmedField);
+        }
+      });
+    }
+    
+    // 2. Resztę brakujących kolumn uzupełniamy pod spodem w dowolnej kolejności
+    SORTABLE_COLUMNS.forEach((col) => {
+      if (!activeFields.has(col.field)) {
+        activeCriteria.push({
+          field: col.field,
+          order: "asc",
+          label: t(col.labelKey),
+        });
+      }
     });
+
+    return activeCriteria;
   });
 
-  const [openSortPanel, setOpenSortPanel] = useState(false);
+  // Wymuszenie aktualizacji propsów nadrzędnych przy inicjalizacji, jeśli to konieczne
+  React.useEffect(() => {
+    if (!filters.sort && sortCriteria.length > 0) {
+      updateFiltersSort(sortCriteria);
+    }
+  }, []);
 
   // DnD context sensors
   const sensors = useSensors(
@@ -228,36 +247,6 @@ export default function InventoryFilters({
     setSortCriteria(newCriteria);
     updateFiltersSort(newCriteria);
   };
-
-  // Remove sort criterion
-  const removeSortCriterion = (field: string) => {
-    const newCriteria = sortCriteria.filter((c) => c.field !== field);
-    setSortCriteria(newCriteria);
-    updateFiltersSort(newCriteria);
-  };
-
-  // Add new sort column
-  const addSortColumn = (field: string) => {
-    if (sortCriteria.find((c) => c.field === field)) return; // Already added
-    const column = SORTABLE_COLUMNS.find((col) => col.field === field);
-    if (column) {
-      const newCriteria = [
-        ...sortCriteria,
-        {
-          field,
-          order: "asc" as const,
-          label: t(column.labelKey),
-        },
-      ];
-      setSortCriteria(newCriteria);
-      updateFiltersSort(newCriteria);
-    }
-  };
-
-  // Available columns (not yet added to sort)
-  const availableColumns = SORTABLE_COLUMNS.filter(
-    (col) => !sortCriteria.find((sc) => sc.field === col.field)
-  );
   
   // Dynamiczne opcje statusów korzystające z kluczy translacji
   const STATUS_OPTIONS = [
@@ -296,10 +285,9 @@ export default function InventoryFilters({
   }, [categories]);
 
   // Obsługa zmian w dynamicznych wierszach parametrów
-  // Ta funkcja zbiera tablicę [{key, value}] i tworzy string dla API
   const buildCustomParamsString = (paramsArray: TechParamRow[]): string | undefined => {
     const filledParams = paramsArray
-      .filter(p => p.key.trim() !== '' && p.value.trim() !== '') // tylko wypełnione pola
+      .filter(p => p.key.trim() !== '' && p.value.trim() !== '')
       .map(p => `${p.key.trim()}:${p.value.trim()}`);
     
     return filledParams.length > 0 ? filledParams.join(',') : undefined;
@@ -309,12 +297,10 @@ export default function InventoryFilters({
   const handleParamChange = (index: number, field: keyof TechParamRow, value: string) => {
     const updatedParams = [...techParams];
     updatedParams[index][field] = value;
-    setTechParams(updatedParams); // Twój stan lokalny komponentu
+    setTechParams(updatedParams);
 
-    // Generujemy string na backend
     const customParamsString = buildCustomParamsString(updatedParams);
 
-    // POPRAWKA: Zmiana onFiltersChange na onChange zgodnie z deklaracją komponentu
     onChange({
       ...filters,
       custom_params: customParamsString,
@@ -329,7 +315,6 @@ export default function InventoryFilters({
     
     const customParamsString = buildCustomParamsString(updatedParams);
     
-    // POPRAWKA: Zmiana onFiltersChange na onChange zgodnie z deklaracją komponentu
     onChange({
       ...filters,
       custom_params: customParamsString,
@@ -350,8 +335,7 @@ export default function InventoryFilters({
   };
 
   return (
-    <div className="space-y-4 bg-card p-4 rounded-lg border shadow-sm">
-      {/* Rozwijany panel zaawansowany */}
+    <div className="space-y-4 p-4 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <Collapsible open={isOpen}>
         <CollapsibleContent className="space-y-6 pt-4 relative">
           
@@ -423,7 +407,7 @@ export default function InventoryFilters({
             </div>
           </div>
 
-          {/* SEKCJA 2: Parametry techniczne (Filtrowanie po JSON z item.parameters) */}
+          {/* SEKCJA 2: Parametry techniczne */}
           <div className="space-y-3">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
               {t("inventoryFilters.parameters.title")}
@@ -546,88 +530,33 @@ export default function InventoryFilters({
             </div>
           </div>
 
-          {/* SEKCJA 5: Sortowanie */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
-                {t("inventoryFilters.sections.sorting")}
-              </h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOpenSortPanel(!openSortPanel)}
-                className="gap-2"
+          {/* SEKCJA 5: Sortowanie (Usunięto przycisk chowający panel oraz dropdown dodawania) */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+              {t("inventoryFilters.sections.sorting")}
+            </h3>
+            
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSortDragEnd}
+            >
+              <SortableContext
+                items={sortCriteria.map((c) => c.field)}
+                strategy={verticalListSortingStrategy}
               >
-                {openSortPanel ? (
-                  <>
-                    <ChevronUp className="h-4 w-4" />
-                    {t("inventoryFilters.buttons.hideSorting")}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-4 w-4" />
-                    {t("inventoryFilters.buttons.showSorting")}
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {openSortPanel && (
-              <div className="space-y-3">
-                {sortCriteria.length > 0 && (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleSortDragEnd}
-                  >
-                    <SortableContext
-                      items={sortCriteria.map((c) => c.field)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <div className="space-y-2">
-                        {sortCriteria.map((item) => (
-                          <SortableItem
-                            key={item.field}
-                            item={item}
-                            onToggleOrder={toggleSortOrder}
-                            onRemove={removeSortCriterion}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
-                )}
-
-                {availableColumns.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-slate-500">
-                      {t("inventoryFilters.sorting.addColumn")}
-                    </Label>
-                    <Select onValueChange={addSortColumn}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("inventoryFilters.sorting.selectColumn")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableColumns.map((col) => (
-                          <SelectItem key={col.field} value={col.field}>
-                            {t(col.labelKey)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {sortCriteria.length === 0 && availableColumns.length === 0 && (
-                  <p className="text-sm text-slate-500 text-center py-2">
-                    {t("inventoryFilters.sorting.noColumns")}
-                  </p>
-                )}
-              </div>
-            )}
+                <div className="space-y-2">
+                  {sortCriteria.map((item) => (
+                    <SortableItem
+                      key={item.field}
+                      item={item}
+                      onToggleOrder={toggleSortOrder}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           </div>
-
 
         </CollapsibleContent>
       </Collapsible>
