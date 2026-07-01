@@ -1040,7 +1040,7 @@ def test_user_cannot_delete_item_owned_by_someone_else(api_client: TestClient, s
     assert response.status_code == 403
 
 
-def test_owner_can_update_name_location_parameters(api_client: TestClient, seeded_db: Session):
+def test_owner_can_update_name_location_description_and_parameters(api_client: TestClient, seeded_db: Session):
     new_parameters = {"cpu": "Intel i9", "ram_gb": 32}
 
     response = api_client.patch(
@@ -1048,6 +1048,7 @@ def test_owner_can_update_name_location_parameters(api_client: TestClient, seede
         json={
             "name": "Laptop zaktualizowany",
             "location_id": SEED_IDS.room,
+            "description": "Nowy opis właściciela",
             "parameters": new_parameters,
         },
         headers=auth_headers(SEED_IDS.regular_user),
@@ -1057,23 +1058,17 @@ def test_owner_can_update_name_location_parameters(api_client: TestClient, seede
     body = response.json()
     assert body["name"] == "Laptop zaktualizowany"
     assert body["location_id"] == SEED_IDS.room
+    assert body["description"] == "Nowy opis właściciela"
     assert body["parameters"] == new_parameters
 
     item = seeded_db.get(Item, SEED_IDS.laptop)
     assert item.name == "Laptop zaktualizowany"
     assert item.location_id == SEED_IDS.room
+    assert item.description == "Nowy opis właściciela"
     assert item.parameters == new_parameters
 
 
-def test_owner_cannot_update_description_or_category(api_client: TestClient, seeded_db: Session):
-    response = api_client.patch(
-        f"/items/{SEED_IDS.laptop_uuid}",
-        json={"description": "Nowy opis właściciela"},
-        headers=auth_headers(SEED_IDS.regular_user),
-    )
-
-    assert response.status_code == 403
-
+def test_owner_cannot_update_category(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"category_id": SEED_IDS.accessories},

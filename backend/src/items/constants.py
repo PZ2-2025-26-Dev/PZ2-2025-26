@@ -56,6 +56,7 @@ ITEM_OWNER_EDITABLE_FIELDS: frozenset[str] = frozenset(
     {
         "name",
         "location_id",
+        "description",
         "parameters",
     }
 )

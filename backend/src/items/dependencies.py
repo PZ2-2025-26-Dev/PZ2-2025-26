@@ -117,7 +117,7 @@ def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session
         if forbidden:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Właściciel może modyfikować wyłącznie nazwę, lokalizację i parametry przedmiotu.",
+                detail="Właściciel może modyfikować wyłącznie nazwę, lokalizację, opis i parametry przedmiotu.",
             )
         return
 
