@@ -15,6 +15,7 @@ import {
     Pencil,
     QrCode,
     ShieldCheck,
+    Trash2,
     X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -107,6 +108,7 @@ type ItemDetailsModalProps = {
     ) => void;
     onItemUpdated?: (item: InventoryItem) => void;
     onLocationChanged?: (itemId: string | number, location: { id: number; path: string }) => void;
+    onItemDeleted?: () => void;
 };
 
 export default function ItemDetailsModal({
@@ -117,12 +119,14 @@ export default function ItemDetailsModal({
     onUpdateStatus,
     onItemUpdated,
     onLocationChanged,
+    onItemDeleted,
 }: ItemDetailsModalProps) {
     const { t, i18n } = useTranslation();
     const {
         getItemHistory,
         getItem,
         updateItem,
+        deleteItem,
         downloadItemQr,
         downloadItemLabel,
         isLoading: isInventoryLoading,
@@ -153,6 +157,7 @@ export default function ItemDetailsModal({
     const [parameterRows, setParameterRows] = useState<ParameterRow[]>([{ id: 'row-0', key: '', value: '' }]);
     const [parametersError, setParametersError] = useState<string | null>(null);
     const [aclPermissions, setAclPermissions] = useState<string[]>([]);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [historyPagination, setHistoryPagination] = useState<HistoryPagination | null>(null);
@@ -195,6 +200,7 @@ export default function ItemDetailsModal({
     );
     const isOwnerOrAdmin = isOwner || isAdmin;
     const isObserver = user.role === ROLES.OBSERVER;
+    const canViewHistory = isOwnerOrAdmin || isObserver;
     const canDelegate = !isObserver;
 
     const delegatedPermissions = useMemo(
@@ -208,6 +214,7 @@ export default function ItemDetailsModal({
     const canEditParameters = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_parameters'));
     const canManageAttachments = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_attachments'));
     const canManageAcl = !isObserver && isOwnerOrAdmin;
+    const canDeleteItem = (isOwner && hasPermission(user, PERMISSIONS.ITEM_DELETE_OWN)) || isAdmin;
 
     const hasParameters = Boolean(parameters && Object.keys(parameters).length > 0);
 
@@ -219,6 +226,7 @@ export default function ItemDetailsModal({
         setEditedDescription(item.description ?? '');
         setEditedName(item.name);
         setEditedLocationId(item.locationId ? String(item.locationId) : '');
+        setIsDeleteDialogOpen(false);
         setIsEditingDescription(false);
         setIsEditingName(false);
         setIsEditingLocation(false);
@@ -401,6 +409,16 @@ export default function ItemDetailsModal({
         setIsEditingParameters(false);
     };
 
+    const handleDeleteItem = async () => {
+        clearItemUpdateError();
+        const result = await deleteItem(item.id);
+        if (!result.success) return;
+
+        setIsDeleteDialogOpen(false);
+        onItemDeleted?.();
+        onClose();
+    };
+
     const loadHistory = async (page: number, replace = false) => {
         setHistoryError(null);
         console.log(item.id)
@@ -545,7 +563,9 @@ export default function ItemDetailsModal({
                                 </div>
                                 <div>
                                     <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.itemLocationTitle')}</strong>
-                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.itemLocationDesc')}</p>
+                                    <p className="text-xs text-slate-500">
+                                        {t(isAdmin ? 'itemDetailsModal.itemLocationDescAdmin' : 'itemDetailsModal.itemLocationDesc')}
+                                    </p>
                                 </div>
                             </div>
                             {(locationCreateError || itemUpdateError) && !isRemoteLocationDialogOpen && (
@@ -586,20 +606,34 @@ export default function ItemDetailsModal({
                                         : t('itemDetailsModal.locationSave')}
                                 </Button>
                             </div>
-                            <Separator className="my-4" />
-                            <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => {
-                                    clearLocationCreateError();
-                                    clearItemUpdateError();
-                                    setIsRemoteLocationDialogOpen(true);
-                                }}
-                            >
-                                <MapPin className="size-4" />
-                                {t('itemDetailsModal.remoteLocationAction')}
-                            </Button>
+                            {isAdmin && (
+                                <>
+                                    <Separator className="my-4" />
+                                    <Button
+                                        variant="outline"
+                                        className="w-full"
+                                        onClick={() => {
+                                            clearLocationCreateError();
+                                            clearItemUpdateError();
+                                            setIsRemoteLocationDialogOpen(true);
+                                        }}
+                                    >
+                                        <MapPin className="size-4" />
+                                        {t('itemDetailsModal.remoteLocationAction')}
+                                    </Button>
+                                </>
+                            )}
                         </div>
+                        {canDeleteItem && (
+                            <Button
+                                variant="destructive"
+                                className="w-full"
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                            >
+                                <Trash2 className="size-4" />
+                                {t('itemDetailsModal.deleteItem')}
+                            </Button>
+                        )}
                         {item.status === 'oczekuje akceptacji' && (
                                 <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
                                     <strong className="text-sm text-amber-700 dark:text-amber-300">{t('itemDetailsModal.reqPending')}</strong>
@@ -871,57 +905,61 @@ export default function ItemDetailsModal({
                                         onDelete={handleDelete}
                                     />
                                 )}
-                                <Separator />
-                                <Button variant="ghost" size="sm" onClick={toggleHistory}>
-                                    <History />{t('itemDetailsModal.history')}{isHistoryOpen ? <ChevronUp /> : <ChevronDown />}
-                                </Button>
-                                {isHistoryOpen && (
-                                    <div className="space-y-3">
-                                        {historyError && (
-                                            <Alert variant="destructive">
-                                                <CircleAlert />
-                                                <AlertTitle>{t('itemDetailsModal.historyErrorTitle')}</AlertTitle>
-                                                <AlertDescription>{historyError}</AlertDescription>
-                                            </Alert>
-                                        )}
-                                        {isInventoryLoading && history.length === 0 ? (
-                                            <p className="text-xs text-slate-500">{t('itemDetailsModal.historyLoading')}</p>
-                                        ) : history.length > 0 ? (
-                                            <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
-                                                {history.map((entry) => (
-                                                    <div key={entry.id} className="border-l-2 border-emerald-300 pl-4 text-sm">
-                                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                                            <p className="text-xs text-slate-400">{formatHistoryDate(entry.updated_at)}</p>
-                                                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                                                                {t(`itemDetailsModal.historyTypes.${entry.change_type}`, { defaultValue: entry.change_type })}
-                                                            </span>
-                                                        </div>
-                                                        <p className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-300">
-                                                            {t('itemDetailsModal.historyAuthor', { id: entry.updated_by })}
-                                                        </p>
-                                                        {entry.description && (
-                                                            <p className="mt-1 text-slate-600 dark:text-slate-400">{entry.description}</p>
-                                                        )}
+                                {canViewHistory && (
+                                    <>
+                                        <Separator />
+                                        <Button variant="ghost" size="sm" onClick={toggleHistory}>
+                                            <History />{t('itemDetailsModal.history')}{isHistoryOpen ? <ChevronUp /> : <ChevronDown />}
+                                        </Button>
+                                        {isHistoryOpen && (
+                                            <div className="space-y-3">
+                                                {historyError && (
+                                                    <Alert variant="destructive">
+                                                        <CircleAlert />
+                                                        <AlertTitle>{t('itemDetailsModal.historyErrorTitle')}</AlertTitle>
+                                                        <AlertDescription>{historyError}</AlertDescription>
+                                                    </Alert>
+                                                )}
+                                                {isInventoryLoading && history.length === 0 ? (
+                                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.historyLoading')}</p>
+                                                ) : history.length > 0 ? (
+                                                    <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
+                                                        {history.map((entry) => (
+                                                            <div key={entry.id} className="border-l-2 border-emerald-300 pl-4 text-sm">
+                                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                    <p className="text-xs text-slate-400">{formatHistoryDate(entry.updated_at)}</p>
+                                                                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                                                        {t(`itemDetailsModal.historyTypes.${entry.change_type}`, { defaultValue: entry.change_type })}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="mt-1 text-xs font-medium text-slate-700 dark:text-slate-300">
+                                                                    {t('itemDetailsModal.historyAuthor', { id: entry.updated_by })}
+                                                                </p>
+                                                                {entry.description && (
+                                                                    <p className="mt-1 text-slate-600 dark:text-slate-400">{entry.description}</p>
+                                                                )}
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
+                                                ) : !historyError && (
+                                                    <p className="text-xs text-slate-400">{t('itemDetailsModal.historyEmpty')}</p>
+                                                )}
+                                                {hasMoreHistory && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full"
+                                                        disabled={isInventoryLoading}
+                                                        onClick={() => loadHistory((historyPagination?.page ?? 0) + 1)}
+                                                    >
+                                                        {isInventoryLoading
+                                                            ? t('itemDetailsModal.historyLoading')
+                                                            : t('itemDetailsModal.historyShowMore')}
+                                                    </Button>
+                                                )}
                                             </div>
-                                        ) : !historyError && (
-                                            <p className="text-xs text-slate-400">{t('itemDetailsModal.historyEmpty')}</p>
                                         )}
-                                        {hasMoreHistory && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="w-full"
-                                                disabled={isInventoryLoading}
-                                                onClick={() => loadHistory((historyPagination?.page ?? 0) + 1)}
-                                            >
-                                                {isInventoryLoading
-                                                    ? t('itemDetailsModal.historyLoading')
-                                                    : t('itemDetailsModal.historyShowMore')}
-                                            </Button>
-                                        )}
-                                    </div>
+                                    </>
                                 )}
                             </CardContent>
                         </Card>
@@ -1048,6 +1086,31 @@ export default function ItemDetailsModal({
 
                 <DialogFooter>
                     <Button variant="secondary" onClick={onClose}>{t('itemDetailsModal.close')}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{t('itemDetailsModal.deleteConfirmTitle')}</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {t('itemDetailsModal.deleteConfirmDesc', { name: item.name })}
+                </p>
+                {itemUpdateError && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="size-4" />
+                        <AlertTitle>{t('itemDetailsModal.deleteErrorTitle')}</AlertTitle>
+                        <AlertDescription>{itemUpdateError}</AlertDescription>
+                    </Alert>
+                )}
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                        {t('itemDetailsModal.cancel')}
+                    </Button>
+                    <Button variant="destructive" disabled={isInventoryLoading} onClick={() => void handleDeleteItem()}>
+                        {isInventoryLoading ? t('itemDetailsModal.deleteConfirming') : t('itemDetailsModal.deleteConfirmBtn')}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

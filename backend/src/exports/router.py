@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 
 from src.dependencies import DBDep
 from src.exports.service import ExportService
-from src.items.dependencies import RequireItemReader
+from src.items.dependencies import RequireItemExporter, RequireItemReader
 from src.items.schemas import ItemSearch
 
 router = APIRouter(prefix="/exports", tags=["exports"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/exports", tags=["exports"])
 def export_items_xlsx(
     data: Annotated[ItemSearch, Depends()],
     db: DBDep,
-    _reader: RequireItemReader,
+    _exporter: RequireItemExporter,
 ):
     return ExportService(db).export_items_xlsx(data)
 

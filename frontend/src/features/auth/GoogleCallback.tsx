@@ -21,7 +21,7 @@ export default function GoogleCallbackPage({
 
         const token = new URLSearchParams(window.location.search).get('token');
         if (token) {
-            onLoginSuccess({ id: null, name: 'Google User', role: 'USER', status: 'ACTIVE' }, token);
+            onLoginSuccess({ id: null, name: 'Google User', role: 'user', status: 'active' }, token);
         } else {
             setError(t('auth.googleLoginError'));
         }

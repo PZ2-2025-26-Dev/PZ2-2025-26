@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, HTTPException, Query, status
 from sqlalchemy import select
 
 from src.auth.constants import UserRole, UserStatus
-from src.auth.dependencies import RequireAdmin, RequireUserOrAdmin
+from src.auth.dependencies import CurrentUser, RequireAdmin, RequireUserOrAdmin
 from src.auth.models import UserAccount
 from src.dependencies import DBDep
 from src.schemas import ErrorResponse
@@ -99,7 +99,7 @@ def read_users(
 )
 def browse_users(
     db: DBDep,
-    current_user: RequireUserOrAdmin,
+    current_user: CurrentUser,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     search: SearchStr | None = None,

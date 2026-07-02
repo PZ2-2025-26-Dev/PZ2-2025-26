@@ -7,7 +7,8 @@ from openpyxl.styles import Font
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from src.items.models import Category, Item
+from src.categories.models import Category
+from src.items.models import Item
 from src.items.schemas import ItemSearch
 from src.items.service import ItemService
 from src.loans.constants import ReturnCondition
@@ -57,7 +58,6 @@ class ExportService:
             "owner": User.last_name,
         }
 
-        # Parse multiple sort criteria: "name:asc,status:desc,category:asc"
         sort_criterias = []
         if data.sort:
             parts = data.sort.split(",")

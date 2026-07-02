@@ -202,7 +202,9 @@ def test_delete_category_endpoint_requires_admin_role(api_client: TestClient, se
 
 
 def test_read_categories_endpoint_returns_paged_categories(api_client: TestClient, seeded_db: Session):
-    response = api_client.get("/categories", params={"page": 1, "limit": 2})
+    response = api_client.get(
+        "/categories", params={"page": 1, "limit": 2}, headers=auth_headers(SEED_IDS.regular_user)
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -212,14 +214,27 @@ def test_read_categories_endpoint_returns_paged_categories(api_client: TestClien
     assert len(body["categories"]) == 2
 
 
+def test_read_categories_endpoint_requires_authentication(api_client: TestClient, seeded_db: Session):
+    response = api_client.get("/categories", params={"page": 1, "limit": 2})
+
+    assert response.status_code == 401
+
+
 def test_read_categories_endpoint_rejects_invalid_paging(api_client: TestClient, seeded_db: Session):
-    response = api_client.get("/categories", params={"page": 0, "limit": 101})
+    response = api_client.get(
+        "/categories",
+        params={"page": 0, "limit": 101},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
 
     assert response.status_code == 422
 
 
 def test_read_category_items_endpoint_returns_direct_category_items(api_client: TestClient, seeded_db: Session):
-    response = api_client.get(f"/categories/{SEED_IDS.electronics}/items")
+    response = api_client.get(
+        f"/categories/{SEED_IDS.electronics}/items",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -231,14 +246,20 @@ def test_read_category_items_endpoint_returns_404_for_missing_category(
     api_client: TestClient,
     seeded_db: Session,
 ):
-    response = api_client.get("/categories/999999/items")
+    response = api_client.get(
+        "/categories/999999/items",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
 
     assert response.status_code == 404
     assert response.json() == {"code": 404, "detail": "Category not found"}
 
 
 def test_read_category_items_count_endpoint_returns_direct_count(api_client: TestClient, seeded_db: Session):
-    response = api_client.get(f"/categories/{SEED_IDS.electronics}/items/count")
+    response = api_client.get(
+        f"/categories/{SEED_IDS.electronics}/items/count",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
 
     assert response.status_code == 200
     assert response.json() == {"category_id": SEED_IDS.electronics, "count": 1}
@@ -248,7 +269,10 @@ def test_read_category_items_count_endpoint_returns_404_for_missing_category(
     api_client: TestClient,
     seeded_db: Session,
 ):
-    response = api_client.get("/categories/999999/items/count")
+    response = api_client.get(
+        "/categories/999999/items/count",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
 
     assert response.status_code == 404
     assert response.json() == {"code": 404, "detail": "Category not found"}

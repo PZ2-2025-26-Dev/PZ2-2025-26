@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
-from src.auth.dependencies import CurrentUser, RequireAdmin
+from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.acl_service import ItemACLService
 from src.items.attachment_service import (
@@ -19,6 +19,7 @@ from src.items.dependencies import (
     RequireItemReader,
     RequireItemWriter,
     assert_can_assign_owner_on_create,
+    assert_can_delete_item,
     assert_can_generate_item_assets,
     assert_can_manage_item_acl,
     assert_can_manage_item_attachments,
@@ -439,7 +440,7 @@ def update_item(
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
+            "description": "Operacja dostępna wyłącznie dla właściciela przedmiotu lub administratora.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
@@ -449,8 +450,10 @@ def update_item(
 def delete_item(
     item_id: ItemID,
     db: DBDep,
-    _admin: RequireAdmin,
+    user: RequireItemWriter,
+    item: ItemByUuid,
 ) -> None:
+    assert_can_delete_item(user, item)
     service = ItemService(db)
 
     try:
@@ -472,7 +475,7 @@ def delete_item(
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Brak uprawnień do przeglądania przedmiotów.",
+            "description": "Historia dostępna wyłącznie dla właściciela przedmiotu, administratora lub obserwatora.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
@@ -629,11 +632,18 @@ def delete_item_acl(
             "model": ErrorResponse,
             "description": "Nie znaleziono przedmiotu.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
     },
 )
 def read_item_attachments(
     item_id: ItemID,
     db: DBDep,
+    _reader: RequireItemReader,
 ) -> ItemAttachmentsListResponse:
     service = ItemAttachmentService(db)
 
@@ -719,12 +729,19 @@ def upload_item_attachments(
             "model": ErrorResponse,
             "description": "Nie znaleziono przedmiotu lub załącznika.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do przeglądania przedmiotów.",
+        },
     },
 )
 def download_item_attachment(
     item_id: ItemID,
     attachment_id: int,
     db: DBDep,
+    _reader: RequireItemReader,
 ) -> FileResponse:
     service = ItemAttachmentService(db)
 

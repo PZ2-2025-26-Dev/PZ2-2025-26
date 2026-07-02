@@ -50,3 +50,13 @@ ITEM_UPDATE_CRITICAL_FIELDS: frozenset[str] = frozenset(
         "owner_id",
     }
 )
+
+# Pola edytowalne przez właściciela przedmiotu (rola USER).
+ITEM_OWNER_EDITABLE_FIELDS: frozenset[str] = frozenset(
+    {
+        "name",
+        "location_id",
+        "description",
+        "parameters",
+    }
+)

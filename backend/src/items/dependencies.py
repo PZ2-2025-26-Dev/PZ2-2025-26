@@ -9,6 +9,7 @@ from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.constants import (
+    ITEM_OWNER_EDITABLE_FIELDS,
     ITEM_UPDATE_CRITICAL_FIELDS,
     ITEM_UPDATE_FIELD_PERMISSIONS,
     ItemPermissionType,
@@ -74,12 +75,14 @@ ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
 
 
 def require_item_owner_or_admin(item: ItemByUuid, user: CurrentUser) -> Item:
-    if user.role != UserRole.ADMIN and item.owner_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
-        )
-    return item
+    if user.role in (UserRole.ADMIN, UserRole.OBSERVER):
+        return item
+    if item.owner_id == user.id:
+        return item
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
+    )
 
 
 def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
@@ -109,6 +112,13 @@ def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session
         return
 
     if user.role == UserRole.USER and item.owner_id == user.id:
+        updated_fields = _meaningful_update_fields(data, item)
+        forbidden = updated_fields - ITEM_OWNER_EDITABLE_FIELDS
+        if forbidden:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Właściciel może modyfikować wyłącznie nazwę, lokalizację, opis i parametry przedmiotu.",
+            )
         return
 
     if user.role != UserRole.USER:
@@ -196,6 +206,25 @@ def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
     )
 
 
+def assert_can_delete_item(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Brak uprawnień do usunięcia tego przedmiotu.",
+    )
+
+
+def require_item_exporter(user: CurrentUser) -> User:
+    if user.role not in {UserRole.ADMIN, UserRole.USER}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnień do eksportu danych.",
+        )
+    return user
+
+
 def assert_can_generate_item_assets(user: User, item: Item) -> None:
     if user.role == UserRole.ADMIN or item.owner_id == user.id:
         return
@@ -208,4 +237,5 @@ def assert_can_generate_item_assets(user: User, item: Item) -> None:
 
 RequireItemReader = Annotated[User, Depends(require_item_reader)]
 RequireItemWriter = Annotated[User, Depends(require_item_writer)]
+RequireItemExporter = Annotated[User, Depends(require_item_exporter)]
 RequireItemOwnerOrAdmin = Annotated[Item, Depends(require_item_owner_or_admin)]

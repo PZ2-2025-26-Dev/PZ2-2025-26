@@ -80,7 +80,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const { t, i18n } = useTranslation();
     const { listItems, isLoading, getItem, lookupItemByQrCode, error, clearError } = useInventory();
     const { listCategories } = useCategories();
-    const { exportItemsXlsx } = useExport();
+    const { exportItemsXlsx, isLoading: isExporting, error: exportError, clearError: clearExportError } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [total, setTotal] = useState(0);
@@ -297,11 +297,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     };
 
     const handleExportXlsx = useCallback(async () => {
+        clearExportError();
         await exportItemsXlsx({
             ...filters,
             search: filters.search || searchQuery,
         });
-    }, [exportItemsXlsx, filters, searchQuery]);
+    }, [clearExportError, exportItemsXlsx, filters, searchQuery]);
     const handleItemUpdated = (updatedItem: InventoryItem) => {
         setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
         setSelectedItem(updatedItem);
@@ -321,13 +322,13 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         void refreshItems();
     };
 
-    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);   
+    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
-        { id: 'locations', label: canManageSystem ? t('dashboard.locationsAndCategories') : t('dashboard.tabLocations'), icon: <MapPinned className="size-5" /> },
+        { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" /> },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
@@ -367,6 +368,17 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 </Alert>
                             )}
 
+                            {exportError && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle />
+                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                    <AlertDescription className="flex items-center justify-between gap-3">
+                                        <span>{exportError}</span>
+                                        <Button variant="outline" size="sm" onClick={() => clearExportError()}>✕</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
                             <InventoryToolbar
                                 user={user}
                                 filters={filters}
@@ -377,7 +389,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 onAdd={() => setIsAddModalOpen(true)}
                                 onExport={handleExportXlsx}
                                 onQrScan={() => setIsQrScannerOpen(true)}
-                                isLoading={isLoading}
+                                isLoading={isLoading || isExporting}
                             />
 
                             <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -411,7 +423,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                                 </TableRow>
                                             ) : items.length > 0 ? items.map((item) => (
                                                 <TableRow key={item.id} className="cursor-pointer group border-b border-slate-100 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40 transition-colors duration-150" onClick={() => void openItemDetails(item) }>
-                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{item.inventory_number ?? item.id}</TableCell>
+                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{item.oldID ?? item.id}</TableCell>
                                                     <TableCell className="px-4 py-3">
                                                         <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
                                                         {item.description && (
@@ -481,12 +493,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             </div>
                         </div>
                 ) : (
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                        <LocationManager
-                            canManage={false}
-                            canCreateRemote={user.role === 'user'}
-                        />
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <div>
+                            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
+                            <LocationManager canManage={false} canCreateRemote={false} />
+                        </div>
+                        <div>
+                            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabCategories')}</h3>
+                            <CategoryManager canManage={false} />
+                        </div>
                     </div>
                 );
             
