@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Download, SlidersHorizontal, Tags, X } from "lucide-react"; // Jeśli masz ikonę QrCode w pakiecie, możesz zmienić Search na QrCode
+import { Search, Plus, Download, SlidersHorizontal, Tags, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +21,7 @@ type Props = {
   onAdd: () => void;
   onExport: () => void;
   onBatchLabelExport: () => void;
-  onQrScan: () => void; // <-- Dodana nowa właściwość w Props
+  onQrScan: () => void;
   selectedCount: number;
 
   isLoading?: boolean;
@@ -37,7 +37,7 @@ export default function InventoryToolbar({
   onAdd,
   onExport,
   onBatchLabelExport,
-  onQrScan, // <-- Destrukturyzacja nowej właściwości
+  onQrScan,
   selectedCount,
   isLoading,
 }: Props) {
@@ -56,10 +56,7 @@ export default function InventoryToolbar({
     <Card>
       <CardContent className="p-4 space-y-4">
 
-        {/* TOP BAR */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-
-          {/* SEARCH */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <Input
@@ -70,7 +67,6 @@ export default function InventoryToolbar({
             />
           </div>
 
-          {/* ACTIONS */}
           <div className="flex flex-wrap items-center justify-end gap-2">
 
             <Button
@@ -115,7 +111,6 @@ export default function InventoryToolbar({
               {t('batchLabels.action')} ({selectedCount})
             </Button>
 
-            {/* Dodany przycisk skanowania QR zaraz po eksporcie */}
             <Button variant="secondary" size="sm" onClick={onQrScan}>
               <Search className="size-4 mr-2" />
               {t('qrScanner.button')}
@@ -124,7 +119,6 @@ export default function InventoryToolbar({
           </div>
         </div>
 
-        {/* ADVANCED FILTERS */}
         {openFilters && (
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
             <InventoryFilters

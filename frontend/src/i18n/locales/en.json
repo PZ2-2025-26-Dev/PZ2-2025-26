@@ -431,7 +431,7 @@
     "formatZip": "ZIP with separate PNG files",
     "width": "Width (mm)",
     "height": "Height (mm)",
-    "invalidDimensions": "Width must be 20–200 mm and height must be 10–150 mm.",
+    "invalidDimensions": "Width must be {{minWidth}}–{{maxWidth}} mm and height must be {{minHeight}}–{{maxHeight}} mm.",
     "fields": "Label fields",
     "fieldsHint": "Additional fields are available only when present in every selected item.",
     "cancel": "Cancel",
@@ -440,7 +440,7 @@
     "exportErrorTitle": "Could not generate labels",
     "exportError": "Label generation failed.",
     "selectionErrorTitle": "Could not select items",
-    "limitError": "You can export no more than 100 labels at once.",
+    "limitError": "You can export no more than {{limit}} labels at once.",
     "selectPage": "Select all permitted items on this page",
     "selectItem": "Select item: {{name}}",
     "notAllowed": "Only an administrator or the item owner can generate its label."

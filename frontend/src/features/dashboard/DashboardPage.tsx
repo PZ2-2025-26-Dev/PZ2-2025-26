@@ -18,15 +18,11 @@ import {
     ChevronDown,
     ChevronRight,
     UserPlus,
-    ArrowUpDown,
-    ArrowUp,
-    ArrowDown,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
 import QrScannerDialog from '@/components/QrScannerDialog';
-import { StatusBadge } from '@/components/StatusBadge';
 import SystemClock from '@/components/SystemClock';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -35,8 +31,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { AppUser, InventoryItem } from '@/types';
+import type { InventoryItem } from '@/types';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
@@ -50,35 +45,29 @@ import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
 import InventoryToolbar from '../inventory/InventoryToolbar';
-import BatchLabelExportDialog, {
-    type BatchLabelFormat,
-    type BatchLabelOptions,
-} from '../inventory/BatchLabelExportDialog';
+import BatchLabelExportDialog from '../inventory/BatchLabelExportDialog';
+import { BATCH_LABEL_LIMIT } from '../inventory/batchLabels.config';
+import type {
+    BatchLabelFormat,
+    BatchLabelOptions,
+} from '../inventory/batchLabels.types';
 import { InventoryFiltersState } from '../inventory/InventoryFilters';
+import InventoryTable from '../inventory/InventoryTable';
+import type { SortCriteria, SortField } from '../inventory/inventoryTable.types';
+import { useBatchLabelSelection } from '../inventory/useBatchLabelSelection';
 import { useUsers } from '../users/useUsers';
 import { useLocations } from '../locations/useLocations';
-
-type CategoryOption = {
-    id: number;
-    name: string;
-    parentId: number | null;
-    path: string;
-};
-
-type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
+import type {
+    CategoryOption,
+    DashboardPageProps,
+    MenuSection,
+} from './dashboard.types';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
 function isMenuSection(value: string | null): value is MenuSection {
     return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
 }
-
-type DashboardPageProps = {
-    user: AppUser;
-    onLogout: () => void;
-    isDarkMode: boolean;
-    setIsDarkMode: (enabled: boolean) => void;
-};
 
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
@@ -130,26 +119,8 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [isBatchLabelDialogOpen, setIsBatchLabelDialogOpen] = useState(false);
-    const [selectedLabelItems, setSelectedLabelItems] = useState<Map<string, InventoryItem>>(() => new Map());
-    const [labelSelectionError, setLabelSelectionError] = useState<string | null>(null);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-    type SortField = "id" | "name" | "category" | "location" | "status" | "owner";
-
-    const columns: Array<{
-        label: React.ReactNode;
-        field?: SortField;
-        sortable?: boolean;
-    }> = [
-        { label: "ID", field: "id", sortable: true },
-        { label: t('dashboard.thName'), field: "name", sortable: true },
-        { label: t('dashboard.tabCategories'), field: "category", sortable: true },
-        { label: t('dashboard.tabLocations'), field: "location", sortable: true },
-        { label: t('dashboard.thStatus'), field: "status", sortable: true },
-        { label: t('addAssetModal.owner'), field: "owner", sortable: true },
-    ];
 
     
 
@@ -159,35 +130,27 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
     const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
-    const selectedLabelItemsList = useMemo(
-        () => [...selectedLabelItems.values()],
-        [selectedLabelItems],
-    );
-    const selectionScope = useMemo(() => JSON.stringify({
-        ...filters,
-        page: undefined,
-    }), [filters]);
-    const canSelectItemForLabel = useCallback((item: InventoryItem) => (
-        canManageSystem || item.ownerId === Number(user.id)
-    ), [canManageSystem, user.id]);
-    const selectablePageItems = useMemo(
-        () => items.filter(canSelectItemForLabel),
-        [canSelectItemForLabel, items],
-    );
-    const allSelectablePageItemsAreSelected = (
-        selectablePageItems.length > 0
-        && selectablePageItems.every((item) => selectedLabelItems.has(item.id))
-    );
-
-    useEffect(() => {
-        setSelectedLabelItems(new Map());
-        setLabelSelectionError(null);
-    }, [selectionScope]);
-
-    type SortCriteria = {
-        field: SortField;
-        order: 'asc' | 'desc';
-    };
+    const {
+        selectedItems: selectedLabelItems,
+        selectedItemsList: selectedLabelItemsList,
+        selectedCount: selectedLabelItemCount,
+        selectionError: labelSelectionError,
+        isDialogOpen: isBatchLabelDialogOpen,
+        setIsDialogOpen: setIsBatchLabelDialogOpen,
+        canSelectItem: canSelectItemForLabel,
+        selectablePageItems,
+        allSelectablePageItemsAreSelected,
+        toggleItem: toggleItemForLabel,
+        togglePage: toggleSelectablePageItems,
+        clearSelection: clearLabelSelection,
+        updateSelectedItem: updateSelectedLabelItem,
+    } = useBatchLabelSelection({
+        items,
+        filters,
+        userId: user.id,
+        canManageSystem,
+        limitErrorMessage: t('batchLabels.limitError', { limit: BATCH_LABEL_LIMIT }),
+    });
 
     const [sortCriteria, setSortCriteria] = useState<SortCriteria[]>([
         { field: 'name', order: 'asc' }
@@ -286,27 +249,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         }));
     }, [sortCriteria]);
 
-    const renderSortIcon = (field: SortField) => {
-        const index = sortCriteria.findIndex(c => c.field === field);
-        if (index === -1) return <ArrowUpDown className="ml-2 h-4 w-4 inline opacity-40" />;
-        
-        const criteria = sortCriteria[index];
-        const icon = criteria.order === "asc" 
-            ? <ArrowUp className="ml-2 h-4 w-4 inline text-primary" />
-            : <ArrowDown className="ml-2 h-4 w-4 inline text-primary" />;
-
-        return (
-            <div className="inline-flex items-center">
-                {icon}
-                {sortCriteria.length > 1 && (
-                    <span className="text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1 rounded ml-0.5 font-bold">
-                        {index + 1}
-                    </span>
-                )}
-            </div>
-        );
-    };
-
     const stats = useMemo(() => ({
         total: total,
         borrowed: items.filter((item) => item.status === 'loaned').length,
@@ -343,71 +285,16 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         });
     }, [clearExportError, exportItemsXlsx, filters, searchQuery]);
 
-    const toggleItemForLabel = (item: InventoryItem) => {
-        if (!canSelectItemForLabel(item)) return;
-
-        const next = new Map(selectedLabelItems);
-        if (next.has(item.id)) {
-            next.delete(item.id);
-            setLabelSelectionError(null);
-            setSelectedLabelItems(next);
-            return;
-        }
-
-        if (next.size >= 100) {
-            setLabelSelectionError(t('batchLabels.limitError'));
-            return;
-        }
-
-        next.set(item.id, item);
-        setLabelSelectionError(null);
-        setSelectedLabelItems(next);
-    };
-
-    const toggleSelectablePageItems = () => {
-        const next = new Map(selectedLabelItems);
-
-        if (allSelectablePageItemsAreSelected) {
-            selectablePageItems.forEach((item) => next.delete(item.id));
-            setLabelSelectionError(null);
-            setSelectedLabelItems(next);
-            return;
-        }
-
-        for (const item of selectablePageItems) {
-            if (next.has(item.id)) continue;
-            if (next.size >= 100) {
-                setLabelSelectionError(t('batchLabels.limitError'));
-                setSelectedLabelItems(next);
-                return;
-            }
-            next.set(item.id, item);
-        }
-
-        setLabelSelectionError(null);
-        setSelectedLabelItems(next);
-    };
-
     const handleBatchLabelExport = async (
         itemIds: string[],
         format: BatchLabelFormat,
         options: BatchLabelOptions,
     ) => downloadBatchLabels(itemIds, format, options);
 
-    const clearLabelSelection = () => {
-        setSelectedLabelItems(new Map());
-        setLabelSelectionError(null);
-    };
-
     const handleItemUpdated = (updatedItem: InventoryItem) => {
         setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
         setSelectedItem(updatedItem);
-        setSelectedLabelItems((current) => {
-            if (!current.has(updatedItem.id)) return current;
-            const next = new Map(current);
-            next.set(updatedItem.id, updatedItem);
-            return next;
-        });
+        updateSelectedLabelItem(updatedItem);
     };
 
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
@@ -423,8 +310,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         } : current);
         void refreshItems();
     };
-
-    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
 
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
@@ -492,7 +377,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                 onExport={handleExportXlsx}
                                 onBatchLabelExport={() => setIsBatchLabelDialogOpen(true)}
                                 onQrScan={() => setIsQrScannerOpen(true)}
-                                selectedCount={selectedLabelItems.size}
+                                selectedCount={selectedLabelItemCount}
                                 isLoading={isLoading || isExporting}
                             />
 
@@ -506,87 +391,19 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
                             <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
                                 <div className="overflow-x-auto">
-                                    <Table className="min-w-full">
-                                        <TableHeader>
-                                            <TableRow className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40">
-                                                <TableHead className="w-12 px-4 py-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={allSelectablePageItemsAreSelected}
-                                                        onChange={toggleSelectablePageItems}
-                                                        disabled={selectablePageItems.length === 0}
-                                                        aria-label={t('batchLabels.selectPage')}
-                                                        title={t('batchLabels.selectPage')}
-                                                        className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                    />
-                                                </TableHead>
-                                                {columns.map((col) => (
-                                                    <TableHead
-                                                        key={String(col.field)}
-                                                        className={`
-                                                            whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
-                                                            ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
-                                                        `}
-                                                        onClick={(e) => col.sortable && col.field && handleSort(col.field, e)}
-                                                    >
-                                                        <div className="flex items-center gap-1">
-                                                            {col.label}
-                                                            {col.sortable && col.field && renderSortIcon(col.field)}
-                                                        </div>
-                                                    </TableHead>
-                                                ))}
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {isLoading && items.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={7} className="py-10 text-center text-slate-400">
-                                                        {t('userManager.loading')}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ) : items.length > 0 ? items.map((item) => (
-                                                <TableRow key={item.id} className="cursor-pointer group border-b border-slate-100 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40 transition-colors duration-150" onClick={() => void openItemDetails(item) }>
-                                                    <TableCell
-                                                        className="w-12 px-4 py-3"
-                                                        onClick={(event) => event.stopPropagation()}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedLabelItems.has(item.id)}
-                                                            onChange={() => toggleItemForLabel(item)}
-                                                            disabled={
-                                                                !canSelectItemForLabel(item)
-                                                                || (selectedLabelItems.size >= 100 && !selectedLabelItems.has(item.id))
-                                                            }
-                                                            aria-label={t('batchLabels.selectItem', { name: item.name })}
-                                                            title={
-                                                                canSelectItemForLabel(item)
-                                                                    ? t('batchLabels.selectItem', { name: item.name })
-                                                                    : t('batchLabels.notAllowed')
-                                                            }
-                                                            className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">{item.oldID ?? item.id}</TableCell>
-                                                    <TableCell className="px-4 py-3">
-                                                        <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
-                                                        {item.description && (
-                                                            <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.category}</TableCell>
-                                                    <TableCell className="px-4 py-3 max-w-[220px] whitespace-normal text-slate-600 dark:text-slate-400">{item.location}</TableCell>
-                                                    <TableCell className="px-4 py-3">
-                                                        <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
-                                                        {item.borrower && <div className="mt-1 text-[9px] text-slate-400">{item.borrower} ({item.dueDate})</div>}
-                                                    </TableCell>
-                                                    <TableCell className="px-4 py-3 text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
-                                                </TableRow>
-                                            )) : (
-                                                <TableRow><TableCell colSpan={7} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
+                                    <InventoryTable
+                                        items={items}
+                                        isLoading={isLoading}
+                                        sortCriteria={sortCriteria}
+                                        selectedItems={selectedLabelItems}
+                                        selectableItemCount={selectablePageItems.length}
+                                        allSelectablePageItemsAreSelected={allSelectablePageItemsAreSelected}
+                                        canSelectItem={canSelectItemForLabel}
+                                        onSort={handleSort}
+                                        onOpenItem={(item) => void openItemDetails(item)}
+                                        onToggleItem={toggleItemForLabel}
+                                        onTogglePage={toggleSelectablePageItems}
+                                    />
                                 </div>
                             </Card>
 

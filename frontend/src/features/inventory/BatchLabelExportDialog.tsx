@@ -21,73 +21,18 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { InventoryItem } from '@/types';
-
-export type BatchLabelFormat = 'pdf' | 'zip';
-
-export type BatchLabelOptions = {
-    fields: string[];
-    width_mm: number;
-    height_mm: number;
-};
-
-type ExportResult = {
-    success: boolean;
-    error?: string;
-};
-
-type BatchLabelExportDialogProps = {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    items: InventoryItem[];
-    onExport: (
-        itemIds: string[],
-        format: BatchLabelFormat,
-        options: BatchLabelOptions,
-    ) => Promise<ExportResult>;
-    onCompleted: () => void;
-};
-
-type FieldOption = {
-    key: string;
-    label: string;
-};
-
-const DEFAULT_FIELDS = ['name', 'category', 'location'];
-const BASE_FIELDS = ['name', 'description', 'status', 'category', 'location', 'owner', 'oldID'];
-
-export function flattenParameterFields(
-    parameters: Record<string, unknown> | null | undefined,
-    prefix = '',
-): string[] {
-    if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) return [];
-
-    return Object.entries(parameters).flatMap(([key, value]) => {
-        const path = prefix ? `${prefix}.${key}` : key;
-
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-            return flattenParameterFields(value as Record<string, unknown>, path);
-        }
-
-        return [`parameters.${path}`];
-    });
-}
-
-export function getCommonParameterFields(items: InventoryItem[]): string[] {
-    if (items.length === 0) return [];
-
-    const [firstItem, ...remainingItems] = items;
-    const commonFields = new Set(flattenParameterFields(firstItem.parameters));
-
-    for (const item of remainingItems) {
-        const itemFields = new Set(flattenParameterFields(item.parameters));
-        for (const field of commonFields) {
-            if (!itemFields.has(field)) commonFields.delete(field);
-        }
-    }
-
-    return [...commonFields].sort((first, second) => first.localeCompare(second));
-}
+import {
+    BASE_BATCH_LABEL_FIELDS,
+    BATCH_LABEL_DIMENSIONS,
+    BATCH_LABEL_LIMIT,
+    DEFAULT_BATCH_LABEL_FIELDS,
+} from './batchLabels.config';
+import type {
+    BatchLabelExportDialogProps,
+    BatchLabelFieldOption,
+    BatchLabelFormat,
+} from './batchLabels.types';
+import { getCommonParameterFields } from './batchLabels.utils';
 
 export default function BatchLabelExportDialog({
     open,
@@ -97,15 +42,15 @@ export default function BatchLabelExportDialog({
     onCompleted,
 }: BatchLabelExportDialogProps) {
     const { t } = useTranslation();
-    const [fields, setFields] = useState<string[]>(DEFAULT_FIELDS);
-    const [widthMm, setWidthMm] = useState(76.2);
-    const [heightMm, setHeightMm] = useState(30.48);
+    const [fields, setFields] = useState<string[]>(DEFAULT_BATCH_LABEL_FIELDS);
+    const [widthMm, setWidthMm] = useState<number>(BATCH_LABEL_DIMENSIONS.width.default);
+    const [heightMm, setHeightMm] = useState<number>(BATCH_LABEL_DIMENSIONS.height.default);
     const [format, setFormat] = useState<BatchLabelFormat>('pdf');
     const [isExporting, setIsExporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fieldOptions = useMemo<FieldOption[]>(() => {
-        const baseOptions = BASE_FIELDS.map((field) => ({
+    const fieldOptions = useMemo<BatchLabelFieldOption[]>(() => {
+        const baseOptions = BASE_BATCH_LABEL_FIELDS.map((field) => ({
             key: field,
             label: t(`itemDetailsModal.labelFields.${field}`, { defaultValue: field }),
         }));
@@ -119,9 +64,9 @@ export default function BatchLabelExportDialog({
 
     useEffect(() => {
         if (!open) return;
-        setFields(DEFAULT_FIELDS);
-        setWidthMm(76.2);
-        setHeightMm(30.48);
+        setFields(DEFAULT_BATCH_LABEL_FIELDS);
+        setWidthMm(BATCH_LABEL_DIMENSIONS.width.default);
+        setHeightMm(BATCH_LABEL_DIMENSIONS.height.default);
         setFormat('pdf');
         setError(null);
     }, [open]);
@@ -135,14 +80,14 @@ export default function BatchLabelExportDialog({
     };
 
     const dimensionsAreValid = (
-        widthMm >= 20
-        && widthMm <= 200
-        && heightMm >= 10
-        && heightMm <= 150
+        widthMm >= BATCH_LABEL_DIMENSIONS.width.min
+        && widthMm <= BATCH_LABEL_DIMENSIONS.width.max
+        && heightMm >= BATCH_LABEL_DIMENSIONS.height.min
+        && heightMm <= BATCH_LABEL_DIMENSIONS.height.max
     );
 
     const handleExport = async () => {
-        if (!dimensionsAreValid || items.length === 0 || items.length > 100) return;
+        if (!dimensionsAreValid || items.length === 0 || items.length > BATCH_LABEL_LIMIT) return;
 
         setIsExporting(true);
         setError(null);
@@ -218,8 +163,8 @@ export default function BatchLabelExportDialog({
                             <Input
                                 id="batch-label-width"
                                 type="number"
-                                min={20}
-                                max={200}
+                                min={BATCH_LABEL_DIMENSIONS.width.min}
+                                max={BATCH_LABEL_DIMENSIONS.width.max}
                                 step={0.1}
                                 value={widthMm}
                                 onChange={(event) => setWidthMm(Number(event.target.value))}
@@ -231,8 +176,8 @@ export default function BatchLabelExportDialog({
                             <Input
                                 id="batch-label-height"
                                 type="number"
-                                min={10}
-                                max={150}
+                                min={BATCH_LABEL_DIMENSIONS.height.min}
+                                max={BATCH_LABEL_DIMENSIONS.height.max}
                                 step={0.1}
                                 value={heightMm}
                                 onChange={(event) => setHeightMm(Number(event.target.value))}
@@ -242,7 +187,14 @@ export default function BatchLabelExportDialog({
                     </div>
 
                     {!dimensionsAreValid && (
-                        <p className="text-sm text-destructive">{t('batchLabels.invalidDimensions')}</p>
+                        <p className="text-sm text-destructive">
+                            {t('batchLabels.invalidDimensions', {
+                                minWidth: BATCH_LABEL_DIMENSIONS.width.min,
+                                maxWidth: BATCH_LABEL_DIMENSIONS.width.max,
+                                minHeight: BATCH_LABEL_DIMENSIONS.height.min,
+                                maxHeight: BATCH_LABEL_DIMENSIONS.height.max,
+                            })}
+                        </p>
                     )}
 
                     <div className="space-y-3">
@@ -282,7 +234,12 @@ export default function BatchLabelExportDialog({
                     </Button>
                     <Button
                         onClick={() => void handleExport()}
-                        disabled={isExporting || !dimensionsAreValid || items.length === 0 || items.length > 100}
+                        disabled={
+                            isExporting
+                            || !dimensionsAreValid
+                            || items.length === 0
+                            || items.length > BATCH_LABEL_LIMIT
+                        }
                     >
                         <Download className="size-4" />
                         {isExporting ? t('batchLabels.exporting') : t('batchLabels.download')}
