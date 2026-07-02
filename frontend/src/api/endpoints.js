@@ -24,6 +24,7 @@ export const ENDPOINTS = {
         SCAN: (code) => `/items/scan/${encodeURIComponent(code)}`,
         QR: (id, format) => `/items/${id}/qr.${format}`,
         LABEL: (id, format) => `/items/${id}/label.${format}`,
+        BATCH_LABELS: (format) => `/items/labels/batch.${format}`,
         ATTACHMENTS: (id) => `/items/${id}/attachments`,
         ATTACHMENT_DOWNLOAD: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}/download`,
         ATTACHMENT_DELETE: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}`,

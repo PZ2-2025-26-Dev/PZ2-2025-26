@@ -493,6 +493,29 @@
       "oldID": "Stare ID"
     }
   },
+  "batchLabels": {
+    "action": "Generuj etykiety",
+    "title": "Eksport zbiorczy etykiet",
+    "description": "Skonfiguruj etykiety dla {{count}} zaznaczonych przedmiotów.",
+    "format": "Format eksportu",
+    "formatPdf": "Wielostronicowy PDF",
+    "formatZip": "ZIP z osobnymi plikami PNG",
+    "width": "Szerokość (mm)",
+    "height": "Wysokość (mm)",
+    "invalidDimensions": "Szerokość musi wynosić 20–200 mm, a wysokość 10–150 mm.",
+    "fields": "Pola etykiety",
+    "fieldsHint": "Pola dodatkowe są dostępne tylko wtedy, gdy występują we wszystkich zaznaczonych przedmiotach.",
+    "cancel": "Anuluj",
+    "download": "Pobierz etykiety",
+    "exporting": "Generowanie...",
+    "exportErrorTitle": "Nie udało się wygenerować etykiet",
+    "exportError": "Generowanie etykiet nie powiodło się.",
+    "selectionErrorTitle": "Nie można zaznaczyć przedmiotów",
+    "limitError": "Można wyeksportować maksymalnie 100 etykiet jednocześnie.",
+    "selectPage": "Zaznacz wszystkie dozwolone przedmioty na stronie",
+    "selectItem": "Zaznacz przedmiot: {{name}}",
+    "notAllowed": "Etykiety może generować administrator lub właściciel przedmiotu."
+  },
   "itemAcl": {
     "title": "Delegowane uprawnienia",
     "description": "Nadaj innym użytkownikom wybrane uprawnienia do tego przedmiotu. Obserwatorzy nie mogą otrzymywać delegacji.",

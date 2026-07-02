@@ -1,7 +1,9 @@
 import json
 from io import BytesIO
 from math import ceil
+from pathlib import Path
 from typing import Literal
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.utils import ImageReader
@@ -21,6 +23,7 @@ PDF_POINTS_PER_INCH = 72
 MIN_FONT_SIZE = 6
 MAX_FONT_SIZE = 220
 FONT_SCALE_FACTOR = 0.82
+LABEL_FONT_PATH = Path(__file__).resolve().parents[2] / "resources" / "DejaVuSans.ttf"
 
 
 def _mm_to_px(value: float) -> int:
@@ -33,9 +36,9 @@ def _mm_to_pdf_points(value: float) -> float:
 
 def _load_font(size: int) -> LabelFont:
     try:
-        return ImageFont.truetype("DejaVuSans.ttf", size)
-    except OSError:
-        return ImageFont.load_default(size=size)
+        return ImageFont.truetype(str(LABEL_FONT_PATH), size)
+    except OSError as err:
+        raise RuntimeError(f"Label font is unavailable: {LABEL_FONT_PATH}") from err
 
 
 def _nested_parameter_value(parameters: dict, parameter_path: str):
@@ -261,16 +264,35 @@ def generate_label_image(
 
 
 def generate_label_pdf(item: Item, fields: list[str], width_mm: float, height_mm: float) -> BytesIO:
-    image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
-    image = Image.open(image_buffer)
+    return generate_labels_pdf([item], fields, width_mm, height_mm)
+
+
+def generate_labels_pdf(items: list[Item], fields: list[str], width_mm: float, height_mm: float) -> BytesIO:
     width = _mm_to_pdf_points(width_mm)
     height = _mm_to_pdf_points(height_mm)
 
     pdf_buffer = BytesIO()
     pdf = canvas.Canvas(pdf_buffer, pagesize=(width, height))
-    pdf.drawImage(ImageReader(image), 0, 0, width=width, height=height)
-    pdf.showPage()
+
+    for item in items:
+        image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
+        image = Image.open(image_buffer)
+        pdf.drawImage(ImageReader(image), 0, 0, width=width, height=height)
+        pdf.showPage()
+
     pdf.save()
     pdf_buffer.seek(0)
 
     return pdf_buffer
+
+
+def generate_labels_zip(items: list[Item], fields: list[str], width_mm: float, height_mm: float) -> BytesIO:
+    zip_buffer = BytesIO()
+
+    with ZipFile(zip_buffer, mode="w", compression=ZIP_DEFLATED) as archive:
+        for item in items:
+            image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
+            archive.writestr(f"item-{item.uuid}-label.png", image_buffer.getvalue())
+
+    zip_buffer.seek(0)
+    return zip_buffer

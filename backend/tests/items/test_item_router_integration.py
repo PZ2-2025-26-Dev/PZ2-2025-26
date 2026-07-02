@@ -1,5 +1,6 @@
 import re
 from io import BytesIO
+from zipfile import ZipFile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -593,6 +594,159 @@ def test_download_item_label_png_endpoint_handles_maximum_size(
     assert response.status_code == 200
     image = Image.open(BytesIO(response.content))
     assert image.size == (2362, 1772)
+
+
+def test_download_item_labels_pdf_endpoint_returns_one_page_per_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.adapter_uuid)],
+            "fields": ["name", "category", "location"],
+            "width_mm": 50,
+            "height_mm": 25,
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == 'attachment; filename="item-labels.pdf"'
+    assert response.content.startswith(b"%PDF")
+    assert len(re.findall(rb"/Type /Page\b", response.content)) == 2
+
+
+def test_download_item_labels_zip_endpoint_returns_png_for_each_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    item_ids = [SEED_IDS.laptop_uuid, SEED_IDS.adapter_uuid]
+
+    response = api_client.post(
+        "/items/labels/batch.zip",
+        json={
+            "item_ids": [str(item_id) for item_id in item_ids],
+            "fields": ["name"],
+            "width_mm": 50,
+            "height_mm": 25,
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"] == 'attachment; filename="item-labels.zip"'
+
+    with ZipFile(BytesIO(response.content)) as archive:
+        assert archive.namelist() == [f"item-{item_id}-label.png" for item_id in item_ids]
+        for filename in archive.namelist():
+            image = Image.open(BytesIO(archive.read(filename)))
+            assert image.format == "PNG"
+            assert image.size == (591, 295)
+
+
+def test_download_item_labels_endpoints_allow_admin_for_items_with_different_owners(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.projector_uuid)],
+            "fields": [],
+        },
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+
+
+def test_download_item_labels_endpoint_rejects_batch_with_item_owned_by_another_user(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.projector_uuid)],
+            "fields": [],
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 403
+
+
+def test_download_item_labels_endpoint_returns_404_when_any_item_is_missing(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.zip",
+        json={
+            "item_ids": [
+                str(SEED_IDS.laptop_uuid),
+                "00000000-0000-0000-0000-000099999999",
+            ],
+            "fields": [],
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_download_item_labels_endpoint_returns_400_when_field_is_not_available_for_every_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.zip",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.adapter_uuid)],
+            "fields": ["parameters.cpu"],
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "item_ids",
+    [
+        [],
+        [str(SEED_IDS.laptop_uuid)] * 2,
+        [str(SEED_IDS.laptop_uuid)] * 101,
+    ],
+)
+def test_download_item_labels_endpoint_validates_item_ids(
+    api_client: TestClient,
+    seeded_db: Session,
+    item_ids: list[str],
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={"item_ids": item_ids, "fields": []},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 422
+
+
+def test_download_item_labels_endpoint_requires_authentication(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={"item_ids": [str(SEED_IDS.laptop_uuid)], "fields": []},
+    )
+
+    assert response.status_code == 401
 
 
 def test_download_item_label_endpoint_returns_error_response_for_missing_item(
