@@ -17,6 +17,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY README.md pyproject.toml uv.lock /app/
 COPY ./src/ /app/src/
+COPY ./resources/ /app/resources/
 
 FROM base AS runtime
 

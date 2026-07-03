@@ -25,13 +25,19 @@ from src.items.dependencies import (
     assert_can_manage_item_attachments,
     assert_can_update_item,
 )
-from src.items.label_service import generate_label_image, generate_label_pdf
+from src.items.label_service import (
+    generate_label_image,
+    generate_label_pdf,
+    generate_labels_pdf,
+    generate_labels_zip,
+)
 from src.items.qr_service import generate_qr_image, generate_qr_pdf
 from src.items.schemas import (
     ItemACLCreate,
     ItemACLListResponse,
     ItemACLResponse,
     ItemAttachmentsListResponse,
+    ItemBatchLabelRequest,
     ItemCreate,
     ItemCreateResponse,
     ItemGetResponse,
@@ -149,6 +155,106 @@ def scan_item(
         return error_response(status.HTTP_400_BAD_REQUEST, "Invalid QR code")
     except ValueError:
         return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+
+@router.post(
+    "/labels/batch.pdf",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz wiele etykiet jako wielostronicowy PDF",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"application/pdf": {}},
+            "description": "Pomyślnie wygenerowano etykiety",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Niepoprawna konfiguracja etykiet",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do co najmniej jednego przedmiotu",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono co najmniej jednego przedmiotu",
+        },
+    },
+)
+def download_item_labels_pdf(
+    data: ItemBatchLabelRequest,
+    db: DBDep,
+    user: CurrentUser,
+) -> StreamingResponse | JSONResponse:
+    service = ItemService(db)
+
+    try:
+        items = service.get_items_for_labels(data.item_ids)
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    for item in items:
+        assert_can_generate_item_assets(user, item)
+
+    try:
+        labels = generate_labels_pdf(items, data.fields, data.width_mm, data.height_mm)
+    except ValueError as err:
+        return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+
+    return StreamingResponse(
+        labels,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="item-labels.pdf"'},
+    )
+
+
+@router.post(
+    "/labels/batch.zip",
+    response_model=None,
+    status_code=status.HTTP_200_OK,
+    summary="Pobierz wiele etykiet PNG jako archiwum ZIP",
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"application/zip": {}},
+            "description": "Pomyślnie wygenerowano etykiety",
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "model": ErrorResponse,
+            "description": "Niepoprawna konfiguracja etykiet",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "Brak uprawnień do co najmniej jednego przedmiotu",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Nie znaleziono co najmniej jednego przedmiotu",
+        },
+    },
+)
+def download_item_labels_zip(
+    data: ItemBatchLabelRequest,
+    db: DBDep,
+    user: CurrentUser,
+) -> StreamingResponse | JSONResponse:
+    service = ItemService(db)
+
+    try:
+        items = service.get_items_for_labels(data.item_ids)
+    except ValueError:
+        return error_response(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    for item in items:
+        assert_can_generate_item_assets(user, item)
+
+    try:
+        labels = generate_labels_zip(items, data.fields, data.width_mm, data.height_mm)
+    except ValueError as err:
+        return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+
+    return StreamingResponse(
+        labels,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="item-labels.zip"'},
+    )
 
 
 @router.get(

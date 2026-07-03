@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
@@ -175,6 +175,32 @@ class ItemLabelRequest(BaseModel):
     )
     width_mm: Annotated[float, Field(ge=20, le=200)] = 76.2
     height_mm: Annotated[float, Field(ge=10, le=150)] = 30.48
+
+
+class ItemBatchLabelRequest(ItemLabelRequest):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "item_ids": [
+                        "00000000-0000-0000-0000-000000040001",
+                        "00000000-0000-0000-0000-000000040002",
+                    ],
+                    "fields": ["name", "category", "location", "parameters.serial_number"],
+                    "width_mm": 76.2,
+                    "height_mm": 30.48,
+                }
+            ]
+        }
+    )
+
+    item_ids: Annotated[list[ItemID], Field(min_length=1, max_length=100)]
+
+    @model_validator(mode="after")
+    def validate_unique_item_ids(self) -> ItemBatchLabelRequest:
+        if len(self.item_ids) != len(set(self.item_ids)):
+            raise ValueError("Item IDs must be unique")
+        return self
 
 
 class ItemDeleteResponse(BaseModel):
