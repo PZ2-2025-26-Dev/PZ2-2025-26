@@ -60,7 +60,7 @@ export default function RegisterForm({ onSwitchToLogin, onBack, onRegisterSucces
             <CardContent>
                 <form onSubmit={handleRegister} className="space-y-4">
                     {message && (
-                        <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className={message.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200' : undefined}>
+                        <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className={message.type === 'success' ? 'border-accent-200 bg-accent-50 text-accent-800 dark:border-accent-900 dark:bg-accent-950/40 dark:text-accent-200' : undefined}>
                             <AlertCircle />
                             <AlertTitle>{message.type === 'success' ? t('auth.register') : t('auth.loginErrorTitle')}</AlertTitle>
                             <AlertDescription>{message.text}</AlertDescription>

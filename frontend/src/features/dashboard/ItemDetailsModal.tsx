@@ -536,7 +536,7 @@ export default function ItemDetailsModal({
     const renderDescription = (text: string) => {
         const urlPattern = /(https?:\/\/[^\s]+)/g;
         return text.split(urlPattern).map((part, index) => part.match(/^https?:\/\//) ? (
-            <a key={`${part}-${index}`} href={part} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-700 underline dark:text-emerald-400">
+            <a key={`${part}-${index}`} href={part} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-700 underline dark:text-accent-400">
                 <ExternalLink className="size-3.5" />
                 {t('itemDetailsModal.openLink')}
             </a>
@@ -547,9 +547,9 @@ export default function ItemDetailsModal({
         if (isOwnerOrAdmin) {
             return (
                 <div className="space-y-4">
-                    <Card className="border-emerald-200 dark:border-emerald-900/50">
+                    <Card className="border-accent-200 dark:border-accent-900/50">
                         <CardHeader>
-                            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-2 text-accent-700 dark:text-accent-400">
                                 <ShieldCheck className="size-5" />
                                 <CardTitle className="text-base">{t('itemDetailsModal.ownerPanel')}</CardTitle>
                             </div>
@@ -558,7 +558,7 @@ export default function ItemDetailsModal({
                         <CardContent className="space-y-4">
                             <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-800">
                             <div className="mb-3 flex items-start gap-3">
-                                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-100 text-accent-700 dark:bg-accent-950 dark:text-accent-400">
                                     <MapPin className="size-4" />
                                 </div>
                                 <div>
@@ -925,7 +925,7 @@ export default function ItemDetailsModal({
                                                 ) : history.length > 0 ? (
                                                     <div className="max-h-72 space-y-3 overflow-y-auto pr-2">
                                                         {history.map((entry) => (
-                                                            <div key={entry.id} className="border-l-2 border-emerald-300 pl-4 text-sm">
+                                                            <div key={entry.id} className="border-l-2 border-accent-300 pl-4 text-sm">
                                                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                                                     <p className="text-xs text-slate-400">{formatHistoryDate(entry.updated_at)}</p>
                                                                     <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -968,7 +968,7 @@ export default function ItemDetailsModal({
                             <CardContent className="space-y-4 pt-5">
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                                        <MapPin className="size-4 text-emerald-500" />
+                                        <MapPin className="size-4 text-accent-500" />
                                         {isEditingLocation ? (
                                             <Select modal={false} value={editedLocationId || undefined} onValueChange={setEditedLocationId}>
                                                 <SelectTrigger className="h-8 min-w-[12rem]">
@@ -1048,7 +1048,7 @@ export default function ItemDetailsModal({
                                             <Separator />
                                             <div className="space-y-3">
                                                 <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-white">
-                                                    <FileText className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                                    <FileText className="size-4 text-accent-600 dark:text-accent-400" />
                                                     {t('itemDetailsModal.labelExportTitle')}
                                                 </div>
                                                 <div className="grid gap-2 sm:grid-cols-2">
@@ -1058,7 +1058,7 @@ export default function ItemDetailsModal({
                                                                 type="checkbox"
                                                                 checked={labelFields.includes(field.key)}
                                                                 onChange={() => toggleLabelField(field.key)}
-                                                                className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                                className="size-4 rounded border-slate-300 text-accent-600 focus:ring-accent-500"
                                                             />
                                                             <span className="min-w-0 truncate">{field.label}</span>
                                                         </label>

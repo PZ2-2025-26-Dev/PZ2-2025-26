@@ -149,7 +149,7 @@ export default function QrScannerDialog({
                 <div className="relative flex items-start justify-center border-b border-slate-100 px-12 py-4 text-center dark:border-slate-800 sm:justify-between sm:px-5 sm:text-left">
                     <div className="min-w-0">
                         <div className="flex items-center justify-center gap-2 sm:justify-start">
-                            <ScanQrCode className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            <ScanQrCode className="h-5 w-5 text-accent-600 dark:text-accent-400" />
                             <h2
                                 id="qr-scanner-title"
                                 className="text-sm font-bold text-slate-900 dark:text-white"
@@ -181,7 +181,7 @@ export default function QrScannerDialog({
 
                         {isStarting && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950 text-slate-200">
-                                <LoaderCircle className="h-8 w-8 animate-spin text-emerald-500" />
+                                <LoaderCircle className="h-8 w-8 animate-spin text-accent-500" />
                                 <span className="text-xs font-medium">
                                     {t('qrScanner.starting')}
                                 </span>

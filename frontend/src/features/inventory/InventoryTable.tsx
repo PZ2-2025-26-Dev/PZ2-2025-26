@@ -74,7 +74,7 @@ export default function InventoryTable({
                             disabled={selectableItemCount === 0}
                             aria-label={t('batchLabels.selectPage')}
                             title={t('batchLabels.selectPage')}
-                            className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            className="size-4 rounded border-slate-300 text-accent-600 focus:ring-accent-500"
                         />
                     </TableHead>
                     {columns.map((column) => (
@@ -122,7 +122,7 @@ export default function InventoryTable({
                                         ? t('batchLabels.selectItem', { name: item.name })
                                         : t('batchLabels.notAllowed')
                                 }
-                                className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="size-4 rounded border-slate-300 text-accent-600 focus:ring-accent-500 disabled:cursor-not-allowed disabled:opacity-40"
                             />
                         </TableCell>
                         <TableCell className="w-[120px] max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">

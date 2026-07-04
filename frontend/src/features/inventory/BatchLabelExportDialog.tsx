@@ -215,7 +215,7 @@ export default function BatchLabelExportDialog({
                                         checked={fields.includes(field.key)}
                                         onChange={() => toggleField(field.key)}
                                         disabled={isExporting}
-                                        className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                        className="size-4 rounded border-slate-300 text-accent-600 focus:ring-accent-500"
                                     />
                                     <span className="min-w-0 truncate">{field.label}</span>
                                 </label>

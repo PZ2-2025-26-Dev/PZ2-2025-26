@@ -3,6 +3,9 @@ export type AppUser = {
     name: string;
     role: string;
     status?: string;
+    uiTheme?: 'light' | 'dark';
+    uiFont?: 'sans' | 'serif' | 'mono';
+    uiAccent?: 'agh-green' | 'agh-red' | 'agh-gold' | 'agh-blue';
 };
 
 export type InventoryItem = {

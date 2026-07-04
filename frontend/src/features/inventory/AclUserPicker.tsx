@@ -111,8 +111,8 @@ export default function AclUserPicker({ ownerId, value, onChange, disabled }: Ac
                                         type="button"
                                         disabled={disabled}
                                         onClick={() => onChange(String(user.id))}
-                                        className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/30 ${
-                                            isSelected ? 'bg-emerald-50 font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : ''
+                                        className={`w-full px-3 py-2 text-left text-sm transition-colors hover:bg-accent-50 dark:hover:bg-accent-950/30 ${
+                                            isSelected ? 'bg-accent-50 font-medium text-accent-800 dark:bg-accent-950/40 dark:text-accent-300' : ''
                                         }`}
                                     >
                                         {getUserLabel(user)}
