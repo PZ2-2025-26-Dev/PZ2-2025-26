@@ -29,6 +29,27 @@
     "footerTeam": "Developed by team",
     "footerRights": "All rights reserved"
   },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "font": "Font",
+    "accent": "Accent",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "fonts": {
+      "sans": "Sans",
+      "serif": "Serif",
+      "mono": "Mono"
+    },
+    "accents": {
+      "aghGreen": "AGH Green",
+      "aghRed": "AGH Red",
+      "aghGold": "Gold",
+      "aghBlue": "Blue"
+    }
+  },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
     "dashboardDesc": "Items list",

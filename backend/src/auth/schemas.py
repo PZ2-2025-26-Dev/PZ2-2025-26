@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -62,3 +62,12 @@ class CurrentUserResponse(BaseModel):
     name: str
     role: UserRole
     status: UserStatus
+    ui_theme: Literal["light", "dark"] = "light"
+    ui_font: Literal["sans", "serif", "mono"] = "sans"
+    ui_accent: Literal["agh-green", "agh-red", "agh-gold", "agh-blue"] = "agh-green"
+
+
+class UserPreferencesUpdate(BaseModel):
+    ui_theme: Literal["light", "dark"] | None = None
+    ui_font: Literal["sans", "serif", "mono"] | None = None
+    ui_accent: Literal["agh-green", "agh-red", "agh-gold", "agh-blue"] | None = None

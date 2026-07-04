@@ -72,3 +72,27 @@ def test_observer_can_read_location_history(api_client: TestClient, seeded_db: S
 
     assert response.status_code == 200
     assert isinstance(response.json(), list)
+
+
+def test_user_can_update_own_ui_preferences(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        "/auth/me/preferences",
+        json={
+            "ui_theme": "dark",
+            "ui_font": "mono",
+            "ui_accent": "agh-red",
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["ui_theme"] == "dark"
+    assert response.json()["ui_font"] == "mono"
+    assert response.json()["ui_accent"] == "agh-red"
+
+    me_response = api_client.get("/auth/me", headers=auth_headers(SEED_IDS.regular_user))
+
+    assert me_response.status_code == 200
+    assert me_response.json()["ui_theme"] == "dark"
+    assert me_response.json()["ui_font"] == "mono"
+    assert me_response.json()["ui_accent"] == "agh-red"

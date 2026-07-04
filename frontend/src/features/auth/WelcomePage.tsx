@@ -22,9 +22,9 @@ export default function WelcomePage({
     }, [isDarkMode]);
 
     return (
-        <div className="min-h-[100dvh] w-full bg-slate-100 font-sans text-slate-950 transition-colors dark:bg-slate-950 dark:text-white">
+        <div className="min-h-[100dvh] w-full bg-[rgb(var(--color-page-bg))] font-sans text-slate-950 transition-colors dark:text-white">
             <main className="mx-auto grid min-h-[100dvh] w-full max-w-5xl grid-rows-[minmax(0,1fr)_auto] gap-3 p-3 sm:gap-4 sm:p-5 lg:p-7">
-                <section className="relative isolate h-full min-h-0 overflow-hidden rounded-[1.75rem] bg-emerald-900 px-7 py-8 text-white shadow-xl shadow-emerald-950/15 dark:bg-[#052e2b] sm:rounded-[2rem] sm:px-10 sm:py-10 lg:px-14 lg:py-12">
+                <section className="relative isolate h-full min-h-0 overflow-hidden rounded-[1.75rem] bg-accent-900 px-7 py-8 text-white shadow-xl shadow-accent-950/15 dark:bg-accent-950 sm:rounded-[2rem] sm:px-10 sm:py-10 lg:px-14 lg:py-12">
                     <button
                         type="button"
                         onClick={() => void i18n.changeLanguage(currentLanguage === 'PL' ? 'EN' : 'PL')}
@@ -58,11 +58,11 @@ export default function WelcomePage({
                         )}
                     </button>
 
-                    <div className="pointer-events-none absolute -bottom-28 -left-20 h-64 w-64 rounded-full border-[3rem] border-emerald-600/35 dark:border-emerald-700/30 sm:-bottom-32 sm:h-72 sm:w-72" />
+                    <div className="pointer-events-none absolute -bottom-28 -left-20 h-64 w-64 rounded-full border-[3rem] border-accent-600/35 dark:border-accent-700/30 sm:-bottom-32 sm:h-72 sm:w-72" />
 
                     <div className="relative z-10 flex h-full min-h-0 flex-col justify-between">
                         <div className="max-w-[13rem] sm:max-w-sm">
-                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase leading-relaxed tracking-[0.18em] text-emerald-100">
+                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase leading-relaxed tracking-[0.18em] text-accent-100">
                                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                                 <span>{t('welcome.faculty')}</span>
                             </div>
@@ -75,7 +75,7 @@ export default function WelcomePage({
                             <h1 className="max-w-lg text-[clamp(2.5rem,11vw,4.5rem)] font-black leading-[0.94] tracking-[-0.045em] text-white">
                                 {t('welcome.productName')}
                             </h1>
-                            <p className="mt-5 max-w-md text-[15px] font-medium leading-relaxed text-emerald-50 sm:text-base">
+                            <p className="mt-5 max-w-md text-[15px] font-medium leading-relaxed text-accent-50 sm:text-base">
                                 {t('welcome.conciseDescription')}
                             </p>
                         </div>
@@ -86,7 +86,7 @@ export default function WelcomePage({
                     <button
                         type="button"
                         onClick={onLocalLogin}
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-extrabold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400 dark:focus:ring-offset-slate-950 sm:text-base"
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-600 px-6 py-4 text-sm font-extrabold text-white shadow-lg shadow-accent-700/20 transition hover:bg-accent-700 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 dark:bg-accent-500 dark:text-accent-950 dark:hover:bg-accent-400 dark:focus:ring-offset-slate-950 sm:text-base"
                     >
                         {t('welcome.enterSystem')}
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -99,7 +99,7 @@ export default function WelcomePage({
                         <button
                             type="button"
                             onClick={onRegister}
-                            className="font-bold text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-400"
+                            className="font-bold text-accent-700 underline-offset-4 hover:underline dark:text-accent-400"
                         >
                             {t('welcome.createAccount')}
                         </button>

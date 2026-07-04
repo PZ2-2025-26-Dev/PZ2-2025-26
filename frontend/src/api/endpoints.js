@@ -7,6 +7,8 @@ export const ENDPOINTS = {
         GOOGLE_CALLBACK: '/auth/google/callback',
 
         REFRESH: '/auth/refresh',
+        ME: '/auth/me',
+        PREFERENCES: '/auth/me/preferences',
     },
     // USERS: {
     //     BASE: '/api/v1/users',

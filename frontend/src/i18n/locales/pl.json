@@ -29,6 +29,27 @@
     "footerTeam": "Stworzone przez zespół",
     "footerRights": "Wszelkie prawa zastrzeżone"
   },
+  "settings": {
+    "title": "Ustawienia",
+    "theme": "Tryb",
+    "font": "Czcionka",
+    "accent": "Akcent",
+    "themes": {
+      "light": "Jasny",
+      "dark": "Ciemny"
+    },
+    "fonts": {
+      "sans": "Bezszeryfowa",
+      "serif": "Szeryfowa",
+      "mono": "Monospace"
+    },
+    "accents": {
+      "aghGreen": "Zieleń AGH",
+      "aghRed": "Czerwień AGH",
+      "aghGold": "Złoty",
+      "aghBlue": "Niebieski"
+    }
+  },
   "dashboard": {
     "dashboard": "Panel Inwentaryzacyjny",
     "dashboardDesc": "Lista przedmiotów",

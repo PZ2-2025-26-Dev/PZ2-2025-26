@@ -9,6 +9,7 @@ import {
     PackageCheck,
     Plus,
     Search,
+    Settings,
     Sun,
     Users,
     LayoutDashboard,
@@ -28,10 +29,19 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { InventoryItem } from '@/types';
+import {
+    APP_ACCENT_OPTIONS,
+    APP_FONT_OPTIONS,
+    type AppPreferences,
+    type UiAccent,
+    type UiFont,
+    type UiTheme,
+} from '@/theme/appPreferences';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
@@ -69,7 +79,90 @@ function isMenuSection(value: string | null): value is MenuSection {
     return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
 }
 
-export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
+function ProfileSettingsDialog({
+    open,
+    onOpenChange,
+    preferences,
+    onPreferencesChange,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    preferences: AppPreferences;
+    onPreferencesChange: (preferences: AppPreferences) => void;
+}) {
+    const { t } = useTranslation();
+
+    const updatePreference = <Key extends keyof AppPreferences>(key: Key, value: AppPreferences[Key]) => {
+        onPreferencesChange({ ...preferences, [key]: value });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{t('settings.title')}</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-5">
+                    <div className="space-y-2">
+                        <Label>{t('settings.theme')}</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {(['light', 'dark'] as UiTheme[]).map((theme) => (
+                                <Button
+                                    key={theme}
+                                    variant={preferences.uiTheme === theme ? 'default' : 'outline'}
+                                    onClick={() => updatePreference('uiTheme', theme)}
+                                >
+                                    {theme === 'light' ? <Sun /> : <Moon />}
+                                    {t(`settings.themes.${theme}`)}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>{t('settings.font')}</Label>
+                        <Select value={preferences.uiFont} onValueChange={(font) => updatePreference('uiFont', font as UiFont)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {APP_FONT_OPTIONS.map((font) => (
+                                    <SelectItem key={font.value} value={font.value}>
+                                        <span className={font.previewClassName}>{t(font.labelKey)}</span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>{t('settings.accent')}</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {APP_ACCENT_OPTIONS.map((accent) => (
+                                <Button
+                                    key={accent.value}
+                                    type="button"
+                                    variant={preferences.uiAccent === accent.value ? 'default' : 'outline'}
+                                    className="justify-start"
+                                    onClick={() => updatePreference('uiAccent', accent.value as UiAccent)}
+                                >
+                                    <span
+                                        className="size-4 rounded-full border border-white/50 shadow-sm"
+                                        style={{ backgroundColor: accent.swatch }}
+                                    />
+                                    {t(accent.labelKey)}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode, preferences, onPreferencesChange }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
     const {
         listItems,
@@ -121,6 +214,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     
 
@@ -486,7 +580,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-slate-50 font-sans dark:bg-slate-900">
+        <div className="flex min-h-screen flex-col bg-[rgb(var(--color-page-bg))] font-sans">
             {/* Header */}
             <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
                 <div className="mx-auto flex h-16 max-w-full items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -499,7 +593,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         >
                             {isSidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
                         </Button>
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold tracking-wider text-white dark:bg-emerald-600">AGH</div>
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-700 text-xs font-bold tracking-wider text-white dark:bg-accent-600">AGH</div>
                         <div className="min-w-0">
                             <h1 className="truncate text-xs font-bold uppercase tracking-tight text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h1>
                             <div className="flex items-center gap-1 text-[10px] text-slate-500">
@@ -516,6 +610,9 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         </Button>
                         <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
                             {isDarkMode ? <Sun /> : <Moon />}
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" onClick={() => setIsSettingsOpen(true)} aria-label={t('settings.title')}>
+                            <Settings />
                         </Button>
                         <Button variant="destructive" size="sm" onClick={onLogout}>
                             <LogOut />
@@ -558,7 +655,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     }}
                                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
                                         isActive
-                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                            ? 'bg-accent-100 text-accent-700 dark:bg-accent-950 dark:text-accent-400'
                                             : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
                                     } ${!isSidebarOpen && 'lg:justify-center'}`}
                                     title={!isSidebarOpen ? item.label : undefined}
@@ -622,6 +719,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 isOpen={isQrScannerOpen}
                 onClose={() => setIsQrScannerOpen(false)}
                 onScan={handleQrScan}
+            />
+            <ProfileSettingsDialog
+                open={isSettingsOpen}
+                onOpenChange={setIsSettingsOpen}
+                preferences={preferences}
+                onPreferencesChange={onPreferencesChange}
             />
         </div>
     );

@@ -97,7 +97,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <StatCard title={t('userManager.totalUsers')} value={totalCount} icon={Users} />
                 <StatCard title={t('userManager.pendingUsers')} value={pendingCount} icon={UserCheck} className="text-amber-600 dark:text-amber-400" />
-                <StatCard title={t('userManager.activeUsers')} value={users.filter((user) => user.status === 'active').length} icon={UserCheck} className="text-emerald-600 dark:text-emerald-400" />
+                <StatCard title={t('userManager.activeUsers')} value={users.filter((user) => user.status === 'active').length} icon={UserCheck} className="text-accent-600 dark:text-accent-400" />
                 <StatCard title={t('userManager.adminUsers')} value={users.filter((user) => user.role === 'admin').length} icon={ShieldCheck} className="text-blue-600 dark:text-blue-400" />
             </div>
 

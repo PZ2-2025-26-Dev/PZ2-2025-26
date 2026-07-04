@@ -122,7 +122,7 @@ export default function UserDirectory({ user }: UserDirectoryProps) {
                     onClick={() => setActiveTab('list')}
                     className={`flex items-center gap-2 border-b-2 px-3 py-3 text-xs font-semibold transition-colors ${
                         activeTab === 'list'
-                            ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                            ? 'border-accent-500 text-accent-600 dark:text-accent-400'
                             : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                 >
@@ -134,7 +134,7 @@ export default function UserDirectory({ user }: UserDirectoryProps) {
                     onClick={() => { setActiveTab('create'); clearError(); }}
                     className={`flex items-center gap-2 border-b-2 px-3 py-3 text-xs font-semibold transition-colors ${
                         activeTab === 'create'
-                            ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                            ? 'border-accent-500 text-accent-600 dark:text-accent-400'
                             : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                     }`}
                 >

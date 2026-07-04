@@ -9,6 +9,10 @@ from src.users.constants import (
     LAST_NAME_MAX_LENGTH,
 )
 
+DEFAULT_UI_ACCENT = "agh-green"
+DEFAULT_UI_FONT = "sans"
+DEFAULT_UI_THEME = "light"
+
 
 class User(Base):
     __tablename__ = "user"
@@ -26,3 +30,6 @@ class User(Base):
 
     role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     status: Mapped[UserStatus] = mapped_column(Enum(UserStatus))
+    ui_theme: Mapped[str] = mapped_column(String(16), default=DEFAULT_UI_THEME, server_default=DEFAULT_UI_THEME)
+    ui_font: Mapped[str] = mapped_column(String(16), default=DEFAULT_UI_FONT, server_default=DEFAULT_UI_FONT)
+    ui_accent: Mapped[str] = mapped_column(String(32), default=DEFAULT_UI_ACCENT, server_default=DEFAULT_UI_ACCENT)

@@ -15,7 +15,7 @@ export default function SystemClock({ lang = 'PL' }: { lang?: string }) {
 
     return (
         <Badge variant="secondary" className="hidden h-auto items-center gap-2 rounded-lg px-3 py-1.5 font-mono sm:inline-flex">
-            <Clock3 className="size-3.5 text-emerald-500" />
+            <Clock3 className="size-3.5 text-accent-500" />
             <span className="flex flex-col items-start">
                 <strong className="text-[11px] text-slate-700 dark:text-slate-200">
                     {time.toLocaleTimeString(locale)}

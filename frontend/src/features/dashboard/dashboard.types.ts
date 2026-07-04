@@ -1,4 +1,5 @@
 import type { AppUser } from '@/types';
+import type { AppPreferences } from '@/theme/appPreferences';
 
 export type CategoryOption = {
     id: number;
@@ -14,4 +15,6 @@ export type DashboardPageProps = {
     onLogout: () => void;
     isDarkMode: boolean;
     setIsDarkMode: (enabled: boolean) => void;
+    preferences: AppPreferences;
+    onPreferencesChange: (preferences: AppPreferences) => void;
 };
