@@ -111,9 +111,9 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onBack }
                             </svg>
                         </div>
                     </div>
-                    <CardTitle className="text-2xl">Aparatura AGH</CardTitle>
+                    <CardTitle className="text-2xl">{t('auth.productTitle')}</CardTitle>
                     <CardDescription>
-                        Zintegrowany system zarządzania aparaturą pomiarową
+                        {t('auth.productDescription')}
                     </CardDescription>
                 </CardHeader>
 

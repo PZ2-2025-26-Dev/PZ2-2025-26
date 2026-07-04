@@ -50,6 +50,10 @@
       "aghBlue": "Blue"
     }
   },
+  "common": {
+    "close": "Close",
+    "loading": "Loading..."
+  },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
     "dashboardDesc": "Items list",
@@ -93,6 +97,7 @@
     "approveBtn": "Approve",
     "rejectBtn": "Reject",
     "refresh": "Refresh",
+    "toggleSidebar": "Toggle sidebar",
     "shown": "Shown",
     "of": "of",
     "items": "items",
@@ -127,6 +132,7 @@
     "requestBorrow": "Borrow",
     "noAvailable": "No equipment available",
     "subtitle": "Manage equipment rental requests",
+    "observerSubtitle": "View all loans in read-only mode.",
     "purposeLabel": "Loan purpose",
     "purposePlaceholder": "Describe the purpose of borrowing...",
     "pendingApprovals": "Pending approvals",
@@ -518,6 +524,8 @@
     },
 
     "placeholders": {
+      "deviceId": "e.g. AGH-001",
+      "deviceName": "e.g. Microscope",
       "category": "Select category",
       "status": "All statuses",
       "location": "Select location",
@@ -620,6 +628,8 @@
     "close": "Close scanner"
   },
   "auth": {
+    "productTitle": "AGH Equipment",
+    "productDescription": "Integrated measuring equipment management system",
     "login": "Login",
     "register": "Register",
     "email": "Email",

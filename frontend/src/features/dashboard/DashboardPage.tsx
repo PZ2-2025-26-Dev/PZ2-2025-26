@@ -444,7 +444,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                                     <AlertDescription className="flex items-center justify-between gap-3">
                                         <span>{error}</span>
-                                        <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
+                                        <Button variant="outline" size="sm" onClick={() => clearError()} aria-label={t('common.close')}>✕</Button>
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -455,7 +455,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                                     <AlertDescription className="flex items-center justify-between gap-3">
                                         <span>{exportError}</span>
-                                        <Button variant="outline" size="sm" onClick={() => clearExportError()}>✕</Button>
+                                        <Button variant="outline" size="sm" onClick={() => clearExportError()} aria-label={t('common.close')}>✕</Button>
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -516,7 +516,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                         {t("inventoryFilters.common.previous")}
                                     </Button>
                                     <div className="flex items-center justify-center text-sm font-medium px-2">
-                                        {t('inventoryFilters.common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                                        {t('inventoryFilters.common.page')} {filters.page} {t('dashboard.of')} {Math.ceil(total / (filters.limit || 15))}
                                     </div>
                                     <Button
                                         variant="outline"
@@ -635,7 +635,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             size="icon"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="w-full"
-                            aria-label="Przełącz menu boczne"
+                            aria-label={t('dashboard.toggleSidebar')}
                         >
                             <Menu className="size-5" />
                         </Button>

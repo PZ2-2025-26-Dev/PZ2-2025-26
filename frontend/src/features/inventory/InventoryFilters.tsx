@@ -349,7 +349,7 @@ export default function InventoryFilters({
                 <Label htmlFor="oldID">{t("inventoryFilters.fields.deviceId")}</Label>
                 <Input
                   id="oldID"
-                  placeholder="np. AGH-001"
+                  placeholder={t("inventoryFilters.placeholders.deviceId")}
                   value={filters.uuid || ""} 
                   onChange={(e) => updateFilterField("uuid", e.target.value)}
                 />
@@ -359,7 +359,7 @@ export default function InventoryFilters({
                 <Label htmlFor="name">{t("inventoryFilters.fields.deviceName")}</Label>
                 <Input
                   id="name"
-                  placeholder="np. Mikroskop"
+                  placeholder={t("inventoryFilters.placeholders.deviceName")}
                   value={filters.name || ""}
                   onChange={(e) => updateFilterField("name", e.target.value)}
                 />

@@ -50,9 +50,15 @@
       "aghBlue": "Niebieski"
     }
   },
+  "common": {
+    "close": "Zamknij",
+    "loading": "Ładowanie..."
+  },
   "dashboard": {
     "dashboard": "Panel Inwentaryzacyjny",
     "dashboardDesc": "Lista przedmiotów",
+    "title": "Panel Inwentaryzacyjny",
+    "description": "Lista przedmiotów",
     "welcome": "Witaj",
     "role": "Rola",
     "logout": "Wyloguj",
@@ -91,6 +97,7 @@
     "approveBtn": "Zatwierdź",
     "rejectBtn": "Odrzuć",
     "refresh": "Odśwież",
+    "toggleSidebar": "Przełącz menu boczne",
     "shown": "Wyświetlane",
     "of": "z",
     "items": "przedmiotów",
@@ -100,10 +107,6 @@
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
       "broken": "Uszkodzony"
-    },
-    "filters":{
-      "advancedFilters": "Zawansowane filtrowanie",
-      "ads":"wedsa"
     }
   },
   "inventoryFilters": {
@@ -131,6 +134,8 @@
     },
 
     "placeholders": {
+      "deviceId": "np. AGH-001",
+      "deviceName": "np. Mikroskop",
       "category": "Wybierz kategorię",
       "status": "Wszystkie statusy",
       "location": "Wybierz lokalizację",
@@ -198,6 +203,7 @@
     "requestBorrow": "Wypożycz",
     "noAvailable": "Brak dostępnego sprzętu",
     "subtitle": "Zarządzaj wnioskami o wypożyczenie sprzętu",
+    "observerSubtitle": "Podgląd wszystkich wypożyczeń (tryb tylko do odczytu).",
     "purposeLabel": "Cel wypożyczenia",
     "purposePlaceholder": "Opisz cel wypożyczenia...",
     "pendingApprovals": "Oczekujące wnioski",
@@ -621,6 +627,8 @@
     "close": "Zamknij skaner"
   },
   "auth": {
+    "productTitle": "Aparatura AGH",
+    "productDescription": "Zintegrowany system zarządzania aparaturą pomiarową",
     "login": "Logowanie",
     "register": "Rejestracja",
     "email": "Email",
