@@ -82,8 +82,7 @@ def ensure_loan_columns() -> None:
         if "return_condition" not in existing_columns:
             connection.execute(
                 text(
-                    f"ALTER TABLE {quoted_loan_table} "
-                    "ADD COLUMN return_condition ENUM('OK','BROKEN','MISSING') NULL"
+                    f"ALTER TABLE {quoted_loan_table} ADD COLUMN return_condition ENUM('OK','BROKEN','MISSING') NULL"
                     if connection.dialect.name == "mysql"
                     else f"ALTER TABLE {quoted_loan_table} ADD COLUMN return_condition VARCHAR(16) NULL"
                 )
