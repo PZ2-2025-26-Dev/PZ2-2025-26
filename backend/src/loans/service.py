@@ -343,8 +343,8 @@ class LoanService:
         stmt = select(Loan)
 
         if scope == LoanListScope.ALL:
-            if user.role != UserRole.ADMIN:
-                raise AccessDeniedError("Tylko administrator może wyświetlić wszystkie wypożyczenia")
+            if user.role not in (UserRole.ADMIN, UserRole.OBSERVER):
+                raise AccessDeniedError("Brak uprawnień do wyświetlenia wszystkich wypożyczeń")
         elif scope == LoanListScope.OWNED:
             if user.role not in (UserRole.ADMIN, UserRole.USER):
                 return []
@@ -363,6 +363,9 @@ class LoanService:
     def get_loan(self, loan_id: int, user: User) -> LoanResponse:
         loan = self._get_loan(loan_id)
         item = self.db.get(Item, loan.item_id)
+
+        if user.role == UserRole.OBSERVER:
+            return self._build_response(loan)
 
         if user.role != UserRole.ADMIN:
             is_borrower = loan.user_id == user.id or loan.guest_id == user.id

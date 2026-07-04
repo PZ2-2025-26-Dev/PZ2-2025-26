@@ -23,6 +23,7 @@ class GuestUserUpdate(BaseModel):
 class UserBasicBrowse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: UserID
     first_name: Name
     last_name: str | None = None
     role: Literal["admin", "user", "observer"]

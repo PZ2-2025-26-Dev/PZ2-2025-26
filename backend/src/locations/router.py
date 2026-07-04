@@ -2,10 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.dependencies import DBDep
-from src.locations.constants import LOCATION_PAGE_LIMIT_MAX, LocationType
+from src.locations.constants import LOCATION_PAGE_LIMIT_MAX
 from src.locations.schemas import (
     LocationCreate,
     LocationDeleteResponse,
@@ -49,18 +48,9 @@ router = APIRouter(prefix="/locations", tags=["locations"])
         },
     },
 )
-def create_location(data: LocationCreate, db: DBDep, user: CurrentUser) -> LocationDetails:
-    can_create_location = user.role == UserRole.ADMIN or (
-        user.role == UserRole.USER and data.type == LocationType.REMOTE
-    )
-    if not can_create_location:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can create regular locations. Users can create remote locations only.",
-        )
-
+def create_location(data: LocationCreate, db: DBDep, _admin: RequireAdmin) -> LocationDetails:
     try:
-        return LocationService(db).create_location(data, changed_by=user.id)
+        return LocationService(db).create_location(data, changed_by=_admin.id)
     except InvalidLocationParentError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -241,12 +231,9 @@ def delete_location(location_id: LocationID, db: DBDep, _admin: RequireAdmin) ->
         status.HTTP_401_UNAUTHORIZED: {
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
-        status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla administratora.",
-        },
     },
 )
-def read_location_history(location_id: LocationID, db: DBDep, _admin: RequireAdmin) -> list[LocationHistoryEntry]:
+def read_location_history(location_id: LocationID, db: DBDep, _user: CurrentUser) -> list[LocationHistoryEntry]:
     try:
         history = LocationService(db).list_history(location_id)
     except LocationNotFoundError as err:

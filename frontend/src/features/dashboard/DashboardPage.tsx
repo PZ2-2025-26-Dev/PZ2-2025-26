@@ -18,14 +18,11 @@ import {
     ChevronDown,
     ChevronRight,
     UserPlus,
-    ArrowUpDown,
-    ArrowUp,
-    ArrowDown,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
-import { StatusBadge } from '@/components/StatusBadge';
+import QrScannerDialog from '@/components/QrScannerDialog';
 import SystemClock from '@/components/SystemClock';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -34,8 +31,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { AppUser, InventoryItem } from '@/types';
+import type { InventoryItem } from '@/types';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
@@ -48,26 +44,24 @@ import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
-import InventoryFilters, { InventoryFiltersState } from '../inventory/InventoryFilters';
 import InventoryToolbar from '../inventory/InventoryToolbar';
+import BatchLabelExportDialog from '../inventory/BatchLabelExportDialog';
+import { BATCH_LABEL_LIMIT } from '../inventory/batchLabels.config';
+import type {
+    BatchLabelFormat,
+    BatchLabelOptions,
+} from '../inventory/batchLabels.types';
+import { InventoryFiltersState } from '../inventory/InventoryFilters';
+import InventoryTable from '../inventory/InventoryTable';
+import type { SortCriteria, SortField } from '../inventory/inventoryTable.types';
+import { useBatchLabelSelection } from '../inventory/useBatchLabelSelection';
 import { useUsers } from '../users/useUsers';
 import { useLocations } from '../locations/useLocations';
-import QrScannerDialog from '@/components/QrScannerDialog';
-
-type CategoryOption = {
-    id: number;
-    name: string;
-    parentId: number | null;
-    path: string;
-};
-
-type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
-
-export type ApiUser = {
-    id: number;
-    firstName: string;
-    lastName: string;
-};
+import type {
+    CategoryOption,
+    DashboardPageProps,
+    MenuSection,
+} from './dashboard.types';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
@@ -75,24 +69,23 @@ function isMenuSection(value: string | null): value is MenuSection {
     return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
 }
 
-type DashboardPageProps = {
-    user: AppUser;
-    onLogout: () => void;
-    isDarkMode: boolean;
-    setIsDarkMode: (enabled: boolean) => void;
-};
-
 export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const { listItems, getItem, lookupItemByQrCode, error, clearError } = useInventory();
+    const {
+        listItems,
+        isLoading,
+        getItem,
+        lookupItemByQrCode,
+        downloadBatchLabels,
+        error,
+        clearError,
+    } = useInventory();
     const { listCategories } = useCategories();
-    const { exportItemsXlsx } = useExport();
+    const { exportItemsXlsx, isLoading: isExporting, error: exportError, clearError: clearExportError } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
 
-    // Dodane brakujące stany dla filtrów (pobierane docelowo z API)
     const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
     const [users, setUsers] = useState<Array<{ id: number; name: string }>>([]);
     const { listUsers } = useUsers();
@@ -101,7 +94,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    
     const [filters, setFilters] = useState<InventoryFiltersState>({
         uuid: '',
         name: '',
@@ -112,46 +104,25 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         ownerId: '',
         borrowerId: '',
         search: '',
-        sort_by: 'name',
-        sort_order: 'asc',
+        sort: 'name:asc',
         page: 1,
         limit: 15,
-        parameters: undefined,
-    });
-
-    const [stats, setStats] = useState({
-        total: 0,
-        loaned: 0,
-        pending: 0,
-        broken: 0,
+        custom_params: undefined
     });
 
     const [activeSection, setActiveSection] = useState<MenuSection>(() => {
         const storedSection = localStorage.getItem(DASHBOARD_ACTIVE_SECTION_KEY);
         return isMenuSection(storedSection) ? storedSection : 'dashboard';
     });
-
+    
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
-    type SortField = "id" | "name" | "category" | "location" | "status" | "owner";
-
-    const columns: Array<{
-        label: React.ReactNode;
-        field?: SortField;
-        sortable?: boolean;
-    }> = [
-        { label: "ID", field: "id", sortable: true },
-        { label: t('dashboard.thName'), field: "name", sortable: true },
-        { label: t('dashboard.tabCategories'), field: "category", sortable: true },
-        { label: t('dashboard.tabLocations'), field: "location", sortable: true },
-        { label: t('dashboard.thStatus'), field: "status", sortable: true },
-        { label: t('addAssetModal.owner'), field: "owner", sortable: true },
-    ];
+    
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
@@ -159,6 +130,31 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
     const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
+    const {
+        selectedItems: selectedLabelItems,
+        selectedItemsList: selectedLabelItemsList,
+        selectedCount: selectedLabelItemCount,
+        selectionError: labelSelectionError,
+        isDialogOpen: isBatchLabelDialogOpen,
+        setIsDialogOpen: setIsBatchLabelDialogOpen,
+        canSelectItem: canSelectItemForLabel,
+        selectablePageItems,
+        allSelectablePageItemsAreSelected,
+        toggleItem: toggleItemForLabel,
+        togglePage: toggleSelectablePageItems,
+        clearSelection: clearLabelSelection,
+        updateSelectedItem: updateSelectedLabelItem,
+    } = useBatchLabelSelection({
+        items,
+        filters,
+        userId: user.id,
+        canManageSystem,
+        limitErrorMessage: t('batchLabels.limitError', { limit: BATCH_LABEL_LIMIT }),
+    });
+
+    const [sortCriteria, setSortCriteria] = useState<SortCriteria[]>([
+        { field: 'name', order: 'asc' }
+    ]);
 
     useEffect(() => {
         localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
@@ -171,23 +167,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [activeSection, canManageSystem]);
 
     const refreshItems = useCallback(async () => {
-        setIsLoading(true);
-        const result = await listItems({ ...filters, limit: 50 });
+        const result = await listItems({ ...filters, limit: filters.limit || 15 });
         if (result.success) {
             setItems(result.items);
             setTotal(result.total);
-            
-            // Wyliczenie statystyk na żywo z pobranych przedmiotów
-            const computedStats = { total: result.total, loaned: 0, pending: 0, broken: 0 };
-                result.items.forEach((item: InventoryItem) => {
-                    if (item.status === 'loaned') computedStats.loaned++;
-                    else if (item.status === 'pending_approval') computedStats.pending++;
-                    else if (item.status === 'broken') computedStats.broken++;
-                });
-            setStats(computedStats);
         }
-
-        setIsLoading(false);
     }, [listItems, filters]);
 
     const refreshCategories = useCallback(async () => {
@@ -203,11 +187,10 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [listCategories]);
 
     const refreshUsers = useCallback(async () => {
-        const result = await listUsers({ status: 'active', limit: 100 });
-
+        const result = await listUsers({ status: 'active', limit: 100 }, { browse: true });
         if (result.success) {
             setUsers(
-                result.users.map(u => ({
+                result.users.map((u: { id: number; firstName?: string | null; lastName?: string | null }) => ({
                     id: u.id,
                     name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
                 }))
@@ -217,7 +200,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const refreshLocations = useCallback(async () => {
         const result = await listLocations();
-
         if (result.success) {
             setLocations(result.locations);
         }
@@ -225,39 +207,59 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     useEffect(() => {
         if (!canViewList) return;
-
         refreshItems();
         refreshCategories();
         refreshUsers();
         refreshLocations();
-    }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations, filters]);
+    }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations]);
 
-    const handleSort = (field: SortField) => {
-        setFilters(prev => {
-            const isSameField = prev.sort_by === field;
-            const nextOrder = isSameField && prev.sort_order === "asc" ? "desc" : "asc";
+    const handleSort = (field: SortField, event: React.MouseEvent) => {
+        setSortCriteria(prev => {
+            const isShiftPressed = event.shiftKey;
+            const existingIndex = prev.findIndex(c => c.field === field);
 
-            return {
-                ...prev,
-                sort_by: field,
-                sort_order: nextOrder,
-                page: 1,
-            };
+            if (isShiftPressed) {
+                if (existingIndex > -1) {
+                    const currentOrder = prev[existingIndex].order;
+                    const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                    const updated = [...prev];
+                    updated[existingIndex] = { field, order: nextOrder };
+                    return updated;
+                } else {
+                    return [...prev, { field, order: 'asc' }];
+                }
+            } else {
+                if (prev.length === 1 && prev[0].field === field) {
+                    return [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
+                }
+                return [{ field, order: 'asc' }];
+            }
         });
     };
 
-    const renderSortIcon = (field: SortField ) => {
-        if (filters.sort_by !== field) return <ArrowUpDown className="ml-2 h-4 w-4 inline opacity-40" />;
-        return filters.sort_order === "asc" 
-            ? <ArrowUp className="ml-2 h-4 w-4 inline text-primary" />
-            : <ArrowDown className="ml-2 h-4 w-4 inline text-primary" />;
-    };
+    useEffect(() => {
+        const sortString = sortCriteria
+            .map(c => `${c.field}:${c.order}`)
+            .join(',');
+
+        setFilters(prev => ({
+            ...prev,
+            sort: sortString, 
+            page: 1, 
+        }));
+    }, [sortCriteria]);
+
+    const stats = useMemo(() => ({
+        total: total,
+        borrowed: items.filter((item) => item.status === 'loaned').length,
+        pending: items.filter((item) => item.status === 'pending_approval').length,
+        damaged: items.filter((item) => item.status === 'broken').length,
+    }), [items, total]);
 
     const handleUpdateItemStatus = () => {
         refreshItems();
     };
 
-    
     const handleQrScan = async (decodedText: string) => {
         setIsQrScannerOpen(false);
         const result = await lookupItemByQrCode(decodedText);
@@ -266,21 +268,33 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             setIsDetailsModalOpen(true);
             return;
         }
-
-        setSearchQuery(decodedText);
+        setFilters(prev => ({ ...prev, search: decodedText, page: 1 }));
     };
-
-    const handleExportXlsx = useCallback(async () => {
-        await exportItemsXlsx({
-            ...filters,
-            search: filters.search || searchQuery,
-        });
-    }, [exportItemsXlsx, filters, searchQuery]);
 
     const openItemDetails = async (item: InventoryItem) => {
         const result = await getItem(item.id);
         setSelectedItem(result.success && result.item ? result.item : item);
         setIsDetailsModalOpen(true);
+    };
+
+    const handleExportXlsx = useCallback(async () => {
+        clearExportError();
+        await exportItemsXlsx({
+            ...filters,
+            search: filters.search || searchQuery,
+        });
+    }, [clearExportError, exportItemsXlsx, filters, searchQuery]);
+
+    const handleBatchLabelExport = async (
+        itemIds: string[],
+        format: BatchLabelFormat,
+        options: BatchLabelOptions,
+    ) => downloadBatchLabels(itemIds, format, options);
+
+    const handleItemUpdated = (updatedItem: InventoryItem) => {
+        setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+        setSelectedItem(updatedItem);
+        updateSelectedLabelItem(updatedItem);
     };
 
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
@@ -297,181 +311,136 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         void refreshItems();
     };
 
-    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
-
-    const menuItems = [
+    const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
-        { id: 'locations', label: canManageSystem ? t('dashboard.locationsAndCategories') : t('dashboard.tabLocations'), icon: <MapPinned className="size-5" /> },
+        { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" /> },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
-    
     ];
 
     const renderContent = () => {
         switch (activeSection) {
             case 'dashboard':
                 return (
-                    <div className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-5">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.mainPanel')}</h2>
+                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                             <StatCard title={t('dashboard.totalAssets')} value={stats.total} icon={Box} />
-                            <StatCard title={t('dashboard.borrowedAssets')} value={stats.loaned} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
+                            <StatCard title={t('dashboard.borrowedAssets')} value={stats.borrowed} icon={PackageCheck} className="text-blue-600 dark:text-blue-400" />
                             <StatCard title={t('dashboard.pendingApprovals')} value={stats.pending} icon={Users} className="text-amber-600 dark:text-amber-400" />
-                            <StatCard title={t('dashboard.damagedAssets')} value={stats.broken} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
+                            <StatCard title={t('dashboard.damagedAssets')} value={stats.damaged} icon={AlertTriangle} className="text-rose-600 dark:text-rose-400" />
                         </div>
-                        {error && (
-                            <Alert variant="destructive">
-                                <AlertTriangle />
-                                <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                                <AlertDescription className="flex items-center justify-between gap-3">
-                                    <span>{error}</span>
-                                    <Button variant="outline" size="sm" onClick={clearError}>✕</Button>
-                                </AlertDescription>
-                            </Alert>
-                        )}
                     </div>
                 );
+            
             case 'inventory':
                 return (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h2>
-                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('dashboard.dashboardDesc')}</p>
+                    <div className="space-y-5">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.tabInventory')}</h2>
+                           
                         </div>
-                        <InventoryToolbar
-                            user={user}
-                            filters={filters}
-                            onChange={setFilters}
-                            categories={categories}
-                            locations={locations}
-                            users={users}
-                            onAdd={() => setIsAddModalOpen(true)}
-                            onExport={handleExportXlsx}
-                            isLoading={isLoading}
+
+                        <div className="space-y-4">
+                            {error && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle />
+                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                    <AlertDescription className="flex items-center justify-between gap-3">
+                                        <span>{error}</span>
+                                        <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            {exportError && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle />
+                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                    <AlertDescription className="flex items-center justify-between gap-3">
+                                        <span>{exportError}</span>
+                                        <Button variant="outline" size="sm" onClick={() => clearExportError()}>✕</Button>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            <InventoryToolbar
+                                user={user}
+                                filters={filters}
+                                onChange={setFilters}
+                                categories={categories}
+                                locations={locations}
+                                users={users}
+                                onAdd={() => setIsAddModalOpen(true)}
+                                onExport={handleExportXlsx}
+                                onBatchLabelExport={() => setIsBatchLabelDialogOpen(true)}
+                                onQrScan={() => setIsQrScannerOpen(true)}
+                                selectedCount={selectedLabelItemCount}
+                                isLoading={isLoading || isExporting}
                             />
 
-                        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <Table className="min-w-full">
-                                    
-                                    {/* HEADER */}
-                                    <TableHeader>
-                                        <TableRow className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40">
-                                            {columns.map((col) => (
-                                                <TableHead
-                                                    key={String(col.field)}
-                                                    className={`
-                                                        whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300
-                                                        ${col.sortable ? "cursor-pointer select-none hover:text-slate-900 dark:hover:text-white" : ""}
-                                                    `}
-                                                    onClick={() => col.sortable && col.field && handleSort(col.field)}
-                                                >
-                                                    <div className="flex items-center gap-1">
-                                                        {col.label}
-                                                        {col.sortable && col.field && renderSortIcon(col.field)}
-                                                    </div>
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
+                            {labelSelectionError && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="size-4" />
+                                    <AlertTitle>{t('batchLabels.selectionErrorTitle')}</AlertTitle>
+                                    <AlertDescription>{labelSelectionError}</AlertDescription>
+                                </Alert>
+                            )}
 
-                                    {/* BODY */}
-                                    <TableBody>
-                                        {isLoading ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
-                                                    {t('common.loading')}
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : items.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="py-12 text-center text-sm text-slate-400">
-                                                    {t('dashboard.noResults')}
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            items.map((item, index) => (
-                                                <TableRow
-                                                    key={item.id}
-                                                    onClick={() => void openItemDetails(item)}
-                                                    className="
-                                                        group cursor-pointer border-b border-slate-100
-                                                        hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40
-                                                        transition-colors duration-150
-                                                    "
-                                                >
-                                                    <TableCell className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap w-[120px] max-w-[120px] overflow-hidden text-ellipsis">
-                                                        {item.id}
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-medium text-slate-900 dark:text-white">
-                                                                {item.name}
-                                                            </span>
-                                                            {item.description && (
-                                                                <span className="text-xs text-slate-400 line-clamp-1">
-                                                                    {item.description}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                        {item.category}
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                        {item.location}
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3">
-                                                        <StatusBadge status={item.status} />
-                                                    </TableCell>
-
-                                                    <TableCell className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
-                                                        {item.owner}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </div>
-
-                        {/* Paginacja */}
-                        <div className="flex items-center justify-between space-x-2 py-4">
-                            <div className="text-sm text-muted-foreground">
-                                {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
-                            </div>
-                            <div className="flex space-x-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
-                                    disabled={filters.page === 1 || isLoading}
-                                >
-                                    {t("inventoryFilters.common.previous")}
-                                </Button>
-                                <div className="flex items-center justify-center text-sm font-medium px-2">
-                                    {t('inventoryFilters.common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                            <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                                <div className="overflow-x-auto">
+                                    <InventoryTable
+                                        items={items}
+                                        isLoading={isLoading}
+                                        sortCriteria={sortCriteria}
+                                        selectedItems={selectedLabelItems}
+                                        selectableItemCount={selectablePageItems.length}
+                                        allSelectablePageItemsAreSelected={allSelectablePageItemsAreSelected}
+                                        canSelectItem={canSelectItemForLabel}
+                                        onSort={handleSort}
+                                        onOpenItem={(item) => void openItemDetails(item)}
+                                        onToggleItem={toggleItemForLabel}
+                                        onTogglePage={toggleSelectablePageItems}
+                                    />
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
-                                    disabled={items.length < (filters.limit || 15) || isLoading}
-                                >
-                                    {t("inventoryFilters.common.next")}
-                                </Button>
+                            </Card>
+
+                            {/* Paginacja serwerowa */}
+                            <div className="flex items-center justify-between space-x-2 py-4">
+                                <div className="text-sm text-muted-foreground">
+                                    {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
+                                </div>
+                                <div className="flex space-x-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
+                                        disabled={filters.page === 1 || isLoading}
+                                    >
+                                        {t("inventoryFilters.common.previous")}
+                                    </Button>
+                                    <div className="flex items-center justify-center text-sm font-medium px-2">
+                                        {t('inventoryFilters.common.page')} {filters.page} z {Math.ceil(total / (filters.limit || 15))}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
+                                        disabled={items.length < (filters.limit || 15) || isLoading}
+                                    >
+                                        {t("inventoryFilters.common.next")}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 );
+            
             case 'loans':
                 return <RentalCenter user={user} />;
+            
             case 'locations':
                 return canManageSystem ? (
                         <div className="grid gap-6 lg:grid-cols-2">
@@ -485,12 +454,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             </div>
                         </div>
                 ) : (
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                        <LocationManager
-                            canManage={false}
-                            canCreateRemote={user.role === 'user'}
-                        />
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <div>
+                            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
+                            <LocationManager canManage={false} canCreateRemote={false} />
+                        </div>
+                        <div>
+                            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabCategories')}</h3>
+                            <CategoryManager canManage={false} />
+                        </div>
                     </div>
                 );
             
@@ -507,6 +479,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <UserManager onPendingCountChange={setPendingUserCount} />
                     </RoleGuard>
                 );
+            
             default:
                 return null;
         }
@@ -541,11 +514,11 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         <Button variant="ghost" size="sm" onClick={() => i18n.changeLanguage(i18n.language === 'PL' ? 'EN' : 'PL')}>
                             {i18n.language === 'PL' ? 'EN' : 'PL'}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
-                            {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
+                        <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
+                            {isDarkMode ? <Sun /> : <Moon />}
                         </Button>
                         <Button variant="destructive" size="sm" onClick={onLogout}>
-                            <LogOut className="size-4 mr-1" />
+                            <LogOut />
                             <span className="hidden sm:inline">{t('dashboard.logout')}</span>
                         </Button>
                     </div>
@@ -560,6 +533,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     }`}
                 >
                     <nav className="flex flex-col gap-1 overflow-y-auto px-2 py-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="w-full"
+                            aria-label="Przełącz menu boczne"
+                        >
+                            <Menu className="size-5" />
+                        </Button>
                         {menuItems.map((item) => {
                             const requiresPermission = item.requiresPermission ? hasPermission(user, item.requiresPermission) : true;
                             
@@ -617,7 +599,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
             <AddAssetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                onSave={refreshItems}
+                onSave={() => refreshItems()}
                 user={user}
             />
             <ItemDetailsModal
@@ -626,7 +608,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 item={selectedItem}
                 user={user}
                 onUpdateStatus={handleUpdateItemStatus}
+                onItemUpdated={handleItemUpdated}
                 onLocationChanged={handleItemLocationChanged}
+            />
+            <BatchLabelExportDialog
+                open={isBatchLabelDialogOpen}
+                onOpenChange={setIsBatchLabelDialogOpen}
+                items={selectedLabelItemsList}
+                onExport={handleBatchLabelExport}
+                onCompleted={clearLabelSelection}
             />
             <QrScannerDialog
                 isOpen={isQrScannerOpen}

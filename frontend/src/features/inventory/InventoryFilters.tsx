@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Search, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,24 @@ import {
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export type Category = {
   id: number;
@@ -43,11 +59,11 @@ export type InventoryFiltersState = {
   ownerId: string;
   borrowerId?: string;
   search?: string;
-  sort_by?: "id" | "name" | "status" | "created_at" | "category" | "location" | "owner";
-  sort_order?: "asc" | "desc";
+  sort?: string; 
   page?: number;
   limit?: number;
   parameters?: Record<string, string>;
+  custom_params?: string; 
 };
 
 type Props = {
@@ -57,7 +73,6 @@ type Props = {
   locations: Location[];
   users: User[];
 
-
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
 };
@@ -65,6 +80,64 @@ type Props = {
 interface TechParamRow {
   key: string;
   value: string;
+}
+
+interface SortCriteriaItem {
+  field: string;
+  order: "asc" | "desc";
+  label: string;
+}
+
+// Sortable item component (Usunięto przycisk usuwania X, ponieważ wszystkie kolumny są stałe)
+function SortableItem({ item, onToggleOrder }: {
+  item: SortCriteriaItem;
+  onToggleOrder: (field: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.field });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+        {item.label}
+      </span>
+
+      <button
+        onClick={() => onToggleOrder(item.field)}
+        className="p-1 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        {item.order === "asc" ? (
+          <ChevronUp className="h-4 w-4" />
+        ) : (
+          <ChevronDown className="h-4 w-4" />
+        )}
+      </button>
+    </div>
+  );
 }
 
 export default function InventoryFilters({
@@ -77,6 +150,103 @@ export default function InventoryFilters({
   setIsOpen,
 }: Props) {
   const { t } = useTranslation();
+  
+  // Definicja wszystkich dostępnych kolumn
+  const SORTABLE_COLUMNS = [
+    { field: "id", labelKey: "ID" },
+    { field: "name", labelKey: "dashboard.thName" },
+    { field: "category", labelKey: "dashboard.tabCategories" },
+    { field: "location", labelKey: "dashboard.tabLocations" },
+    { field: "status", labelKey: "dashboard.thStatus" },
+    { field: "owner", labelKey: "addAssetModal.owner" },
+  ];
+
+  // NOWA LOGIKA: Budowanie kompletnej listy kryteriów
+  const [sortCriteria, setSortCriteria] = useState<SortCriteriaItem[]>(() => {
+    const activeCriteria: SortCriteriaItem[] = [];
+    const activeFields = new Set<string>();
+
+    // 1. Wyciągamy to co dostaliśmy z nadrzędnego elementu (filters.sort) i wrzucamy na górę
+    if (filters.sort) {
+      filters.sort.split(",").forEach((part) => {
+        const [field, order] = part.split(":");
+        const trimmedField = field.trim();
+        const column = SORTABLE_COLUMNS.find((col) => col.field === trimmedField);
+        
+        if (column) {
+          activeCriteria.push({
+            field: trimmedField,
+            order: (order?.trim() || "asc") as "asc" | "desc",
+            label: t(column.labelKey),
+          });
+          activeFields.add(trimmedField);
+        }
+      });
+    }
+    
+    // 2. Resztę brakujących kolumn uzupełniamy pod spodem w dowolnej kolejności
+    SORTABLE_COLUMNS.forEach((col) => {
+      if (!activeFields.has(col.field)) {
+        activeCriteria.push({
+          field: col.field,
+          order: "asc",
+          label: t(col.labelKey),
+        });
+      }
+    });
+
+    return activeCriteria;
+  });
+
+  // Wymuszenie aktualizacji propsów nadrzędnych przy inicjalizacji, jeśli to konieczne
+  React.useEffect(() => {
+    if (!filters.sort && sortCriteria.length > 0) {
+      updateFiltersSort(sortCriteria);
+    }
+  }, []);
+
+  // DnD context sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle sort drag end
+  const handleSortDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = sortCriteria.findIndex((c) => c.field === active.id);
+      const newIndex = sortCriteria.findIndex((c) => c.field === over.id);
+      const newCriteria = arrayMove(sortCriteria, oldIndex, newIndex);
+      setSortCriteria(newCriteria);
+      updateFiltersSort(newCriteria);
+    }
+  };
+
+  // Update filters.sort when sortCriteria changes
+  const updateFiltersSort = (newCriteria: SortCriteriaItem[]) => {
+    const sortString = newCriteria
+      .map((c) => `${c.field}:${c.order}`)
+      .join(",");
+    onChange({
+      ...filters,
+      sort: sortString,
+      page: 1,
+    });
+  };
+
+  // Toggle sort order (asc <-> desc)
+  const toggleSortOrder = (field: string) => {
+    const newCriteria = sortCriteria.map((c) =>
+      c.field === field
+        ? { ...c, order: (c.order === "asc" ? "desc" : "asc") as "asc" | "desc" }
+        : c
+    );
+    setSortCriteria(newCriteria);
+    updateFiltersSort(newCriteria);
+  };
   
   // Dynamiczne opcje statusów korzystające z kluczy translacji
   const STATUS_OPTIONS = [
@@ -115,46 +285,45 @@ export default function InventoryFilters({
   }, [categories]);
 
   // Obsługa zmian w dynamicznych wierszach parametrów
+  const buildCustomParamsString = (paramsArray: TechParamRow[]): string | undefined => {
+    const filledParams = paramsArray
+      .filter(p => p.key.trim() !== '' && p.value.trim() !== '')
+      .map(p => `${p.key.trim()}:${p.value.trim()}`);
+    
+    return filledParams.length > 0 ? filledParams.join(',') : undefined;
+  };
+
+  // Obsługa zmiany wartości w dynamicznych polach tekstowych parametrów customowych
   const handleParamChange = (index: number, field: keyof TechParamRow, value: string) => {
-    const updated = [...techParams];
-    updated[index][field] = value;
-    setTechParams(updated);
+    const updatedParams = [...techParams];
+    updatedParams[index][field] = value;
+    setTechParams(updatedParams);
 
-    // Budowanie obiektu parameters (Record<string, string>) dla backendu
-    const paramsObj: Record<string, string> = {};
-    updated.forEach(p => {
-      if (p.key.trim() && p.value.trim()) {
-        paramsObj[p.key.trim()] = p.value.trim();
-      }
-    });
+    const customParamsString = buildCustomParamsString(updatedParams);
 
     onChange({
       ...filters,
-      parameters: Object.keys(paramsObj).length > 0 ? paramsObj : undefined,
-      page: 1, 
-    });
-  };
-
-  const addParamCriterion = () => {
-    setTechParams([...techParams, { key: "", value: "" }]);
-  };
-
-  const removeParamCriterion = (index: number) => {
-    const updated = techParams.filter((_, i) => i !== index);
-    setTechParams(updated.length > 0 ? updated : [{ key: "", value: "" }]);
-
-    const paramsObj: Record<string, string> = {};
-    updated.forEach(p => {
-      if (p.key.trim() && p.value.trim()) {
-        paramsObj[p.key.trim()] = p.value.trim();
-      }
-    });
-
-    onChange({
-      ...filters,
-      parameters: Object.keys(paramsObj).length > 0 ? paramsObj : undefined,
+      custom_params: customParamsString,
       page: 1,
     });
+  };
+
+  // Usuwanie kryterium z listy parametrów customowych
+  const removeParamCriterion = (index: number) => {
+    const updatedParams = techParams.filter((_, i) => i !== index);
+    setTechParams(updatedParams);
+    
+    const customParamsString = buildCustomParamsString(updatedParams);
+    
+    onChange({
+      ...filters,
+      custom_params: customParamsString,
+      page: 1,
+    });
+  };
+  
+  const addParamCriterion = () => {
+    setTechParams([...techParams, { key: "", value: "" }]);
   };
 
   const updateFilterField = (field: keyof InventoryFiltersState, value: string) => {
@@ -166,8 +335,7 @@ export default function InventoryFilters({
   };
 
   return (
-    <div className="space-y-4 bg-card p-4 rounded-lg border shadow-sm">
-      {/* Rozwijany panel zaawansowany */}
+    <div className="space-y-4 p-4 rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <Collapsible open={isOpen}>
         <CollapsibleContent className="space-y-6 pt-4 relative">
           
@@ -239,7 +407,7 @@ export default function InventoryFilters({
             </div>
           </div>
 
-          {/* SEKCJA 2: Parametry techniczne (Filtrowanie po JSON z item.parameters) */}
+          {/* SEKCJA 2: Parametry techniczne */}
           <div className="space-y-3">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
               {t("inventoryFilters.parameters.title")}
@@ -360,6 +528,34 @@ export default function InventoryFilters({
                 </Select>
               </div>
             </div>
+          </div>
+
+          {/* SEKCJA 5: Sortowanie (Usunięto przycisk chowający panel oraz dropdown dodawania) */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">
+              {t("inventoryFilters.sections.sorting")}
+            </h3>
+            
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSortDragEnd}
+            >
+              <SortableContext
+                items={sortCriteria.map((c) => c.field)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {sortCriteria.map((item) => (
+                    <SortableItem
+                      key={item.field}
+                      item={item}
+                      onToggleOrder={toggleSortOrder}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           </div>
 
         </CollapsibleContent>

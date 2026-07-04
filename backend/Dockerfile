@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM ghcr.io/astral-sh/uv:0.11.16-python3.14-alpine AS base
 
 WORKDIR /app
@@ -15,6 +17,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY README.md pyproject.toml uv.lock /app/
 COPY ./src/ /app/src/
+COPY ./resources/ /app/resources/
 
 FROM base AS runtime
 

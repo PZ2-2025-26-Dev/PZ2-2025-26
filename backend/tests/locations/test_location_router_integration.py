@@ -61,7 +61,7 @@ def test_create_location_endpoint_requires_admin_role(api_client: TestClient, se
     assert response.status_code == 403
 
 
-def test_create_remote_location_endpoint_allows_regular_user(api_client: TestClient, seeded_db: Session):
+def test_create_remote_location_endpoint_rejects_regular_user(api_client: TestClient, seeded_db: Session):
     response = api_client.post(
         "/locations",
         json={
@@ -73,13 +73,7 @@ def test_create_remote_location_endpoint_allows_regular_user(api_client: TestCli
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
-    assert response.status_code == 201
-    body = response.json()
-    assert body["name"] == "Domowe laboratorium"
-    assert body["type"] == "remote"
-    assert body["parent_id"] is None
-    assert body["owner_id"] == SEED_IDS.regular_user
-    assert body["address"] == "ul. Testowa 1"
+    assert response.status_code == 403
 
 
 def test_create_remote_location_endpoint_rejects_observer(api_client: TestClient, seeded_db: Session):

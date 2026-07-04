@@ -99,7 +99,9 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
     const userId = Number(user.id);
     const isAdmin = user.role === 'admin';
+    const isObserver = user.role === 'observer';
     const isOwnerUser = user.role === 'user' || isAdmin;
+    const canModifyLoans = isOwnerUser;
     const isLoading = itemsLoading || loansLoading;
 
     const refreshGuests = useCallback(async (search?: string) => {
@@ -111,17 +113,21 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
     const refresh = useCallback(async () => {
         const [myResult, ownedResult, allResult, itemsResult] = await Promise.all([
-            listLoans({ scope: 'my', status: statusFilter }),
+            isObserver ? Promise.resolve({ success: true, loans: [] as Loan[] }) : listLoans({ scope: 'my', status: statusFilter }),
             isOwnerUser ? listLoans({ scope: 'owned', status: statusFilter }) : Promise.resolve({ success: true, loans: [] as Loan[] }),
-            isAdmin ? listLoans({ scope: 'all', status: statusFilter }) : Promise.resolve({ success: true, loans: [] as Loan[] }),
-            listItems({ status: 'available', limit: 100 }),
+            isAdmin || isObserver ? listLoans({ scope: 'all', status: statusFilter }) : Promise.resolve({ success: true, loans: [] as Loan[] }),
+            isObserver ? Promise.resolve({ success: true, items: [] as InventoryItem[] }) : listItems({ status: 'available', limit: 100 }),
         ]);
 
         if (myResult.success) setMyLoans(myResult.loans);
         if (ownedResult.success) setOwnedLoans(ownedResult.loans);
         if (allResult.success) setAllLoans(allResult.loans);
         if (itemsResult.success) setAvailableItems(itemsResult.items);
-    }, [isAdmin, isOwnerUser, listItems, listLoans, statusFilter]);
+    }, [isAdmin, isObserver, isOwnerUser, listItems, listLoans, statusFilter]);
+
+    useEffect(() => {
+        if (isObserver) setActiveTab('all');
+    }, [isObserver]);
 
     useEffect(() => { void refresh(); }, [refresh]);
 
@@ -233,9 +239,9 @@ export default function RentalCenter({ user }: RentalCenterProps) {
         }
     };
 
-    const canApprove = (loan: Loan) => activeTab !== 'my' && loan.status === 'pending_approval';
-    const canReturn = (loan: Loan) => loan.status === 'active' && (activeTab === 'my' || loan.item.owner.id === userId || isAdmin);
-    const canConfirmReturn = (loan: Loan) => activeTab !== 'my' && loan.status === 'return_pending_confirmation';
+    const canApprove = (loan: Loan) => canModifyLoans && activeTab !== 'my' && loan.status === 'pending_approval';
+    const canReturn = (loan: Loan) => canModifyLoans && loan.status === 'active' && (activeTab === 'my' || loan.item.owner.id === userId || isAdmin);
+    const canConfirmReturn = (loan: Loan) => canModifyLoans && activeTab !== 'my' && loan.status === 'return_pending_confirmation';
 
     const renderLoanList = (loans: Loan[]) => (
         <Card>
@@ -312,7 +318,11 @@ export default function RentalCenter({ user }: RentalCenterProps) {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.loans')}</h2>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('rentalCenter.subtitle', { defaultValue: 'Zarządzaj wnioskami o wypożyczenie sprzętu' })}</p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        {isObserver
+                            ? t('rentalCenter.observerSubtitle', { defaultValue: 'Podgląd wszystkich wypożyczeń (tryb tylko do odczytu).' })
+                            : t('rentalCenter.subtitle', { defaultValue: 'Zarządzaj wnioskami o wypożyczenie sprzętu' })}
+                    </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <select
@@ -328,14 +338,16 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                     <Button variant="outline" size="icon" onClick={() => void refresh()} disabled={isLoading} aria-label={t('rentalCenter.refresh', { defaultValue: 'Odśwież' })}>
                         <RefreshCw className={isLoading ? 'size-4 animate-spin' : 'size-4'} />
                     </Button>
-                    {isOwnerUser && (
+                    {canModifyLoans && isOwnerUser && (
                         <Button variant="secondary" onClick={() => void openExternalDialog()}>
                             {t('rentalCenter.externalRent', { defaultValue: 'Wypożycz dla gościa' })}
                         </Button>
                     )}
-                    <Button onClick={openBorrowDialog} disabled={borrowableAvailableItems.length === 0}>
-                        {t('rentalCenter.openRequestForm', { defaultValue: 'Złóż wniosek' })}
-                    </Button>
+                    {canModifyLoans && (
+                        <Button onClick={openBorrowDialog} disabled={borrowableAvailableItems.length === 0}>
+                            {t('rentalCenter.openRequestForm', { defaultValue: 'Złóż wniosek' })}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -351,13 +363,13 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
                 <TabsList className="w-full flex-wrap justify-start h-auto">
-                    <TabsTrigger value="my">{t('rentalCenter.tabs.my', { defaultValue: 'Moje wypożyczenia' })}</TabsTrigger>
+                    {!isObserver && <TabsTrigger value="my">{t('rentalCenter.tabs.my', { defaultValue: 'Moje wypożyczenia' })}</TabsTrigger>}
                     {isOwnerUser && <TabsTrigger value="owned">{t('rentalCenter.tabs.owned', { defaultValue: 'Mój sprzęt' })}</TabsTrigger>}
-                    {isAdmin && <TabsTrigger value="all">{t('rentalCenter.tabs.all', { defaultValue: 'Wszystkie' })}</TabsTrigger>}
+                    {(isAdmin || isObserver) && <TabsTrigger value="all">{t('rentalCenter.tabs.all', { defaultValue: 'Wszystkie' })}</TabsTrigger>}
                 </TabsList>
-                <TabsContent value="my">{renderLoanList(currentLoans)}</TabsContent>
+                {!isObserver && <TabsContent value="my">{renderLoanList(currentLoans)}</TabsContent>}
                 {isOwnerUser && <TabsContent value="owned">{renderLoanList(currentLoans)}</TabsContent>}
-                {isAdmin && <TabsContent value="all">{renderLoanList(currentLoans)}</TabsContent>}
+                {(isAdmin || isObserver) && <TabsContent value="all">{renderLoanList(currentLoans)}</TabsContent>}
             </Tabs>
 
             <Dialog open={isBorrowDialogOpen} onOpenChange={(open) => !open && setIsBorrowDialogOpen(false)}>

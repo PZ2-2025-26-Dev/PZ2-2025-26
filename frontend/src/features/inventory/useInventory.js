@@ -24,6 +24,8 @@ const cleanParams = (params) => Object.fromEntries(
  * @property {string|null} oldID
  * @property {Object|null} parameters
  * @property {string} status
+ * @property {string|null} borrower
+ * @property {string|null} dueDate
  */
 
 /**
@@ -43,11 +45,16 @@ export const normalizeItem = (item) => ({
     owner: item.owner?.name ?? '',
     ownerId: item.owner?.id ?? null,
 
-    description: item.description ?? null,
     oldID: item.oldID ?? null,
     parameters: item.parameters ?? null,
 
+    description: item.description ?? null,
+
     status: item.status,
+
+    // Mapowanie nowych pól zwracanych przez API do użytku w tabeli
+    borrower: item.borrower ?? null,
+    dueDate: item.dueDate ?? null,
 });
 
 const downloadBlob = (blob, filename) => {
@@ -60,9 +67,10 @@ const downloadBlob = (blob, filename) => {
     link.remove();
     window.URL.revokeObjectURL(url);
 };
+
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, updateItem: Function, getItem: Function, getItemHistory: Function, listItems: Function, lookupItemByQrCode: Function, listAttachments: Function, uploadAttachments: Function, downloadAttachment: Function, deleteAttachment: Function, downloadItemQr: Function, downloadItemLabel: Function, downloadBatchLabels: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -91,7 +99,6 @@ export const useInventory = () => {
                 description: itemData.description || null,
             });
 
-            // HTTP 201: { id, inventory_number, status }
             return {
                 success: true,
                 data: response.data,
@@ -119,6 +126,7 @@ export const useInventory = () => {
      * @param {number} [filters.categoryId]
      * @param {number} [filters.locationId]
      * @param {number} [filters.ownerId]
+     * @param {string} [filters.sort] - Skonsolidowany ciąg sortowania, np. "status:desc,name:asc"
      * @param {number} [filters.page]
      * @param {number} [filters.limit]
      * @returns {Promise<{success: boolean, items?: InventoryItem[], total?: number, page?: number, limit?: number, error?: string}>}
@@ -128,6 +136,8 @@ export const useInventory = () => {
         setError(null);
 
         try {
+            console.log(filters)
+            console.log(filters.custom_params)
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
                     uuid: filters.uuid,
@@ -139,11 +149,13 @@ export const useInventory = () => {
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
                     borrower_id: filters.borrowerId,
-                    sort_by: filters.sort_by ?? "name",
-                    sort_order: filters.sort_order ?? "asc",
+                    
+                    // Wysłanie skonsolidowanego parametru 'sort' zamiast oddzielnych 'sort_by' i 'sort_order'
+                    sort: filters.sort ?? "name:asc",
+                    
                     page: filters.page ?? 1,
                     limit: filters.limit ?? 20,
-                    ...filters.parameters // Rozpakowanie parametrów jako query params
+                    custom_params: filters.custom_params // Rozpakowanie parametrów jako query params
                 }),
             });
 
@@ -173,39 +185,6 @@ export const useInventory = () => {
         }
     }, []);
 
-    const updateItem = useCallback(async (itemId, itemData) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), cleanParams({
-                name: itemData.name,
-                category_id: itemData.categoryId,
-                location_id: itemData.locationId,
-                owner_id: itemData.ownerId,
-                description: itemData.description,
-                parameters: itemData.parameters,
-            }));
-
-            return {
-                success: true,
-                data: response.data,
-                statusCode: response.status,
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-
-            return {
-                success: false,
-                error: errorMessage,
-                statusCode: err.response?.status,
-            };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
     const getItem = useCallback(async (itemId) => {
         setIsLoading(true);
         setError(null);
@@ -219,46 +198,56 @@ export const useInventory = () => {
         } catch (err) {
             const errorMessage = parseApiError(err);
             setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
+    const updateItem = useCallback(async (itemId, updates) => {
+        setIsLoading(true);
+        setError(null);
+
+        const payload = {};
+        if (updates.name !== undefined) payload.name = updates.name;
+        if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.locationId !== undefined) payload.location_id = updates.locationId;
+        if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
+        if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
+        if (updates.parameters !== undefined) payload.parameters = updates.parameters;
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
             return {
                 success: false,
                 error: errorMessage,
+                statusCode: err.response?.status,
             };
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    /**
-     * Pobiera historię zmian przedmiotu
-     * @param {number|string} itemId - ID przedmiotu
-     * @param {number} [page=1] - Numer strony
-     * @param {number} [limit=ITEM_HISTORY_PAGE_LIMIT] - Liczba wpisów na stronie
-     * @returns {Promise<{success: boolean, data?: Array, pagination?: Object, error?: string, statusCode?: number}>}
-     */
-
-    const getItemHistory = useCallback(async (itemId, page = 1, limit = ITEM_HISTORY_PAGE_LIMIT) => {
+    const deleteItem = useCallback(async (itemId) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            const response = await axiosClient.get(ENDPOINTS.ITEMS.HISTORY(itemId), {
-                params: { page, limit },
-            });
-            const entries = response.data.entries ?? [];
+            await axiosClient.delete(ENDPOINTS.ITEMS.DETAILS(itemId));
 
             return {
                 success: true,
-                data: entries,
-                pagination: response.data.pagination ?? {
-                    page,
-                    limit,
-                    total: entries.length,
-                },
             };
         } catch (err) {
             const errorMessage = parseApiError(err);
-
             setError(errorMessage);
 
             return {
@@ -292,7 +281,47 @@ export const useInventory = () => {
             setIsLoading(false);
         }
     }, []);
-    
+
+    /**
+     * Pobiera historię zmian przedmiotu
+     * @param {number|string} itemId - ID przedmiotu
+     * @param {number} [page=1] - Numer strony
+     * @param {number} [limit=ITEM_HISTORY_PAGE_LIMIT] - Liczba wpisów na stronie
+     * @returns {Promise<{success: boolean, data?: Array, pagination?: Object, error?: string, statusCode?: number}>}
+     */
+    const getItemHistory = useCallback(async (itemId, page = 1, limit = ITEM_HISTORY_PAGE_LIMIT) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.ITEMS.HISTORY(itemId), {
+                params: { page, limit },
+            });
+            const entries = response.data.entries ?? [];
+
+            return {
+                success: true,
+                data: entries,
+                pagination: response.data.pagination ?? {
+                    page,
+                    limit,
+                    total: entries.length,
+                },
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -390,9 +419,29 @@ export const useInventory = () => {
         }
     }, []);
 
+    const downloadBatchLabels = useCallback(async (itemIds, format, options = {}) => {
+        try {
+            const response = await axiosClient.post(
+                ENDPOINTS.ITEMS.BATCH_LABELS(format),
+                {
+                    item_ids: itemIds,
+                    ...options,
+                },
+                {
+                    responseType: 'blob',
+                },
+            );
+            downloadBlob(response.data, `item-labels.${format}`);
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: parseApiError(err) };
+        }
+    }, []);
+
     return {
         createItem,
         updateItem,
+        deleteItem,
         getItem,
         listItems,
         isLoading,
@@ -406,5 +455,6 @@ export const useInventory = () => {
         deleteAttachment,
         downloadItemQr,
         downloadItemLabel,
+        downloadBatchLabels,
     };
 };

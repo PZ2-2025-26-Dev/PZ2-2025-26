@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 from fastapi.responses import JSONResponse
 
-from src.auth.dependencies import RequireAdmin
+from src.auth.dependencies import CurrentUser, RequireAdmin
 from src.categories.constants import CATEGORY_PAGE_DEFAULT, CATEGORY_PAGE_LIMIT_DEFAULT, CATEGORY_PAGE_LIMIT_MAX
 from src.categories.exceptions import (
     CategoryDuplicateNameError,
@@ -46,10 +46,14 @@ def error_response(status_code: int, detail: str) -> JSONResponse:
             "model": CategoriesPaged,
             "description": "Pomyślnie zwrócono stronicowaną listę kategorii.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
 def read_categories(
     db: DBDep,
+    _user: CurrentUser,
     page: Annotated[int, Query(ge=1)] = CATEGORY_PAGE_DEFAULT,
     limit: Annotated[int, Query(ge=1, le=CATEGORY_PAGE_LIMIT_MAX)] = CATEGORY_PAGE_LIMIT_DEFAULT,
 ) -> CategoriesPaged:
@@ -219,11 +223,15 @@ def delete_category(
             "model": ErrorResponse,
             "description": "Nie znaleziono kategorii.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
 def read_category_items(
     category_id: CategoryID,
     db: DBDep,
+    _user: CurrentUser,
     page: Annotated[int, Query(ge=1)] = CATEGORY_PAGE_DEFAULT,
     limit: Annotated[int, Query(ge=1, le=CATEGORY_PAGE_LIMIT_MAX)] = CATEGORY_PAGE_LIMIT_DEFAULT,
 ) -> CategoryItemsPaged | JSONResponse:
@@ -253,9 +261,16 @@ def read_category_items(
             "model": ErrorResponse,
             "description": "Nie znaleziono kategorii.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
-def read_category_items_count(category_id: CategoryID, db: DBDep) -> CategoryItemsCount | JSONResponse:
+def read_category_items_count(
+    category_id: CategoryID,
+    db: DBDep,
+    _user: CurrentUser,
+) -> CategoryItemsCount | JSONResponse:
     service = CategoryService(db)
     try:
         count = service.get_category_items_count(category_id)

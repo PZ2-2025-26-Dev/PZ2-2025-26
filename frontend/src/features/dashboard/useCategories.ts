@@ -11,6 +11,7 @@ export type Category = {
     description: string | null;
     isActive: boolean;
     path: string;
+    itemCount?: number | null;
 };
 
 type CategoryApiResponse = {
@@ -22,6 +23,7 @@ type CategoryApiResponse = {
     is_active?: boolean;
     isActive?: boolean;
     path: string;
+    item_count?: number;
 };
 
 type CategoriesPagedResponse = {
@@ -48,6 +50,7 @@ const normalizeCategory = (category: CategoryApiResponse): Category => ({
     description: category.description ?? null,
     isActive: category.isActive ?? category.is_active ?? true,
     path: category.path,
+    itemCount: category.item_count ?? 0,
 });
 
 const toCreatePayload = (category: CategoryCreateInput) => ({
@@ -73,7 +76,7 @@ export const useCategories = () => {
                 params: { page: 1, limit: 100 },
             });
             const categories = response.data.categories ?? response.data.items ?? [];
-
+            console.log(response.data)
             return {
                 success: true,
                 categories: categories.map(normalizeCategory),

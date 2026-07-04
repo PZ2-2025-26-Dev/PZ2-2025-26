@@ -15,6 +15,8 @@ export const ENDPOINTS = {
     ITEMS: {
         BASE: '/items',
         DETAILS: (id) => `/items/${id}`,
+        ACL: (id) => `/items/${id}/acl`,
+        ACL_ENTRY: (itemId, aclId) => `/items/${itemId}/acl/${aclId}`,
         BORROW: (id) => `/items/${id}/borrow`,
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,
@@ -22,6 +24,7 @@ export const ENDPOINTS = {
         SCAN: (code) => `/items/scan/${encodeURIComponent(code)}`,
         QR: (id, format) => `/items/${id}/qr.${format}`,
         LABEL: (id, format) => `/items/${id}/label.${format}`,
+        BATCH_LABELS: (format) => `/items/labels/batch.${format}`,
         ATTACHMENTS: (id) => `/items/${id}/attachments`,
         ATTACHMENT_DOWNLOAD: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}/download`,
         ATTACHMENT_DELETE: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}`,
@@ -45,6 +48,7 @@ export const ENDPOINTS = {
     EXPORT: {
         BASE: '/exports',
         ITEMS_XLSX: '/exports/items/xlsx',
+        ITEM_REPORT: (id) => `/exports/items/${id}/report/xlsx`,
     },
     LOANS: {
         BASE: '/loans',
