@@ -700,7 +700,7 @@ export default function ItemDetailsModal({
                                     </Button>
                                 </div>
                             )}
-                            {item.status !== 'broken' && !MANUAL_STATUSES.includes(item.status) && (
+                            {!MANUAL_STATUSES.includes(item.status) && (
                                 <Button variant="destructive" className="w-full" onClick={() => onUpdateStatus(item.id, 'broken')}>
                                     {t('itemDetailsModal.markDamaged')}
                                 </Button>
