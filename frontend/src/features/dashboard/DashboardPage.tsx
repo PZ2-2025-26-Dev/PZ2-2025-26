@@ -74,13 +74,6 @@ import type {
 } from './dashboard.types';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
-const ITEM_STATUS_ALIASES: Record<string, string> = {
-    dostępny: 'available',
-    'oczekuje akceptacji': 'pending_approval',
-    zarezerwowany: 'reserved',
-    wypożyczony: 'loaned',
-    uszkodzony: 'broken',
-};
 
 function isMenuSection(value: string | null): value is MenuSection {
     return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
@@ -358,8 +351,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         damaged: items.filter((item) => item.status === 'broken').length,
     }), [items, total]);
 
-    const normalizeItemStatus = (status: string) => ITEM_STATUS_ALIASES[status] ?? status;
-
     const handleUpdateItemStatus = async (
         itemId: string | number,
         status: string,
@@ -367,8 +358,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         borrower: string | null = null,
         dueDate: string | null = null,
     ) => {
-        const nextStatus = normalizeItemStatus(status);
-        const result = await updateItem(itemId, { status: nextStatus });
+        const result = await updateItem(itemId, { status });
 
         if (!result.success) {
             void refreshItems();
@@ -377,7 +367,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
         const applyStatusPatch = (current: InventoryItem): InventoryItem => ({
             ...current,
-            status: nextStatus,
+            status,
             borrower: clearBorrower ? null : borrower ?? current.borrower,
             dueDate: clearBorrower ? null : dueDate ?? current.dueDate,
         });
