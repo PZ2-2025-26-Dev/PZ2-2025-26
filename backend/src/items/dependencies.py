@@ -103,8 +103,6 @@ def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
         fields.add("owner_id")
     if data.parameters is not None and data.parameters != item.parameters:
         fields.add("parameters")
-    if data.status is not None and data.status != item.status:
-        fields.add("status")
 
     return fields
 

@@ -128,7 +128,6 @@ class ItemUpdate(BaseModel):
     location_id: LocationID | None = None
     owner_id: UserID | None = None
     parameters: dict | None = None
-    status: ItemStatus | None = None
 
 
 class ItemUpdateResponse(BaseModel):
