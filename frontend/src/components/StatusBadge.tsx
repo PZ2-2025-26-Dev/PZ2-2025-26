@@ -7,7 +7,13 @@ const statusVariant = {
     'oczekuje akceptacji': 'warning',
     pending_approval: 'warning',
     uszkodzony: 'destructive',
+    broken: 'destructive',
+    missing: 'destructive',
+    overdue: 'warning',
     zarezerwowany: 'violet',
+    reserved: 'violet',
+    loaned: 'info',
+    available: 'success',
     inactive: 'secondary',
     deactivated: 'secondary',
 } as const;

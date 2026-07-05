@@ -74,6 +74,13 @@ import type {
 } from './dashboard.types';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
+const ITEM_STATUS_ALIASES: Record<string, string> = {
+    dostępny: 'available',
+    'oczekuje akceptacji': 'pending_approval',
+    zarezerwowany: 'reserved',
+    wypożyczony: 'loaned',
+    uszkodzony: 'broken',
+};
 
 function isMenuSection(value: string | null): value is MenuSection {
     return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
@@ -168,6 +175,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         listItems,
         isLoading,
         getItem,
+        updateItem,
         lookupItemByQrCode,
         downloadBatchLabels,
         error,
@@ -350,8 +358,38 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         damaged: items.filter((item) => item.status === 'broken').length,
     }), [items, total]);
 
-    const handleUpdateItemStatus = () => {
-        refreshItems();
+    const normalizeItemStatus = (status: string) => ITEM_STATUS_ALIASES[status] ?? status;
+
+    const handleUpdateItemStatus = async (
+        itemId: string | number,
+        status: string,
+        clearBorrower = false,
+        borrower: string | null = null,
+        dueDate: string | null = null,
+    ) => {
+        const nextStatus = normalizeItemStatus(status);
+        const result = await updateItem(itemId, { status: nextStatus });
+
+        if (!result.success) {
+            void refreshItems();
+            return;
+        }
+
+        const applyStatusPatch = (current: InventoryItem): InventoryItem => ({
+            ...current,
+            status: nextStatus,
+            borrower: clearBorrower ? null : borrower ?? current.borrower,
+            dueDate: clearBorrower ? null : dueDate ?? current.dueDate,
+        });
+
+        setItems((current) => current.map((item) => (item.id === itemId ? applyStatusPatch(item) : item)));
+        setSelectedItem((current) => {
+            if (!current || current.id !== itemId) return current;
+            const updated = applyStatusPatch(current);
+            updateSelectedLabelItem(updated);
+            return updated;
+        });
+        void refreshItems();
     };
 
     const handleQrScan = async (decodedText: string) => {
@@ -533,7 +571,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 );
             
             case 'loans':
-                return <RentalCenter user={user} />;
+                return <RentalCenter user={user} onInventoryChanged={refreshItems} />;
             
             case 'locations':
                 return canManageSystem ? (

@@ -3,7 +3,7 @@ import axiosClient from '../../api/axiosClient';        // 1. Klient HTTP (wstrz
 import { ENDPOINTS } from '../../api/endpoints';        // 2. Słownik ścieżek
 import { parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
 
-export const ITEM_STATUSES = ['available', 'pending_approval', 'reserved', 'loaned', 'broken'];
+export const ITEM_STATUSES = ['available', 'pending_approval', 'reserved', 'loaned', 'broken', 'missing', 'overdue'];
 export const ITEM_HISTORY_PAGE_LIMIT = 10;
 
 const cleanParams = (params) => Object.fromEntries(
@@ -211,6 +211,7 @@ export const useInventory = () => {
         const payload = {};
         if (updates.name !== undefined) payload.name = updates.name;
         if (updates.description !== undefined) payload.description = updates.description;
+        if (updates.status !== undefined) payload.status = updates.status;
         if (updates.locationId !== undefined) payload.location_id = updates.locationId;
         if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
         if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;

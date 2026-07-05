@@ -143,7 +143,7 @@ export default function InventoryTable({
                         <TableCell className="px-4 py-3">
                             <StatusBadge
                                 status={item.status}
-                                label={t(`dashboard.itemStatuses.${item.status}`)}
+                                label={t(`dashboard.itemStatuses.${item.status}`, { defaultValue: item.status })}
                             />
                             {item.borrower && (
                                 <div className="mt-1 text-[9px] text-slate-400">

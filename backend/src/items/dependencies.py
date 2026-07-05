@@ -92,6 +92,8 @@ def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
         fields.add("name")
     if data.description is not None and data.description != item.description:
         fields.add("description")
+    if data.status is not None and data.status != item.status:
+        fields.add("status")
     if data.category_id is not None and data.category_id != item.category_id:
         fields.add("category_id")
     if data.location_id is not None and data.location_id != item.location_id:
@@ -117,7 +119,7 @@ def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session
         if forbidden:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Właściciel może modyfikować wyłącznie nazwę, lokalizację, opis i parametry przedmiotu.",
+                detail="Właściciel może modyfikować wyłącznie nazwę, status, lokalizację, opis i parametry przedmiotu.",
             )
         return
 

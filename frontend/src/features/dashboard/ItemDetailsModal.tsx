@@ -634,30 +634,30 @@ export default function ItemDetailsModal({
                                 {t('itemDetailsModal.deleteItem')}
                             </Button>
                         )}
-                        {item.status === 'oczekuje akceptacji' && (
+                        {item.status === 'pending_approval' && (
                                 <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
                                     <strong className="text-sm text-amber-700 dark:text-amber-300">{t('itemDetailsModal.reqPending')}</strong>
                                     <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.reqDesc', { borrower: item.borrower || 'Ktoś' })}</p>
-                                    <Button className="w-full" onClick={() => onUpdateStatus(item.id, 'zarezerwowany')}>{t('itemDetailsModal.btnAccept')}</Button>
-                                    <Button variant="secondary" className="w-full" onClick={() => onUpdateStatus(item.id, 'dostępny', true)}>{t('itemDetailsModal.btnReject')}</Button>
+                                    <Button className="w-full" onClick={() => onUpdateStatus(item.id, 'reserved')}>{t('itemDetailsModal.btnAccept')}</Button>
+                                    <Button variant="secondary" className="w-full" onClick={() => onUpdateStatus(item.id, 'available', true)}>{t('itemDetailsModal.btnReject')}</Button>
                                 </div>
                             )}
-                            {item.status === 'zarezerwowany' && (
+                            {item.status === 'reserved' && (
                                 <div className="space-y-3 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900/60 dark:bg-violet-950/30">
                                     <strong className="text-sm text-violet-700 dark:text-violet-300">{t('itemDetailsModal.handover')}</strong>
                                     <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.handoverDesc')}</p>
-                                    <Button className="w-full bg-violet-600 hover:bg-violet-700" onClick={() => onUpdateStatus(item.id, 'wypożyczony')}>{t('itemDetailsModal.btnGive')}</Button>
+                                    <Button className="w-full bg-violet-600 hover:bg-violet-700" onClick={() => onUpdateStatus(item.id, 'loaned')}>{t('itemDetailsModal.btnGive')}</Button>
                                 </div>
                             )}
-                            {item.status === 'wypożyczony' && (
+                            {item.status === 'loaned' && (
                                 <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/60 dark:bg-blue-950/30">
                                     <strong className="text-sm text-blue-700 dark:text-blue-300">{t('itemDetailsModal.returnPending')}</strong>
                                     <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.returnDesc', { borrower: item.borrower, dueDate: item.dueDate || 'Brak' })}</p>
-                                    <Button variant="info" className="w-full" onClick={() => onUpdateStatus(item.id, 'dostępny', true)}>{t('itemDetailsModal.btnReturn')}</Button>
+                                    <Button variant="info" className="w-full" onClick={() => onUpdateStatus(item.id, 'available', true)}>{t('itemDetailsModal.btnReturn')}</Button>
                                 </div>
                             )}
-                            {item.status !== 'uszkodzony' && (
-                                <Button variant="destructive" className="w-full" onClick={() => onUpdateStatus(item.id, 'uszkodzony')}>
+                            {item.status !== 'broken' && (
+                                <Button variant="destructive" className="w-full" onClick={() => onUpdateStatus(item.id, 'broken')}>
                                     {t('itemDetailsModal.markDamaged')}
                                 </Button>
                             )}
@@ -677,7 +677,7 @@ export default function ItemDetailsModal({
 
         const canBorrow = user.role === ROLES.USER || user.role === ROLES.ADMIN || user.role === 'regular';
 
-        if (item.status === 'dostępny' && canBorrow) {
+        if (item.status === 'available' && canBorrow) {
             return (
                 <Card className="border-blue-200 dark:border-blue-900/50">
                     <CardHeader>
@@ -692,7 +692,7 @@ export default function ItemDetailsModal({
                             <Label htmlFor="return-date">{t('itemDetailsModal.dateLabel')}</Label>
                             <Input id="return-date" type="date" value={returnDate} onChange={(event) => setReturnDate(event.target.value)} />
                         </div>
-                        <Button variant="info" className="w-full" onClick={() => returnDate && onUpdateStatus(item.id, 'oczekuje akceptacji', false, user.name, returnDate)}>
+                        <Button variant="info" className="w-full" onClick={() => returnDate && onUpdateStatus(item.id, 'pending_approval', false, user.name, returnDate)}>
                             {t('itemDetailsModal.btnSubmitReq')}
                         </Button>
                     </CardContent>
@@ -787,7 +787,7 @@ export default function ItemDetailsModal({
                             </div>
                         )}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <StatusBadge status={item.status} label={item.status.toUpperCase()} />
+                            <StatusBadge status={item.status} label={t(`dashboard.itemStatuses.${item.status}`, { defaultValue: item.status })} />
                             <span className="rounded bg-slate-100 px-2 py-1 font-mono text-xs text-slate-500 dark:bg-slate-900">ID: {item.id}</span>
                         </div>
                         {saveError && (

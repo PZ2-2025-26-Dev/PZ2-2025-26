@@ -152,6 +152,9 @@ class ItemService:
         if data.description is not None:
             item.description = data.description
 
+        if data.status is not None:
+            item.status = data.status
+
         if data.parameters is not None:
             item.parameters = data.parameters
 

@@ -106,7 +106,9 @@
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
-      "broken": "Uszkodzony"
+      "broken": "Uszkodzony",
+      "missing": "Zaginiony",
+      "overdue": "Przeterminowany"
     }
   },
   "inventoryFilters": {
@@ -160,7 +162,9 @@
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
       "pendingApproval": "Oczekuje",
-      "broken": "Uszkodzony"
+      "broken": "Uszkodzony",
+      "missing": "Zaginiony",
+      "overdue": "Przeterminowany"
     },
 
     "buttons": {

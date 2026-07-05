@@ -197,7 +197,7 @@ async def refresh_token(data: TokenRefreshIn) -> TokenResponse:
 )
 async def google_authorize(request: Request):
     redirect_uri = config.google_redirect_uri
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(request, redirect_uri, prompt="select_account")
 
 
 @router.get("/google/callback")

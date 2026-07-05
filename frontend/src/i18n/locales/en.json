@@ -106,7 +106,9 @@
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
       "loaned": "Loaned",
-      "broken": "Broken"
+      "broken": "Broken",
+      "missing": "Missing",
+      "overdue": "Overdue"
     }
   },
   "rentalCenter": {
@@ -546,7 +548,9 @@
       "reserved": "Reserved",
       "loaned": "Loaned",
       "pendingApproval": "Pending approval",
-      "broken": "Broken"
+      "broken": "Broken",
+      "missing": "Missing",
+      "overdue": "Overdue"
     },
 
     "buttons": {

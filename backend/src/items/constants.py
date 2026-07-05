@@ -55,6 +55,7 @@ ITEM_UPDATE_CRITICAL_FIELDS: frozenset[str] = frozenset(
 ITEM_OWNER_EDITABLE_FIELDS: frozenset[str] = frozenset(
     {
         "name",
+        "status",
         "location_id",
         "description",
         "parameters",
