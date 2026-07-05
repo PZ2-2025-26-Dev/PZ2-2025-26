@@ -8,7 +8,7 @@ export type CategoryOption = {
     path: string;
 };
 
-export type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
+export type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users' | 'statistics';
 
 export type DashboardPageProps = {
     user: AppUser;

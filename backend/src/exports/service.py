@@ -1,13 +1,28 @@
+from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from uuid import UUID
 
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font
-from sqlalchemy import func, select
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
+from src.auth.constants import UserRole
 from src.categories.models import Category
+from src.exports.schemas import (
+    InventoryStatsResponse,
+    InventoryStatsSummary,
+    ItemLoanStats,
+)
+from src.items.label_service import LABEL_FONT_PATH
 from src.items.models import Item
 from src.items.schemas import ItemSearch
 from src.items.service import ItemService
@@ -15,6 +30,13 @@ from src.loans.constants import ReturnCondition
 from src.loans.models import Loan
 from src.locations.models import Location
 from src.users.models import User
+
+PDF_FONT_NAME = "DejaVuSans"
+
+
+def _register_pdf_font() -> None:
+    if PDF_FONT_NAME not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(PDF_FONT_NAME, str(LABEL_FONT_PATH)))
 
 
 class ExportService:
@@ -265,5 +287,173 @@ class ExportService:
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
+
+    def get_inventory_statistics(
+        self,
+        user: User,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> InventoryStatsResponse:
+        # Date filter lives in the outer-join ON clause so zero-loan items stay
+        # in the breakdown; borrowed_at IS NOT NULL excludes never-approved loans.
+        loan_on = [Loan.item_id == Item.id, Loan.borrowed_at.is_not(None)]
+        if date_from:
+            loan_on.append(Loan.borrowed_at >= datetime.combine(date_from, time.min))
+        if date_to:
+            loan_on.append(Loan.borrowed_at < datetime.combine(date_to + timedelta(days=1), time.min))
+
+        overdue_expr = func.if_(
+            or_(
+                and_(Loan.returned_at.is_not(None), Loan.returned_at > Loan.declared_return_date),
+                and_(Loan.returned_at.is_(None), Loan.declared_return_date < func.now()),
+            ),
+            1,
+            0,
+        )
+
+        stmt = (
+            select(
+                Item.uuid,
+                Item.name,
+                func.count(Loan.id).label("loan_count"),
+                func.coalesce(func.sum(overdue_expr), 0).label("overdue_count"),
+                func.coalesce(func.sum(func.if_(Loan.return_condition == ReturnCondition.BROKEN, 1, 0)), 0).label(
+                    "broken_count"
+                ),
+                func.coalesce(func.sum(func.if_(Loan.return_condition == ReturnCondition.MISSING, 1, 0)), 0).label(
+                    "missing_count"
+                ),
+            )
+            .join(Loan, and_(*loan_on), isouter=True)
+            .group_by(Item.id, Item.uuid, Item.name)
+            .order_by(Item.name)
+        )
+        if user.role != UserRole.ADMIN:
+            stmt = stmt.where(Item.owner_id == user.id)
+
+        rows = self.db.execute(stmt).all()
+
+        items = [
+            ItemLoanStats(
+                item_uuid=row.uuid,
+                item_name=row.name,
+                loan_count=row.loan_count,
+                overdue_count=int(row.overdue_count),
+                broken_count=int(row.broken_count),
+                missing_count=int(row.missing_count),
+            )
+            for row in rows
+        ]
+        summary = InventoryStatsSummary(
+            total_loans=sum(i.loan_count for i in items),
+            total_overdue=sum(i.overdue_count for i in items),
+            total_broken=sum(i.broken_count for i in items),
+            total_missing=sum(i.missing_count for i in items),
+        )
+        return InventoryStatsResponse(date_from=date_from, date_to=date_to, summary=summary, items=items)
+
+    def export_statistics_xlsx(
+        self,
+        user: User,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> StreamingResponse:
+        stats = self.get_inventory_statistics(user, date_from, date_to)
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Statistics"
+
+        bold_font = Font(bold=True)
+        header_font = Font(bold=True, size=14)
+
+        worksheet.append(["INVENTORY EVENT STATISTICS"])
+        worksheet.cell(1, 1).font = header_font
+        worksheet.append(["Date From:", date_from.isoformat() if date_from else "-"])
+        worksheet.append(["Date To:", date_to.isoformat() if date_to else "-"])
+        worksheet.append([])
+        worksheet.append(["Total Loans:", stats.summary.total_loans])
+        worksheet.append(["Total Overdue:", stats.summary.total_overdue])
+        worksheet.append(["Broken Returns:", stats.summary.total_broken])
+        worksheet.append(["Missing Returns:", stats.summary.total_missing])
+        for row in (2, 3, 5, 6, 7, 8):
+            worksheet.cell(row, 1).font = bold_font
+        worksheet.append([])
+
+        header_row = ["Item", "Loans", "Overdue", "Broken Returns", "Missing Returns"]
+        worksheet.append(header_row)
+        for col in range(1, len(header_row) + 1):
+            worksheet.cell(worksheet.max_row, col).font = bold_font
+
+        for item in stats.items:
+            worksheet.append(
+                [item.item_name, item.loan_count, item.overdue_count, item.broken_count, item.missing_count]
+            )
+
+        stream = BytesIO()
+        workbook.save(stream)
+        stream.seek(0)
+
+        return StreamingResponse(
+            stream,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": 'attachment; filename="inventory-statistics.xlsx"',
+            },
+        )
+
+    def export_statistics_pdf(
+        self,
+        user: User,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> StreamingResponse:
+        stats = self.get_inventory_statistics(user, date_from, date_to)
+        _register_pdf_font()
+
+        title_style = ParagraphStyle("Title", fontName=PDF_FONT_NAME, fontSize=16, spaceAfter=4 * mm)
+        text_style = ParagraphStyle("Text", fontName=PDF_FONT_NAME, fontSize=10)
+
+        date_range = f"{date_from.isoformat() if date_from else '...'} — {date_to.isoformat() if date_to else '...'}"
+        elements = [
+            Paragraph("Statystyki zdarzeń inwentarzowych", title_style),
+            Paragraph(f"Zakres dat: {date_range}", text_style),
+            Paragraph(f"Wypożyczenia: {stats.summary.total_loans}", text_style),
+            Paragraph(f"Opóźnienia: {stats.summary.total_overdue}", text_style),
+            Paragraph(f"Zwroty uszkodzone: {stats.summary.total_broken}", text_style),
+            Paragraph(f"Zwroty zagubione: {stats.summary.total_missing}", text_style),
+            Spacer(0, 6 * mm),
+        ]
+
+        table_data = [["Przedmiot", "Wypożyczenia", "Opóźnienia", "Uszkodzone", "Zagubione"]]
+        table_data += [
+            [item.item_name, item.loan_count, item.overdue_count, item.broken_count, item.missing_count]
+            for item in stats.items
+        ]
+        table = Table(table_data, repeatRows=1)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("FONTNAME", (0, 0), (-1, -1), PDF_FONT_NAME),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ]
+            )
+        )
+        elements.append(table)
+
+        stream = BytesIO()
+        SimpleDocTemplate(stream, pagesize=landscape(A4)).build(elements)
+        stream.seek(0)
+
+        return StreamingResponse(
+            stream,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="inventory-statistics.pdf"',
             },
         )

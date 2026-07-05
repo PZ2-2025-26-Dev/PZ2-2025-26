@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 from src.auth.jwt import create_access_token
 from src.items.constants import ItemStatus
 from src.items.models import Item, ItemHistory
+from src.loans.constants import LoanStatus, ReturnCondition
+from src.loans.models import Loan
 from src.seed import SEED_IDS
 
 
@@ -88,6 +91,33 @@ def get_item_or_fail(db: Session, item_uuid: UUID | str) -> Item:
     item = db.scalar(select(Item).where(Item.uuid == item_uuid))
     assert item is not None
     return item
+
+
+def make_loan(
+    db: Session,
+    *,
+    item_id: int,
+    user_id: int = SEED_IDS.regular_user,
+    borrowed_at: datetime,
+    declared_return_date: datetime,
+    returned_at: datetime | None = None,
+    status: LoanStatus = LoanStatus.CLOSED,
+    return_condition: ReturnCondition | None = None,
+) -> Loan:
+    """Insert a Loan row directly; the API loan flow cannot control dates."""
+    loan = Loan(
+        item_id=item_id,
+        user_id=user_id,
+        created_at=borrowed_at,
+        borrowed_at=borrowed_at,
+        declared_return_date=declared_return_date,
+        returned_at=returned_at,
+        status=status,
+        return_condition=return_condition,
+    )
+    db.add(loan)
+    db.flush()
+    return loan
 
 
 def assert_item_created_with_history(db: Session, item_uuid: UUID | str) -> Item:

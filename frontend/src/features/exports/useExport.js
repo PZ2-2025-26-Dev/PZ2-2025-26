@@ -138,6 +138,50 @@ export const useExport = () => {
         }
     }, []);
 
+    /**
+     * @param {'xlsx' | 'pdf'} format
+     * @param {{ dateFrom?: string, dateTo?: string }} [filters]
+     */
+    const exportStatistics = useCallback(async (format, filters = {}) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.get(ENDPOINTS.EXPORT.STATISTICS_FILE(format), {
+                params: cleanParams({
+                    date_from: filters.dateFrom,
+                    date_to: filters.dateTo,
+                }),
+                responseType: 'blob',
+            });
+
+            const contentType = response.headers['content-type'] ?? '';
+            if (contentType.includes('application/json')) {
+                const text = await response.data.text();
+                const payload = JSON.parse(text);
+                const message = typeof payload.detail === 'string'
+                    ? payload.detail
+                    : 'Export failed';
+                setError(message);
+                return { success: false, error: message };
+            }
+
+            const fallbackType = format === 'pdf'
+                ? 'application/pdf'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+            const filename = `inventory-statistics-${new Date().toISOString().slice(0, 10)}.${format}`;
+            downloadBlob(new Blob([response.data], { type: contentType || fallbackType }), filename);
+
+            return { success: true };
+        } catch (err) {
+            const errorMessage = parseApiError(err, 'Export failed');
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -145,6 +189,7 @@ export const useExport = () => {
     return {
         exportItemsXlsx,
         exportItemReportXlsx,
+        exportStatistics,
         isLoading,
         error,
         clearError,
