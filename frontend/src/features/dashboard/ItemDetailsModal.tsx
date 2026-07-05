@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
     AlertCircle,
-    CalendarDays,
     Check,
     ChevronDown,
     ChevronUp,
@@ -102,13 +101,6 @@ type ItemDetailsModalProps = {
     onClose: () => void;
     item: InventoryItem | null;
     user: AppUser;
-    onUpdateStatus: (
-        itemId: string | number,
-        status: string,
-        clearBorrower?: boolean,
-        borrower?: string | null,
-        dueDate?: string | null,
-    ) => void;
     onItemUpdated?: (item: InventoryItem) => void;
     onLocationChanged?: (itemId: string | number, location: { id: number; path: string }) => void;
     onItemDeleted?: () => void;
@@ -119,7 +111,6 @@ export default function ItemDetailsModal({
     onClose,
     item,
     user,
-    onUpdateStatus,
     onItemUpdated,
     onLocationChanged,
     onItemDeleted,
@@ -145,7 +136,6 @@ export default function ItemDetailsModal({
     } = useLocations();
     const { listAcl } = useItemAcl();
 
-    const [returnDate, setReturnDate] = useState('');
     const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedDescription, setEditedDescription] = useState('');
@@ -224,9 +214,6 @@ export default function ItemDetailsModal({
 
     useEffect(() => {
         if (!isOpen || !item) return;
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        setReturnDate(tomorrow.toISOString().split('T')[0]);
         setEditedDescription(item.description ?? '');
         setEditedName(item.name);
         setEditedStatus(item.status);
@@ -328,7 +315,6 @@ export default function ItemDetailsModal({
         }
 
         applyItemUpdate({ status: editedStatus });
-        onUpdateStatus(item.id, editedStatus);
     };
 
     const handleSaveName = async () => {
@@ -653,58 +639,31 @@ export default function ItemDetailsModal({
                                 {t('itemDetailsModal.deleteItem')}
                             </Button>
                         )}
-                        {item.status === 'pending_approval' && (
-                                <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/60 dark:bg-amber-950/30">
-                                    <strong className="text-sm text-amber-700 dark:text-amber-300">{t('itemDetailsModal.reqPending')}</strong>
-                                    <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.reqDesc', { borrower: item.borrower || 'Ktoś' })}</p>
-                                    <Button className="w-full" onClick={() => onUpdateStatus(item.id, 'reserved')}>{t('itemDetailsModal.btnAccept')}</Button>
-                                    <Button variant="secondary" className="w-full" onClick={() => onUpdateStatus(item.id, 'available', true)}>{t('itemDetailsModal.btnReject')}</Button>
-                                </div>
-                            )}
-                            {item.status === 'reserved' && (
-                                <div className="space-y-3 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900/60 dark:bg-violet-950/30">
-                                    <strong className="text-sm text-violet-700 dark:text-violet-300">{t('itemDetailsModal.handover')}</strong>
-                                    <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.handoverDesc')}</p>
-                                    <Button className="w-full bg-violet-600 hover:bg-violet-700" onClick={() => onUpdateStatus(item.id, 'loaned')}>{t('itemDetailsModal.btnGive')}</Button>
-                                </div>
-                            )}
-                            {item.status === 'loaned' && (
-                                <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/60 dark:bg-blue-950/30">
-                                    <strong className="text-sm text-blue-700 dark:text-blue-300">{t('itemDetailsModal.returnPending')}</strong>
-                                    <p className="text-xs text-slate-600 dark:text-slate-400">{t('itemDetailsModal.returnDesc', { borrower: item.borrower, dueDate: item.dueDate || 'Brak' })}</p>
-                                    <Button variant="info" className="w-full" onClick={() => onUpdateStatus(item.id, 'available', true)}>{t('itemDetailsModal.btnReturn')}</Button>
-                                </div>
-                            )}
-                            {MANUAL_STATUSES.includes(item.status) && (
-                                <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-                                    <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.statusTitle')}</strong>
-                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.statusDesc')}</p>
-                                    <Select value={editedStatus} onValueChange={setEditedStatus}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {MANUAL_STATUSES.map((statusOption) => (
-                                                <SelectItem key={statusOption} value={statusOption}>
-                                                    {t(`dashboard.itemStatuses.${statusOption}`)}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Button
-                                        className="w-full"
-                                        disabled={isInventoryLoading || editedStatus === item.status}
-                                        onClick={() => void handleSaveStatus()}
-                                    >
-                                        {t('itemDetailsModal.statusSave')}
-                                    </Button>
-                                </div>
-                            )}
-                            {!MANUAL_STATUSES.includes(item.status) && (
-                                <Button variant="destructive" className="w-full" onClick={() => onUpdateStatus(item.id, 'broken')}>
-                                    {t('itemDetailsModal.markDamaged')}
+                        {MANUAL_STATUSES.includes(item.status) && (
+                            <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+                                <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.statusTitle')}</strong>
+                                <p className="text-xs text-slate-500">{t('itemDetailsModal.statusDesc')}</p>
+                                <Select value={editedStatus} onValueChange={setEditedStatus}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MANUAL_STATUSES.map((statusOption) => (
+                                            <SelectItem key={statusOption} value={statusOption}>
+                                                {t(`dashboard.itemStatuses.${statusOption}`)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button
+                                    className="w-full"
+                                    disabled={isInventoryLoading || editedStatus === item.status}
+                                    onClick={() => void handleSaveStatus()}
+                                >
+                                    {t('itemDetailsModal.statusSave')}
                                 </Button>
-                            )}
+                            </div>
+                        )}
                         </CardContent>
                     </Card>
 
@@ -716,31 +675,6 @@ export default function ItemDetailsModal({
                         />
                     )}
                 </div>
-            );
-        }
-
-        const canBorrow = user.role === ROLES.USER || user.role === ROLES.ADMIN || user.role === 'regular';
-
-        if (item.status === 'available' && canBorrow) {
-            return (
-                <Card className="border-blue-200 dark:border-blue-900/50">
-                    <CardHeader>
-                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                            <CalendarDays className="size-5" />
-                            <CardTitle className="text-base">{t('itemDetailsModal.borrowPanel')}</CardTitle>
-                        </div>
-                        <CardDescription>{t('itemDetailsModal.borrowDesc')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="return-date">{t('itemDetailsModal.dateLabel')}</Label>
-                            <Input id="return-date" type="date" value={returnDate} onChange={(event) => setReturnDate(event.target.value)} />
-                        </div>
-                        <Button variant="info" className="w-full" onClick={() => returnDate && onUpdateStatus(item.id, 'pending_approval', false, user.name, returnDate)}>
-                            {t('itemDetailsModal.btnSubmitReq')}
-                        </Button>
-                    </CardContent>
-                </Card>
             );
         }
 

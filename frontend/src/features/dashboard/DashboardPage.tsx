@@ -170,7 +170,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         listItems,
         isLoading,
         getItem,
-        updateItem,
         lookupItemByQrCode,
         downloadBatchLabels,
         error,
@@ -352,37 +351,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         pending: items.filter((item) => item.status === 'pending_approval').length,
         damaged: items.filter((item) => item.status === 'broken').length,
     }), [items, total]);
-
-    const handleUpdateItemStatus = async (
-        itemId: string | number,
-        status: string,
-        clearBorrower = false,
-        borrower: string | null = null,
-        dueDate: string | null = null,
-    ) => {
-        const result = await updateItem(itemId, { status });
-
-        if (!result.success) {
-            void refreshItems();
-            return;
-        }
-
-        const applyStatusPatch = (current: InventoryItem): InventoryItem => ({
-            ...current,
-            status,
-            borrower: clearBorrower ? null : borrower ?? current.borrower,
-            dueDate: clearBorrower ? null : dueDate ?? current.dueDate,
-        });
-
-        setItems((current) => current.map((item) => (item.id === itemId ? applyStatusPatch(item) : item)));
-        setSelectedItem((current) => {
-            if (!current || current.id !== itemId) return current;
-            const updated = applyStatusPatch(current);
-            updateSelectedLabelItem(updated);
-            return updated;
-        });
-        void refreshItems();
-    };
 
     const handleQrScan = async (decodedText: string) => {
         setIsQrScannerOpen(false);
@@ -749,7 +717,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onClose={() => setIsDetailsModalOpen(false)}
                 item={selectedItem}
                 user={user}
-                onUpdateStatus={handleUpdateItemStatus}
                 onItemUpdated={handleItemUpdated}
                 onLocationChanged={handleItemLocationChanged}
             />
