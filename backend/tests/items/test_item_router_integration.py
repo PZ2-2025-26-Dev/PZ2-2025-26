@@ -1576,3 +1576,92 @@ def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db:
     )
 
     assert response.status_code == 400
+
+
+def test_owner_can_change_status_from_broken_to_available(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.adapter_uuid}",
+        json={"status": "available"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "available"
+
+    item = seeded_db.get(Item, SEED_IDS.adapter)
+    assert item.status == ItemStatus.AVAILABLE
+
+    history = (
+        seeded_db.query(ItemHistory)
+        .filter_by(item_id=SEED_IDS.adapter, change_type=ItemChangeLogType.STATUS_CHANGED)
+        .one()
+    )
+    assert history.description == "Status changed from broken to available"
+
+
+def test_admin_can_change_status_of_missing_item(api_client: TestClient, seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.adapter)
+    item.status = ItemStatus.MISSING
+    seeded_db.flush()
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.adapter_uuid}",
+        json={"status": "available"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert seeded_db.get(Item, SEED_IDS.adapter).status == ItemStatus.AVAILABLE
+
+
+def test_admin_can_mark_available_item_as_broken(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"status": "broken"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.BROKEN
+
+
+def test_non_owner_cannot_change_status(api_client: TestClient, seeded_db: Session):
+    # projector is owned by the admin; the regular user has no ACL on it
+    item = seeded_db.get(Item, SEED_IDS.projector)
+    item.status = ItemStatus.BROKEN
+    seeded_db.flush()
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.projector_uuid}",
+        json={"status": "available"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
+    assert seeded_db.get(Item, SEED_IDS.projector).status == ItemStatus.BROKEN
+
+
+def test_loaned_item_status_cannot_be_changed_manually(api_client: TestClient, seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    item.status = ItemStatus.LOANED
+    seeded_db.flush()
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"status": "available"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 409
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.LOANED
+
+
+def test_status_cannot_be_changed_manually_into_loan_cycle(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.adapter_uuid}",
+        json={"status": "loaned"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 409
+    assert seeded_db.get(Item, SEED_IDS.adapter).status == ItemStatus.BROKEN

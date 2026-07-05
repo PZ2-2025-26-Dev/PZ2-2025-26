@@ -127,7 +127,9 @@
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
       "loaned": "Loaned",
-      "broken": "Broken"
+      "broken": "Broken",
+      "missing": "Missing",
+      "overdue": "Overdue"
     }
   },
   "rentalCenter": {
@@ -400,6 +402,9 @@
     "returnDesc": "Borrowed by: {{borrower}}. Due date: {{dueDate}}.",
     "btnReturn": "Confirm Return",
     "markDamaged": "Report Damage",
+    "statusTitle": "Item status",
+    "statusDesc": "Manual status changes are only possible outside the loan cycle (available, broken, missing).",
+    "statusSave": "Change status",
     "qrCode": "System Identifier",
     "close": "Close",
     "borrowPanel": "Borrow Equipment",

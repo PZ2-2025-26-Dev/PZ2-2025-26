@@ -127,7 +127,9 @@
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
-      "broken": "Uszkodzony"
+      "broken": "Uszkodzony",
+      "missing": "Zagubiony",
+      "overdue": "Po terminie"
     }
   },
   "inventoryFilters": {
@@ -471,6 +473,9 @@
     "returnDesc": "Wypożyczył(a): {{borrower}}. Termin zwrotu: {{dueDate}}.",
     "btnReturn": "Potwierdź zwrot",
     "markDamaged": "Zgłoś usterkę",
+    "statusTitle": "Status przedmiotu",
+    "statusDesc": "Ręczna zmiana statusu jest możliwa tylko poza cyklem wypożyczenia (dostępny, uszkodzony, zagubiony).",
+    "statusSave": "Zmień status",
     "qrCode": "Identyfikator Systemowy",
     "close": "Zamknij",
     "borrowPanel": "Wypożycz Sprzęt",
