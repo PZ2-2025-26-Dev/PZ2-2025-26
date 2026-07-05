@@ -82,6 +82,9 @@ type LabelFieldOption = {
 const DEFAULT_LABEL_FIELDS = ['name', 'category', 'location'];
 const BASE_LABEL_FIELD_KEYS = ['name', 'description', 'status', 'category', 'location', 'owner', 'oldID'];
 
+// Statuses editable manually (outside the loan cycle) — mirrors backend ITEM_MANUAL_STATUSES.
+const MANUAL_STATUSES = ['available', 'broken', 'missing'];
+
 const flattenParameterFields = (parameters: Record<string, unknown> | null | undefined, prefix = ''): LabelFieldOption[] => {
     if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) return [];
 
@@ -150,6 +153,7 @@ export default function ItemDetailsModal({
     const [editedName, setEditedName] = useState('');
     const [isEditingLocation, setIsEditingLocation] = useState(false);
     const [editedLocationId, setEditedLocationId] = useState('');
+    const [editedStatus, setEditedStatus] = useState('');
     const [locations, setLocations] = useState<LocationOption[]>([]);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [parameters, setParameters] = useState<Record<string, unknown> | null>(null);
@@ -225,6 +229,7 @@ export default function ItemDetailsModal({
         setReturnDate(tomorrow.toISOString().split('T')[0]);
         setEditedDescription(item.description ?? '');
         setEditedName(item.name);
+        setEditedStatus(item.status);
         setEditedLocationId(item.locationId ? String(item.locationId) : '');
         setIsDeleteDialogOpen(false);
         setIsEditingDescription(false);
@@ -310,6 +315,20 @@ export default function ItemDetailsModal({
 
     const applyItemUpdate = (patch: Partial<InventoryItem>) => {
         onItemUpdated?.({ ...item, ...patch });
+    };
+
+    const handleSaveStatus = async () => {
+        if (!editedStatus || editedStatus === item.status) return;
+
+        setSaveError(null);
+        const result = await updateItem(item.id, { status: editedStatus });
+        if (!result.success) {
+            setSaveError(result.error ?? t('itemDetailsModal.saveFailed'));
+            return;
+        }
+
+        applyItemUpdate({ status: editedStatus });
+        onUpdateStatus(item.id, editedStatus);
     };
 
     const handleSaveName = async () => {
@@ -656,7 +675,32 @@ export default function ItemDetailsModal({
                                     <Button variant="info" className="w-full" onClick={() => onUpdateStatus(item.id, 'available', true)}>{t('itemDetailsModal.btnReturn')}</Button>
                                 </div>
                             )}
-                            {item.status !== 'broken' && (
+                            {MANUAL_STATUSES.includes(item.status) && (
+                                <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+                                    <strong className="text-sm text-slate-900 dark:text-white">{t('itemDetailsModal.statusTitle')}</strong>
+                                    <p className="text-xs text-slate-500">{t('itemDetailsModal.statusDesc')}</p>
+                                    <Select value={editedStatus} onValueChange={setEditedStatus}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {MANUAL_STATUSES.map((statusOption) => (
+                                                <SelectItem key={statusOption} value={statusOption}>
+                                                    {t(`dashboard.itemStatuses.${statusOption}`)}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button
+                                        className="w-full"
+                                        disabled={isInventoryLoading || editedStatus === item.status}
+                                        onClick={() => void handleSaveStatus()}
+                                    >
+                                        {t('itemDetailsModal.statusSave')}
+                                    </Button>
+                                </div>
+                            )}
+                            {item.status !== 'broken' && !MANUAL_STATUSES.includes(item.status) && (
                                 <Button variant="destructive" className="w-full" onClick={() => onUpdateStatus(item.id, 'broken')}>
                                     {t('itemDetailsModal.markDamaged')}
                                 </Button>

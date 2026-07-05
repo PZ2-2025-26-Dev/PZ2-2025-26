@@ -9,6 +9,7 @@ from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.constants import (
+    ITEM_MANUAL_STATUSES,
     ITEM_OWNER_EDITABLE_FIELDS,
     ITEM_UPDATE_CRITICAL_FIELDS,
     ITEM_UPDATE_FIELD_PERMISSIONS,
@@ -102,6 +103,8 @@ def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
         fields.add("owner_id")
     if data.parameters is not None and data.parameters != item.parameters:
         fields.add("parameters")
+    if data.status is not None and data.status != item.status:
+        fields.add("status")
 
     return fields
 
@@ -109,6 +112,18 @@ def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
 def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session) -> None:
     if data.owner_id is not None and data.owner_id != item.owner_id:
         assert_can_change_owner(user)
+
+    # Statusy cyklu wypożyczeń (pending/reserved/loaned/overdue) zmienia
+    # wyłącznie moduł loans — ręczna zmiana obejmuje tylko dostępny/uszkodzony/zagubiony.
+    if (
+        data.status is not None
+        and data.status != item.status
+        and (item.status not in ITEM_MANUAL_STATUSES or data.status not in ITEM_MANUAL_STATUSES)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Status przedmiotu w cyklu wypożyczenia można zmieniać wyłącznie przez moduł wypożyczeń.",
+        )
 
     if user.role == UserRole.ADMIN:
         return

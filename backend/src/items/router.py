@@ -513,6 +513,9 @@ def read_item(
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
         },
+        status.HTTP_409_CONFLICT: {
+            "description": "Status przedmiotu w cyklu wypożyczenia nie może być zmieniony ręcznie.",
+        },
     },
 )
 def update_item(

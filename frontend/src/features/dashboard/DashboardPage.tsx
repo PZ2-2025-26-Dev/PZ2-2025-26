@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
+    BarChart3,
     Box,
     Download,
     MapPinned,
@@ -54,6 +55,7 @@ import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
+import StatisticsView from '../statistics/StatisticsView';
 import InventoryToolbar from '../inventory/InventoryToolbar';
 import BatchLabelExportDialog from '../inventory/BatchLabelExportDialog';
 import { BATCH_LABEL_LIMIT } from '../inventory/batchLabels.config';
@@ -76,7 +78,7 @@ import type {
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
 function isMenuSection(value: string | null): value is MenuSection {
-    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
+    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users' || value === 'statistics';
 }
 
 function ProfileSettingsDialog({
@@ -438,6 +440,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
         { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" /> },
+        { id: 'statistics', label: t('dashboard.tabStatistics'), icon: <BarChart3 className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_EXPORT },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
@@ -588,6 +591,20 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     </div>
                 );
             
+            case 'statistics':
+                return (
+                    <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
+                        <div className="hidden lg:block">
+                            <StatisticsView />
+                        </div>
+                        <Alert className="lg:hidden">
+                            <AlertTriangle />
+                            <AlertTitle>{t('statistics.title')}</AlertTitle>
+                            <AlertDescription>{t('statistics.desktopOnly')}</AlertDescription>
+                        </Alert>
+                    </RoleGuard>
+                );
+
             case 'directory':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>

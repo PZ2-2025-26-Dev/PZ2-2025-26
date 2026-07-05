@@ -26,6 +26,7 @@ class ItemChangeLogType(Enum):
     OWNER_CHANGED = "owner_changed"
     LOCATION_CHANGED = "location_changed"
     CATEGORY_CHANGED = "category_changed"
+    STATUS_CHANGED = "status_changed"
 
 
 class ItemPermissionType(Enum):
@@ -48,6 +49,7 @@ ITEM_UPDATE_CRITICAL_FIELDS: frozenset[str] = frozenset(
         "name",
         "category_id",
         "owner_id",
+        "status",
     }
 )
 
@@ -59,5 +61,16 @@ ITEM_OWNER_EDITABLE_FIELDS: frozenset[str] = frozenset(
         "location_id",
         "description",
         "parameters",
+        "status",
+    }
+)
+
+# Statusy zmienialne ręcznie (poza cyklem wypożyczeń) — zarówno jako stan
+# bieżący, jak i docelowy. Statusy cyklu wypożyczeń zmienia wyłącznie moduł loans.
+ITEM_MANUAL_STATUSES: frozenset[ItemStatus] = frozenset(
+    {
+        ItemStatus.AVAILABLE,
+        ItemStatus.BROKEN,
+        ItemStatus.MISSING,
     }
 )
