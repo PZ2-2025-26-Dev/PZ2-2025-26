@@ -415,6 +415,7 @@ class ExportService:
 
         title_style = ParagraphStyle("Title", fontName=PDF_FONT_NAME, fontSize=16, spaceAfter=4 * mm)
         text_style = ParagraphStyle("Text", fontName=PDF_FONT_NAME, fontSize=10)
+        cell_style = ParagraphStyle("Cell", fontName=PDF_FONT_NAME, fontSize=9)
 
         date_range = f"{date_from.isoformat() if date_from else '...'} — {date_to.isoformat() if date_to else '...'}"
         elements = [
@@ -429,10 +430,20 @@ class ExportService:
 
         table_data = [["Przedmiot", "Wypożyczenia", "Opóźnienia", "Uszkodzone", "Zagubione"]]
         table_data += [
-            [item.item_name, item.loan_count, item.overdue_count, item.broken_count, item.missing_count]
+            # Paragraph wraps long names within the column; plain strings would be
+            # drawn past the page edge and silently clipped.
+            [
+                Paragraph(item.item_name, cell_style),
+                item.loan_count,
+                item.overdue_count,
+                item.broken_count,
+                item.missing_count,
+            ]
             for item in stats.items
         ]
-        table = Table(table_data, repeatRows=1)
+        count_col_width = 30 * mm
+        name_col_width = landscape(A4)[0] - 2 * 72 - 4 * count_col_width  # 72pt = default doc margin
+        table = Table(table_data, repeatRows=1, colWidths=[name_col_width] + [count_col_width] * 4)
         table.setStyle(
             TableStyle(
                 [
