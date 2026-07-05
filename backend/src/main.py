@@ -3,7 +3,6 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
 # WORKAROUND:
@@ -30,99 +29,9 @@ from src.users import models as users_models  # noqa: F401
 from src.users.router import router as users_router
 
 
-def ensure_user_preferences_columns() -> None:
-    columns = {
-        "ui_theme": ("VARCHAR(16)", "light"),
-        "ui_font": ("VARCHAR(16)", "sans"),
-        "ui_accent": ("VARCHAR(32)", "agh-green"),
-    }
-
-    with engine.begin() as connection:
-        existing_columns = {column["name"] for column in inspect(connection).get_columns("user")}
-        quoted_user_table = connection.dialect.identifier_preparer.quote("user")
-
-        for name, (column_type, default) in columns.items():
-            if name in existing_columns:
-                continue
-            quoted_name = connection.dialect.identifier_preparer.quote(name)
-            connection.execute(
-                text(
-                    f"ALTER TABLE {quoted_user_table} "
-                    f"ADD COLUMN {quoted_name} {column_type} NOT NULL DEFAULT '{default}'"
-                )
-            )
-
-
-def ensure_loan_columns() -> None:
-    nullable_columns = {
-        "note": "TEXT",
-        "return_reported_by": "INT",
-        "return_reported_at": "DATETIME",
-        "return_note": "TEXT",
-        "return_confirmed_by": "INT",
-        "return_confirmed_at": "DATETIME",
-        "return_confirmation_note": "TEXT",
-    }
-
-    with engine.begin() as connection:
-        inspector = inspect(connection)
-        table_names = inspector.get_table_names()
-        if "loan" not in table_names:
-            return
-
-        existing_columns = {column["name"] for column in inspector.get_columns("loan")}
-        quoted_loan_table = connection.dialect.identifier_preparer.quote("loan")
-
-        for name, column_type in nullable_columns.items():
-            if name in existing_columns:
-                continue
-            quoted_name = connection.dialect.identifier_preparer.quote(name)
-            connection.execute(text(f"ALTER TABLE {quoted_loan_table} ADD COLUMN {quoted_name} {column_type} NULL"))
-
-        if "return_condition" not in existing_columns:
-            connection.execute(
-                text(
-                    f"ALTER TABLE {quoted_loan_table} ADD COLUMN return_condition ENUM('OK','BROKEN','MISSING') NULL"
-                    if connection.dialect.name == "mysql"
-                    else f"ALTER TABLE {quoted_loan_table} ADD COLUMN return_condition VARCHAR(16) NULL"
-                )
-            )
-
-        if "loan_purpose" in existing_columns:
-            connection.execute(text(f"UPDATE {quoted_loan_table} SET note = loan_purpose WHERE note IS NULL"))
-
-        if connection.dialect.name == "mysql":
-            connection.execute(
-                text(
-                    f"ALTER TABLE {quoted_loan_table} MODIFY COLUMN status "
-                    "ENUM('PENDING','APPROVED','DENIED','LOANED','RETURNED',"
-                    "'PENDING_APPROVAL','ACTIVE','RETURN_PENDING_CONFIRMATION','CLOSED','REJECTED') NOT NULL"
-                )
-            )
-            connection.execute(
-                text(
-                    f"UPDATE {quoted_loan_table} SET status = CASE status "
-                    "WHEN 'PENDING' THEN 'PENDING_APPROVAL' "
-                    "WHEN 'APPROVED' THEN 'ACTIVE' "
-                    "WHEN 'LOANED' THEN 'ACTIVE' "
-                    "WHEN 'DENIED' THEN 'REJECTED' "
-                    "WHEN 'RETURNED' THEN 'CLOSED' "
-                    "ELSE status END"
-                )
-            )
-            connection.execute(
-                text(
-                    f"ALTER TABLE {quoted_loan_table} MODIFY COLUMN status "
-                    "ENUM('PENDING_APPROVAL','ACTIVE','RETURN_PENDING_CONFIRMATION','CLOSED','REJECTED') NOT NULL"
-                )
-            )
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    ensure_user_preferences_columns()
-    ensure_loan_columns()
 
     upload_root = Path(config.upload_dir)
     upload_root.mkdir(parents=True, exist_ok=True)
