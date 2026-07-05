@@ -155,6 +155,18 @@ class ItemService:
         if data.parameters is not None:
             item.parameters = data.parameters
 
+        if data.status is not None and data.status != item.status:
+            self.db.add(
+                ItemHistory(
+                    item_id=item.id,
+                    updated_at=updated_at,
+                    updated_by=item.owner_id,
+                    change_type=ItemChangeLogType.STATUS_CHANGED,
+                    description=f"Status changed from {item.status.value} to {data.status.value}",
+                )
+            )
+            item.status = data.status
+
         self.db.commit()
         self.db.refresh(item)
 

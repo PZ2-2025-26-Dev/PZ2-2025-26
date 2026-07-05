@@ -51,6 +51,8 @@ export const ENDPOINTS = {
         BASE: '/exports',
         ITEMS_XLSX: '/exports/items/xlsx',
         ITEM_REPORT: (id) => `/exports/items/${id}/report/xlsx`,
+        STATISTICS: '/exports/statistics',
+        STATISTICS_FILE: (format) => `/exports/statistics/${format}`,
     },
     LOANS: {
         BASE: '/loans',

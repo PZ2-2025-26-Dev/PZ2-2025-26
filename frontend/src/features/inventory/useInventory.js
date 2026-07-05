@@ -215,6 +215,7 @@ export const useInventory = () => {
         if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
         if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
         if (updates.parameters !== undefined) payload.parameters = updates.parameters;
+        if (updates.status !== undefined) payload.status = updates.status;
 
         try {
             const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);

@@ -1,4 +1,24 @@
 {
+  "statistics": {
+    "title": "Inventory event statistics",
+    "desktopOnly": "This view is only available on desktop devices. Please open the app on a larger screen.",
+    "dateFrom": "Date from",
+    "dateTo": "Date to",
+    "totalLoans": "Loans",
+    "totalOverdue": "Overdue",
+    "totalBroken": "Broken returns",
+    "totalMissing": "Missing returns",
+    "itemName": "Item",
+    "loanCount": "Loans",
+    "overdueCount": "Overdue",
+    "brokenCount": "Broken",
+    "missingCount": "Missing",
+    "exportPdf": "Export PDF",
+    "exportXlsx": "Export XLSX",
+    "loadError": "Failed to load statistics",
+    "exportError": "Export failed",
+    "empty": "No data to display"
+  },
   "welcome": {
     "faculty": "Faculty of Physics and Applied Computer Science",
     "language": "Language",
@@ -66,6 +86,7 @@
     "tabInventory": "Inventory",
     "tabUsers": "Users",
     "tabDirectory": "People directory",
+    "tabStatistics": "Statistics",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
     "locationsAndCategories": "Locations and Categories",
@@ -106,7 +127,9 @@
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
       "loaned": "Loaned",
-      "broken": "Broken"
+      "broken": "Broken",
+      "missing": "Missing",
+      "overdue": "Overdue"
     }
   },
   "rentalCenter": {
@@ -379,6 +402,9 @@
     "returnDesc": "Borrowed by: {{borrower}}. Due date: {{dueDate}}.",
     "btnReturn": "Confirm Return",
     "markDamaged": "Report Damage",
+    "statusTitle": "Item status",
+    "statusDesc": "Manual status changes are only possible outside the loan cycle (available, broken, missing).",
+    "statusSave": "Change status",
     "qrCode": "System Identifier",
     "close": "Close",
     "borrowPanel": "Borrow Equipment",

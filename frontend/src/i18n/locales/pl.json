@@ -1,4 +1,24 @@
 {
+  "statistics": {
+    "title": "Statystyki zdarzeń inwentarzowych",
+    "desktopOnly": "Ten widok jest dostępny wyłącznie na komputerach stacjonarnych. Otwórz aplikację na większym ekranie.",
+    "dateFrom": "Data od",
+    "dateTo": "Data do",
+    "totalLoans": "Wypożyczenia",
+    "totalOverdue": "Opóźnienia",
+    "totalBroken": "Zwroty uszkodzone",
+    "totalMissing": "Zwroty zagubione",
+    "itemName": "Przedmiot",
+    "loanCount": "Wypożyczenia",
+    "overdueCount": "Opóźnienia",
+    "brokenCount": "Uszkodzone",
+    "missingCount": "Zagubione",
+    "exportPdf": "Eksport PDF",
+    "exportXlsx": "Eksport XLSX",
+    "loadError": "Nie udało się pobrać statystyk",
+    "exportError": "Eksport nie powiódł się",
+    "empty": "Brak danych do wyświetlenia"
+  },
   "welcome": {
     "faculty": "Wydział Fizyki i Informatyki Stosowanej",
     "language": "Język",
@@ -66,6 +86,7 @@
     "tabInventory": "Inwentarz",
     "tabUsers": "Użytkownicy",
     "tabDirectory": "Katalog osób",
+    "tabStatistics": "Statystyki",
     "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
     "locationsAndCategories": "Lokalizacje i Kategorie",
@@ -106,7 +127,9 @@
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
-      "broken": "Uszkodzony"
+      "broken": "Uszkodzony",
+      "missing": "Zagubiony",
+      "overdue": "Po terminie"
     }
   },
   "inventoryFilters": {
@@ -450,6 +473,9 @@
     "returnDesc": "Wypożyczył(a): {{borrower}}. Termin zwrotu: {{dueDate}}.",
     "btnReturn": "Potwierdź zwrot",
     "markDamaged": "Zgłoś usterkę",
+    "statusTitle": "Status przedmiotu",
+    "statusDesc": "Ręczna zmiana statusu jest możliwa tylko poza cyklem wypożyczenia (dostępny, uszkodzony, zagubiony).",
+    "statusSave": "Zmień status",
     "qrCode": "Identyfikator Systemowy",
     "close": "Zamknij",
     "borrowPanel": "Wypożycz Sprzęt",
