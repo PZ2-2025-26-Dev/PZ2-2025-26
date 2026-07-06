@@ -38,6 +38,7 @@ def _create_active_loan(db: Session, item_id: int, declared_return_date) -> Loan
 def test_sweep_marks_past_due_loaned_item_as_overdue(seeded_db: Session) -> None:
     _create_active_loan(seeded_db, SEED_IDS.laptop, now() - timedelta(days=1))
 
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.LOANED
     assert mark_overdue_items(seeded_db) == 1
     assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.OVERDUE
 
@@ -48,12 +49,15 @@ def test_sweep_marks_past_due_loaned_item_as_overdue(seeded_db: Session) -> None
 def test_sweep_ignores_loan_with_future_return_date(seeded_db: Session) -> None:
     _create_active_loan(seeded_db, SEED_IDS.laptop, now() + timedelta(days=1))
 
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.LOANED
     assert mark_overdue_items(seeded_db) == 0
     assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.LOANED
 
 
 def test_owner_return_restores_overdue_item_to_available(seeded_db: Session) -> None:
     loan = _create_active_loan(seeded_db, SEED_IDS.laptop, now() - timedelta(days=1))
+
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.LOANED
     mark_overdue_items(seeded_db)
     assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.OVERDUE
 
