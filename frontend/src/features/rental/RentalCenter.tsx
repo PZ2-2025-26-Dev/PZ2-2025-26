@@ -39,7 +39,7 @@ const STATUS_VARIANT: Record<LoanStatus, 'default' | 'secondary' | 'destructive'
 
 const CONDITION_OPTIONS: ReturnCondition[] = ['ok', 'broken', 'missing'];
 
-const toIsoDate = (date: string) => new Date(date).toISOString();
+const toIsoDate = (date: string) => new Date(`${date}T23:59:59`).toISOString();
 
 export default function RentalCenter({ user, onInventoryChanged }: RentalCenterProps) {
     const { t } = useTranslation();
