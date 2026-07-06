@@ -1,6 +1,7 @@
 from enum import Enum
 
 LOAN_NOTE_MAX_LENGTH = 512
+OVERDUE_SWEEP_INTERVAL_SECONDS = 300
 
 
 class LoanStatus(Enum):

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from src.auth.constants import UserRole
@@ -53,6 +53,21 @@ class BorrowerNotFoundError(LoanError):
 
 class GuestNotFoundError(BorrowerNotFoundError):
     pass
+
+
+def mark_overdue_items(db: Session) -> int:
+    past_due_items = select(Loan.item_id).where(
+        Loan.borrowed_at.is_not(None),
+        Loan.returned_at.is_(None),
+        Loan.declared_return_date < now(),
+    )
+    result = db.execute(
+        update(Item)
+        .where(Item.status == ItemStatus.LOANED, Item.id.in_(past_due_items))
+        .values(status=ItemStatus.OVERDUE)
+    )
+    db.commit()
+    return result.rowcount
 
 
 class LoanService:
