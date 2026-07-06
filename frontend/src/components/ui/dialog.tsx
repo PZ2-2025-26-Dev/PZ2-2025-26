@@ -34,6 +34,11 @@ const isSelectPortalTarget = (target: EventTarget | null) =>
 const isInsideElement = (target: EventTarget | null, element: Element | null) =>
     target instanceof Node && element?.contains(target);
 
+const getInteractionTargets = (event: Event) => {
+    const originalEvent = (event as CustomEvent<{ originalEvent?: Event }>).detail?.originalEvent;
+    return [event.target, originalEvent?.target].filter(Boolean);
+};
+
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }
@@ -51,8 +56,10 @@ const DialogContent = React.forwardRef<
         }
     }, [ref]);
 
-    const shouldKeepDialogOpen = (target: EventTarget | null) =>
-        isInsideElement(target, contentRef.current) || isSelectPortalTarget(target);
+    const shouldKeepDialogOpen = (event: Event) =>
+        getInteractionTargets(event).some((target) => (
+            isInsideElement(target, contentRef.current) || isSelectPortalTarget(target)
+        ));
 
     return (
         <DialogPortal>
@@ -64,14 +71,14 @@ const DialogContent = React.forwardRef<
                     className,
                 )}
                 onInteractOutside={(event) => {
-                    if (shouldKeepDialogOpen(event.target)) {
+                    if (shouldKeepDialogOpen(event)) {
                         event.preventDefault();
                         return;
                     }
                     onInteractOutside?.(event);
                 }}
                 onPointerDownOutside={(event) => {
-                    if (shouldKeepDialogOpen(event.target)) {
+                    if (shouldKeepDialogOpen(event)) {
                         event.preventDefault();
                         return;
                     }
