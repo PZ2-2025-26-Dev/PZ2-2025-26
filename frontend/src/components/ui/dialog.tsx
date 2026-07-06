@@ -28,62 +28,24 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const isSelectPortalTarget = (target: EventTarget | null) =>
-    target instanceof Element && target.closest('[data-slot="select-content"]') !== null;
-
-const isInsideElement = (target: EventTarget | null, element: Element | null) =>
-    target instanceof Node && element?.contains(target);
-
-const getInteractionTargets = (event: Event) => {
-    const originalEvent = (event as CustomEvent<{ originalEvent?: Event }>).detail?.originalEvent;
-    return [event.target, originalEvent?.target].filter(Boolean);
-};
-
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }
->(({ className, children, showCloseButton = true, onInteractOutside, onPointerDownOutside, ...props }, ref) => {
+>(({ className, children, showCloseButton = true, onInteractOutside: _onInteractOutside, onPointerDownOutside: _onPointerDownOutside, onFocusOutside: _onFocusOutside, ...props }, ref) => {
     const { t } = useTranslation();
-    const contentRef = React.useRef<React.ElementRef<typeof DialogPrimitive.Content> | null>(null);
-
-    const setContentRef = React.useCallback((node: React.ElementRef<typeof DialogPrimitive.Content> | null) => {
-        contentRef.current = node;
-
-        if (typeof ref === 'function') {
-            ref(node);
-        } else if (ref) {
-            ref.current = node;
-        }
-    }, [ref]);
-
-    const shouldKeepDialogOpen = (event: Event) =>
-        getInteractionTargets(event).some((target) => (
-            isInsideElement(target, contentRef.current) || isSelectPortalTarget(target)
-        ));
 
     return (
         <DialogPortal>
             <DialogOverlay />
             <DialogPrimitive.Content
-                ref={setContentRef}
+                ref={ref}
                 className={cn(
                     'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100',
                     className,
                 )}
-                onInteractOutside={(event) => {
-                    if (shouldKeepDialogOpen(event)) {
-                        event.preventDefault();
-                        return;
-                    }
-                    onInteractOutside?.(event);
-                }}
-                onPointerDownOutside={(event) => {
-                    if (shouldKeepDialogOpen(event)) {
-                        event.preventDefault();
-                        return;
-                    }
-                    onPointerDownOutside?.(event);
-                }}
+                onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => event.preventDefault()}
+                onFocusOutside={(event) => event.preventDefault()}
                 {...props}
             >
                 {children}
