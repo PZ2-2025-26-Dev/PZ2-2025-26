@@ -352,10 +352,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         damaged: items.filter((item) => item.status === 'broken').length,
     }), [items, total]);
 
-    const handleUpdateItemStatus = () => {
-        refreshItems();
-    };
-
     const handleQrScan = async (decodedText: string) => {
         setIsQrScannerOpen(false);
         const result = await lookupItemByQrCode(decodedText);
@@ -536,7 +532,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 );
             
             case 'loans':
-                return <RentalCenter user={user} />;
+                return <RentalCenter user={user} onInventoryChanged={refreshItems} />;
             
             case 'locations':
                 return canManageSystem ? (
@@ -721,7 +717,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onClose={() => setIsDetailsModalOpen(false)}
                 item={selectedItem}
                 user={user}
-                onUpdateStatus={handleUpdateItemStatus}
                 onItemUpdated={handleItemUpdated}
                 onLocationChanged={handleItemLocationChanged}
             />

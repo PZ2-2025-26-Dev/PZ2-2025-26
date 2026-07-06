@@ -99,8 +99,16 @@ const getParentOptions = (locations: Location[], type: LocationType) => {
     return flattenLocations(locations).filter((location) => allowedParentTypes.includes(location.type));
 };
 
-const getValidParentId = (currentParentId: string, options: Location[]) => {
+const getValidParentId = (currentParentId: string, options: Location[], locations: Location[]) => {
     if (options.some((location) => String(location.id) === currentParentId)) return currentParentId;
+
+    let currentLocation = locations.find((location) => String(location.id) === currentParentId);
+    while (currentLocation?.parentId) {
+        const parentId = String(currentLocation.parentId);
+        if (options.some((location) => String(location.id) === parentId)) return parentId;
+        currentLocation = locations.find((location) => location.id === currentLocation?.parentId);
+    }
+
     return options[0] ? String(options[0].id) : ROOT_LOCATION;
 };
 
@@ -187,19 +195,19 @@ export default function LocationManager({
 
     useEffect(() => {
         if (isRootLocationType) setSelectedParentId(ROOT_LOCATION);
-        else setSelectedParentId((current) => getValidParentId(current, parentOptions));
-    }, [isRootLocationType, parentOptions, selectedParentId]);
+        else setSelectedParentId((current) => getValidParentId(current, parentOptions, locations));
+    }, [isRootLocationType, locations, parentOptions]);
 
     useEffect(() => {
         if (isEditingRootLocationType && editForm?.parentId !== ROOT_LOCATION) {
             setEditForm((current) => current ? { ...current, parentId: ROOT_LOCATION } : current);
         } else if (editForm && !isEditingRootLocationType) {
-            const validParentId = getValidParentId(editForm.parentId, editParentOptions);
+            const validParentId = getValidParentId(editForm.parentId, editParentOptions, locations);
             if (validParentId !== editForm.parentId) {
                 setEditForm((current) => current ? { ...current, parentId: validParentId } : current);
             }
         }
-    }, [editForm, editParentOptions, isEditingRootLocationType]);
+    }, [editForm, editParentOptions, isEditingRootLocationType, locations]);
 
     const handleCreateLocation = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -487,7 +495,7 @@ export default function LocationManager({
                                         </TableCell>
                                         <TableCell className="text-slate-600 dark:text-slate-400">{item.category}</TableCell>
                                         <TableCell>
-                                            <StatusBadge status={item.status} label={t(`dashboard.itemStatuses.${item.status}`)} />
+                                            <StatusBadge status={item.status} label={t(`dashboard.itemStatuses.${item.status}`, { defaultValue: item.status })} />
                                         </TableCell>
                                         <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
                                     </TableRow>

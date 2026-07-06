@@ -123,11 +123,11 @@ class ItemsPaged(BaseModel):
 class ItemUpdate(BaseModel):
     name: ItemName | None = None
     description: ItemDescription | None = None
+    status: ItemStatus | None = None
     category_id: CategoryID | None = None
     location_id: LocationID | None = None
     owner_id: UserID | None = None
     parameters: dict | None = None
-    status: ItemStatus | None = None
 
 
 class ItemUpdateResponse(BaseModel):

@@ -256,6 +256,8 @@ export default function InventoryFilters({
     { value: "loaned", label: t("inventoryFilters.status.loaned") },
     { value: "pending_approval", label: t("inventoryFilters.status.pendingApproval") },
     { value: "broken", label: t("inventoryFilters.status.broken") },
+    { value: "missing", label: t("inventoryFilters.status.missing") },
+    { value: "overdue", label: t("inventoryFilters.status.overdue") },
   ];
 
   // Stan dla dynamicznych wierszy parametrów technicznych (JSON)

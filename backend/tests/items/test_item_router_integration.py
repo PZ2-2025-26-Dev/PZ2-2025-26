@@ -68,6 +68,20 @@ def test_update_item_endpoint_updates_live_database(api_client: TestClient, seed
     assert body["location_id"] == item.location_id
 
 
+def test_update_item_endpoint_updates_status(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"status": ItemStatus.BROKEN.value},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert body["status"] == ItemStatus.BROKEN.value
+    assert item.status == ItemStatus.BROKEN
+
+
 def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seeded_db: Session):
     created = api_client.post(
         "/items",

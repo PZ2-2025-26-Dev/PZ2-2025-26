@@ -20,6 +20,7 @@ import { type Loan, type LoanStatus, type ReturnCondition, useLoans } from './us
 
 type RentalCenterProps = {
     user: AppUser;
+    onInventoryChanged?: () => void | Promise<void>;
 };
 
 type TabKey = 'my' | 'owned' | 'all';
@@ -40,7 +41,7 @@ const CONDITION_OPTIONS: ReturnCondition[] = ['ok', 'broken', 'missing'];
 
 const toIsoDate = (date: string) => new Date(date).toISOString();
 
-export default function RentalCenter({ user }: RentalCenterProps) {
+export default function RentalCenter({ user, onInventoryChanged }: RentalCenterProps) {
     const { t } = useTranslation();
     const { listItems, isLoading: itemsLoading } = useInventory();
     const {
@@ -125,6 +126,11 @@ export default function RentalCenter({ user }: RentalCenterProps) {
         if (itemsResult.success) setAvailableItems(itemsResult.items);
     }, [isAdmin, isObserver, isOwnerUser, listItems, listLoans, statusFilter]);
 
+    const refreshAfterInventoryChange = useCallback(async () => {
+        await refresh();
+        await onInventoryChanged?.();
+    }, [onInventoryChanged, refresh]);
+
     useEffect(() => {
         if (isObserver) setActiveTab('all');
     }, [isObserver]);
@@ -165,7 +171,7 @@ export default function RentalCenter({ user }: RentalCenterProps) {
         });
         if (result.success) {
             setIsBorrowDialogOpen(false);
-            void refresh();
+            void refreshAfterInventoryChange();
         }
     };
 
@@ -208,13 +214,13 @@ export default function RentalCenter({ user }: RentalCenterProps) {
         });
         if (result.success) {
             setIsExternalDialogOpen(false);
-            void refresh();
+            void refreshAfterInventoryChange();
         }
     };
 
     const approve = async (loan: Loan) => {
         const result = await approveLoan(loan.id);
-        if (result.success) void refresh();
+        if (result.success) void refreshAfterInventoryChange();
     };
 
     const openActionDialog = (loan: Loan, type: ActionType) => {
@@ -235,7 +241,7 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
         if (result?.success) {
             setIsActionDialogOpen(false);
-            void refresh();
+            void refreshAfterInventoryChange();
         }
     };
 
