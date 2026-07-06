@@ -640,6 +640,8 @@
       "active": "Aktywny",
       "pending_approval": "Oczekuje akceptacji",
       "inactive": "Nieaktywny",
+      "blocked": "Zablokowany",
+      "rejected": "Odrzucony",
       "deactivated": "Nieaktywny"
     },
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie."

@@ -641,6 +641,8 @@
       "active": "Active",
       "pending_approval": "Pending approval",
       "inactive": "Inactive",
+      "blocked": "Blocked",
+      "rejected": "Rejected",
       "deactivated": "Inactive"
     },
     "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset."
