@@ -12,7 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCategories, type Category } from './useCategories';
 
-type CategoryNode = Category & { children: CategoryNode[] };
+type CategoryNode = Category & { 
+    children: CategoryNode[];
+    item_count: number;        
+    totalItemCount: number;   
+};
 
 const ROOT_CATEGORY = 'root';
 
@@ -26,25 +30,48 @@ const compareCategories = (first: Category, second: Category) =>
 
 const buildCategoryTree = (categories: Category[]) => {
     const lookup: Record<number, CategoryNode> = {};
+    
+    categories.forEach((category) => {
+        lookup[category.id] = { 
+            ...category, 
+            children: [], 
+            item_count: category.itemCount ?? 0, 
+            totalItemCount: category.itemCount ?? 0 
+        };
+    });
+
     const roots: CategoryNode[] = [];
 
     categories.forEach((category) => {
-        lookup[category.id] = { ...category, children: [] };
-    });
-
-    categories.forEach((category) => {
         const node = lookup[category.id];
-        const parent = category.parentId ? lookup[category.parentId] : null;
-
-        if (parent) parent.children.push(node);
-        else roots.push(node);
+        if (category.parentId === null || category.parentId === undefined) {
+            roots.push(node);
+        } else {
+            const parent = lookup[category.parentId];
+            if (parent) {
+                parent.children.push(node);
+            } else {
+                roots.push(node);
+            }
+        }
     });
 
-    const sortNodes = (nodes: CategoryNode[]) => {
-        nodes.sort(compareCategories);
-        nodes.forEach((node) => sortNodes(node.children));
+    const calculateTotalCounts = (node: CategoryNode): number => {
+        let total = (node.item_count || 0);
+        node.children.forEach((child) => {
+            total += calculateTotalCounts(child);
+        });
+        node.totalItemCount = total;
+        return total;
     };
-    sortNodes(roots);
+
+    roots.forEach((root) => calculateTotalCounts(root));
+
+    const sortTree = (nodes: CategoryNode[]) => {
+        nodes.sort(compareCategories);
+        nodes.forEach((node) => sortTree(node.children));
+    };
+    sortTree(roots);
 
     return roots;
 };
@@ -76,7 +103,7 @@ const collectDescendantIds = (categoryId: number, categories: Category[]) => {
     return descendants;
 };
 
-export default function CategoryManager() {
+export default function CategoryManager({ canManage = true }: { canManage?: boolean }) {
     const { t } = useTranslation();
     const { listCategories, createCategory, updateCategory, deleteCategory, isLoading, error, clearError } = useCategories();
 
@@ -220,6 +247,8 @@ export default function CategoryManager() {
         });
     };
 
+    
+
     const renderCategoryNode = (node: CategoryNode, level = 0) => {
         const hasChildren = node.children.length > 0;
         const isExpanded = expandedCategoryIds.has(node.id);
@@ -235,16 +264,19 @@ export default function CategoryManager() {
                         <div className="flex items-center gap-2">
                             {hasChildren ? (
                                 <CollapsibleTrigger asChild>
-                                    <Button variant="ghost" size="icon-sm" className="-ml-1" aria-label={node.name}>
+                                    <span className="-ml-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" aria-label={node.name}>
                                         <ChevronIcon />
-                                    </Button>
+                                    </span>
                                 </CollapsibleTrigger>
                             ) : (
                                 <span className="block size-7 shrink-0" />
                             )}
-                            <Tag className={level === 0 ? 'size-4 text-emerald-500' : 'size-4 text-slate-400'} />
+                            <Tag className={level === 0 ? 'size-4 text-accent-500' : 'size-4 text-slate-400'} />
                             <span className={level === 0 ? 'truncate text-sm font-semibold' : 'truncate text-sm text-slate-600 dark:text-slate-400'}>
                                 {node.name}
+                                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                                    ({node.totalItemCount})
+                                </span>
                             </span>
                         </div>
                         <div className="ml-12 mt-0.5 truncate text-[10px] text-slate-400">{node.path}</div>
@@ -253,15 +285,19 @@ export default function CategoryManager() {
                         )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
-                            <Plus />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
-                            <Pencil />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
-                            <Trash2 />
-                        </Button>
+                        {canManage && (
+                            <>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
+                                    <Plus />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
+                                    <Pencil />
+                                </Button>
+                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
+                                    <Trash2 />
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
                 <CollapsibleContent>
@@ -276,15 +312,15 @@ export default function CategoryManager() {
             <Card>
                 <CardHeader className="flex-row items-start justify-between gap-4">
                     <div>
-                        <CardTitle className="text-sm">Kategorie</CardTitle>
-                        <CardDescription className="text-xs">Hierarchia kategorii sprzętu</CardDescription>
+                        <CardTitle className="text-sm">{t("dashboard.tabCategories")}</CardTitle>
+                        <CardDescription className="text-xs">{t("categoryManager.desc")}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon-sm" onClick={() => void refreshCategories()} disabled={isLoading} aria-label={t('categoryManager.refresh')}>
                             <RefreshCw className={isLoading ? 'animate-spin' : ''} />
                         </Button>
                         <Button size="sm" onClick={() => { setIsAddDialogOpen(true); setSelectedParentId(ROOT_CATEGORY); setNewCategoryName(''); }}>
-                            <Plus className="mr-2" /> Dodaj kategorię
+                            <Plus className="mr-2" /> {t("categoryManager.addTitle")}
                         </Button>
                     </div>
                 </CardHeader>
@@ -307,6 +343,7 @@ export default function CategoryManager() {
             </Card>
 
             {/* Add Category dialog */}
+            {canManage && (
             <Dialog open={isAddDialogOpen} onOpenChange={(open: boolean) => !open && setIsAddDialogOpen(false)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -345,7 +382,9 @@ export default function CategoryManager() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
 
+            {canManage && (
             <Dialog open={Boolean(editingCategory && editForm)} onOpenChange={(open: boolean) => !open && closeEditDialog()}>
                 <DialogContent className="max-w-xl">
                     <DialogHeader>
@@ -385,7 +424,9 @@ export default function CategoryManager() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
 
+            {canManage && (
             <Dialog open={Boolean(deletingCategory)} onOpenChange={(open: boolean) => !open && setDeletingCategory(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
@@ -423,6 +464,7 @@ export default function CategoryManager() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            )}
         </div>
     );
 }

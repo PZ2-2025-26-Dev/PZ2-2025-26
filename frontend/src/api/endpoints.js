@@ -7,6 +7,8 @@ export const ENDPOINTS = {
         GOOGLE_CALLBACK: '/auth/google/callback',
 
         REFRESH: '/auth/refresh',
+        ME: '/auth/me',
+        PREFERENCES: '/auth/me/preferences',
     },
     // USERS: {
     //     BASE: '/api/v1/users',
@@ -15,10 +17,16 @@ export const ENDPOINTS = {
     ITEMS: {
         BASE: '/items',
         DETAILS: (id) => `/items/${id}`,
+        ACL: (id) => `/items/${id}/acl`,
+        ACL_ENTRY: (itemId, aclId) => `/items/${itemId}/acl/${aclId}`,
         BORROW: (id) => `/items/${id}/borrow`,
         RETURN: (id) => `/items/${id}/return`,
         EXTERNAL_RENT: (id) => `/items/${id}/rent-external`,
         HISTORY: (id) => `/items/${id}/history`,
+        SCAN: (code) => `/items/scan/${encodeURIComponent(code)}`,
+        QR: (id, format) => `/items/${id}/qr.${format}`,
+        LABEL: (id, format) => `/items/${id}/label.${format}`,
+        BATCH_LABELS: (format) => `/items/labels/batch.${format}`,
         ATTACHMENTS: (id) => `/items/${id}/attachments`,
         ATTACHMENT_DOWNLOAD: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}/download`,
         ATTACHMENT_DELETE: (itemId, attachmentId) => `/items/${itemId}/attachments/${attachmentId}`,
@@ -38,6 +46,13 @@ export const ENDPOINTS = {
         BROWSE: '/users/browse',
         GUESTS: '/users/guests',
         DETAILS: (id) => `/users/${id}`,
+    },
+    EXPORT: {
+        BASE: '/exports',
+        ITEMS_XLSX: '/exports/items/xlsx',
+        ITEM_REPORT: (id) => `/exports/items/${id}/report/xlsx`,
+        STATISTICS: '/exports/statistics',
+        STATISTICS_FILE: (format) => `/exports/statistics/${format}`,
     },
     LOANS: {
         BASE: '/loans',

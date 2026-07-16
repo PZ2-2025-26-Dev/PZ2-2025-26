@@ -21,14 +21,14 @@ export default function GoogleCallbackPage({
 
         const token = new URLSearchParams(window.location.search).get('token');
         if (token) {
-            onLoginSuccess({ id: null, name: 'Google User', role: 'USER', status: 'ACTIVE' }, token);
+            onLoginSuccess({ id: null, name: 'Google User', role: 'user', status: 'active' }, token);
         } else {
             setError(t('auth.googleLoginError'));
         }
     }, [onLoginSuccess, t]);
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-900">
+        <div className="flex min-h-screen items-center justify-center bg-[rgb(var(--color-page-bg))] p-4">
             <Card className="w-full max-w-sm">
                 <CardContent className="pt-5">
                     {error ? (
@@ -39,7 +39,7 @@ export default function GoogleCallbackPage({
                         </Alert>
                     ) : (
                         <div className="flex flex-col items-center gap-3 py-4 text-sm font-medium text-slate-600 dark:text-slate-300">
-                            <LoaderCircle className="size-8 animate-spin text-emerald-600" />
+                            <LoaderCircle className="size-8 animate-spin text-accent-600" />
                             {t('auth.googleCallbackLoading')}
                         </div>
                     )}

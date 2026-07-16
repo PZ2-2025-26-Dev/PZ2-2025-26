@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
 from fastapi import status as http_status
 
-from src.auth.dependencies import RequireUserOrAdmin
+from src.auth.dependencies import CurrentUser, RequireUserOrAdmin
 from src.dependencies import DBDep
 from src.loans.constants import LoanListScope, LoanStatus
 from src.loans.schemas import (
@@ -118,11 +118,14 @@ def create_external_loan(
             "description": "Pomyślnie zwrócono listę wypożyczeń.",
         },
         http_status.HTTP_403_FORBIDDEN: FORBIDDEN_RESPONSE,
+        http_status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
 def list_loans(
     db: DBDep,
-    user: RequireUserOrAdmin,
+    user: CurrentUser,
     loan_status: Annotated[LoanStatus | None, Query(alias="status")] = None,
     scope: LoanListScope = LoanListScope.MY,
 ) -> LoanListResponse:
@@ -145,12 +148,15 @@ def list_loans(
         },
         http_status.HTTP_403_FORBIDDEN: FORBIDDEN_RESPONSE,
         http_status.HTTP_404_NOT_FOUND: NOT_FOUND_RESPONSE,
+        http_status.HTTP_401_UNAUTHORIZED: {
+            "description": "Brak poprawnego tokena uwierzytelniającego.",
+        },
     },
 )
 def get_loan(
     loan_id: int,
     db: DBDep,
-    user: RequireUserOrAdmin,
+    user: CurrentUser,
 ) -> LoanResponse:
     try:
         return LoanService(db).get_loan(loan_id, user)

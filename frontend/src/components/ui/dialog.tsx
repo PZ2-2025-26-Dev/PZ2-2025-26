@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,10 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
     React.ElementRef<typeof DialogPrimitive.Content>,
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }
->(({ className, children, showCloseButton = true, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, onInteractOutside: _onInteractOutside, onPointerDownOutside: _onPointerDownOutside, onFocusOutside: _onFocusOutside, ...props }, ref) => {
+    const { t } = useTranslation();
+
+    return (
         <DialogPortal>
             <DialogOverlay />
             <DialogPrimitive.Content
@@ -39,6 +43,9 @@ const DialogContent = React.forwardRef<
                     'fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100',
                     className,
                 )}
+                onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => event.preventDefault()}
+                onFocusOutside={(event) => event.preventDefault()}
                 {...props}
             >
                 {children}
@@ -46,13 +53,14 @@ const DialogContent = React.forwardRef<
                     <DialogPrimitive.Close asChild>
                         <Button variant="ghost" size="icon-sm" className="absolute right-3 top-3">
                             <X />
-                            <span className="sr-only">Close</span>
+                            <span className="sr-only">{t('common.close')}</span>
                         </Button>
                     </DialogPrimitive.Close>
                 )}
             </DialogPrimitive.Content>
         </DialogPortal>
-));
+    );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {

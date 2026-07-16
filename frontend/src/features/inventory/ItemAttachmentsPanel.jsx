@@ -64,7 +64,7 @@ export default function ItemAttachmentsPanel({
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isUploading}
-                            className="text-xs text-emerald-600 hover:text-emerald-700 font-medium dark:text-emerald-400 dark:hover:text-emerald-300 disabled:opacity-50"
+                            className="text-xs text-accent-600 hover:text-accent-700 font-medium dark:text-accent-400 dark:hover:text-accent-300 disabled:opacity-50"
                         >
                             {isUploading ? t('common.loading') : t('itemDetailsModal.uploadFiles')}
                         </button>

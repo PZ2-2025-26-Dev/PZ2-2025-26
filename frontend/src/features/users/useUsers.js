@@ -28,12 +28,13 @@ export const useUsers = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const listUsers = useCallback(async (filters) => {
+    const listUsers = useCallback(async (filters, options = { browse: false }) => {
         setIsLoading(true);
         setError(null);
 
         try {
-            const response = await axiosClient.get(ENDPOINTS.USERS.BASE, {
+            const url = options.browse ? ENDPOINTS.USERS.BROWSE : ENDPOINTS.USERS.BASE;
+            const response = await axiosClient.get(url, {
                 params: cleanParams(filters),
             });
             const payload = response.data;

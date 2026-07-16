@@ -31,9 +31,23 @@ from .schemas import (
     UserCreateResponse,
     UserLogin,
     UserLoginResponse,
+    UserPreferencesUpdate,
 )
 
 router = APIRouter(prefix="/auth")
+
+
+def to_current_user_response(user: UserModel) -> CurrentUserResponse:
+    return CurrentUserResponse(
+        id=user.id,
+        email=user.email or "",
+        name=f"{user.first_name} {user.last_name or ''}".strip(),
+        role=user.role,
+        status=user.status,
+        ui_theme=user.ui_theme,
+        ui_font=user.ui_font,
+        ui_accent=user.ui_accent,
+    )
 
 
 @router.post(
@@ -183,8 +197,7 @@ async def refresh_token(data: TokenRefreshIn) -> TokenResponse:
 )
 async def google_authorize(request: Request):
     redirect_uri = config.google_redirect_uri
-    print(config.cors_origins)
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    return await oauth.google.authorize_redirect(request, redirect_uri, prompt="select_account")
 
 
 @router.get("/google/callback")
@@ -221,10 +234,25 @@ async def google_callback(request: Request, db: DBDep):
 def me(
     user: Annotated[UserModel, Depends(get_current_user)],
 ) -> CurrentUserResponse:
-    return CurrentUserResponse(
-        id=user.id,
-        email=user.email,
-        name=f"{user.first_name} {user.last_name or ''}".strip(),
-        role=user.role,
-        status=user.status,
-    )
+    return to_current_user_response(user)
+
+
+@router.patch(
+    "/me/preferences",
+    response_model=CurrentUserResponse,
+)
+def update_my_preferences(
+    data: UserPreferencesUpdate,
+    db: DBDep,
+    user: Annotated[UserModel, Depends(get_current_user)],
+) -> CurrentUserResponse:
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if value is not None:
+            setattr(user, field, value)
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return to_current_user_response(user)

@@ -37,6 +37,8 @@ Po zakończeniu wyświetlany jest **raport** z listą ostrzeżeń (np. brak e-ma
 | `inv_urzadzenia.id_pracownika` | `item.owner_id` | brak/0/nieznany → fallback `999999` |
 | `inv_urzadzenia` | `item` | status zawsze **available** |
 | brak UUID w starym systemie | `item.uuid` | deterministyczne UUID v5 z ID urządzenia |
+| `inv_urzadzenia.id` | `item.oldID` | stare ID zapisane tekstowo |
+| brak parametrów w starym systemie | `item.parameters` | `NULL` przy pierwszym imporcie |
 
 ---
 

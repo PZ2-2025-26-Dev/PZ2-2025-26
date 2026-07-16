@@ -21,6 +21,7 @@ from src.locations.constants import LocationType
 from src.locations.models import Location
 from src.main import app
 from src.users.models import User
+from tests.helpers import auth_headers
 
 pytestmark = pytest.mark.integration
 
@@ -168,12 +169,15 @@ def test_upload_storage_error_on_write(db: Session, tmp_path, monkeypatch):
     assert service.list_attachments(item.id) == []
 
 
-def test_read_item_attachments_not_found(monkeypatch):
+def test_read_item_attachments_not_found(api_client: TestClient, seeded_db: Session, monkeypatch):
     def mock_list(self, item_id):
         raise ItemNotFoundError()
 
     monkeypatch.setattr(ItemAttachmentService, "list_attachments", mock_list)
 
-    response = client.get(f"/items/{MISSING_ITEM_ID}/attachments")
+    response = api_client.get(
+        f"/items/{MISSING_ITEM_ID}/attachments",
+        headers=auth_headers(),
+    )
 
     assert response.status_code == 404

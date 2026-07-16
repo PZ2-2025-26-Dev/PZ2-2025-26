@@ -3,24 +3,29 @@ export type AppUser = {
     name: string;
     role: string;
     status?: string;
+    uiTheme?: 'light' | 'dark';
+    uiFont?: 'sans' | 'serif' | 'mono';
+    uiAccent?: 'agh-green' | 'agh-red' | 'agh-gold' | 'agh-blue';
 };
 
 export type InventoryItem = {
-    id: string | number;
-    inventory_number?: string;
+    id: string;
     name: string;
-    producer?: string;
-    model?: string;
-    serialNumber?: string;
     status: string;
+
     category: string;
-    categoryPath?: string;
     categoryId?: number;
+    categoryPath?: string;
     location: string;
     locationId?: number;
     owner: string;
     ownerId: number;
+    description?: string | null;
+    oldID?: string | null;
+    parameters?: Record<string, unknown> | null;
+    producer?: string | null;
+    model?: string | null;
+    serialNumber?: string | null;
     borrower?: string | null;
     dueDate?: string | null;
-    description?: string;
 };

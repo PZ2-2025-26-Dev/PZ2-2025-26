@@ -1,13 +1,14 @@
 import { Badge } from '@/components/ui/badge';
 
 const statusVariant = {
-    dostępny: 'success',
+    available: 'success',
     active: 'success',
-    wypożyczony: 'info',
-    'oczekuje akceptacji': 'warning',
     pending_approval: 'warning',
-    uszkodzony: 'destructive',
-    zarezerwowany: 'violet',
+    reserved: 'violet',
+    loaned: 'info',
+    broken: 'destructive',
+    missing: 'destructive',
+    overdue: 'warning',
     inactive: 'secondary',
     deactivated: 'secondary',
 } as const;

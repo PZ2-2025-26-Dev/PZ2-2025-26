@@ -20,6 +20,7 @@ import { type Loan, type LoanStatus, type ReturnCondition, useLoans } from './us
 
 type RentalCenterProps = {
     user: AppUser;
+    onInventoryChanged?: () => void | Promise<void>;
 };
 
 type TabKey = 'my' | 'owned' | 'all';
@@ -38,9 +39,9 @@ const STATUS_VARIANT: Record<LoanStatus, 'default' | 'secondary' | 'destructive'
 
 const CONDITION_OPTIONS: ReturnCondition[] = ['ok', 'broken', 'missing'];
 
-const toIsoDate = (date: string) => new Date(date).toISOString();
+const toIsoDate = (date: string) => new Date(`${date}T23:59:59`).toISOString();
 
-export default function RentalCenter({ user }: RentalCenterProps) {
+export default function RentalCenter({ user, onInventoryChanged }: RentalCenterProps) {
     const { t } = useTranslation();
     const { listItems, isLoading: itemsLoading } = useInventory();
     const {
@@ -99,7 +100,9 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
     const userId = Number(user.id);
     const isAdmin = user.role === 'admin';
+    const isObserver = user.role === 'observer';
     const isOwnerUser = user.role === 'user' || isAdmin;
+    const canModifyLoans = isOwnerUser;
     const isLoading = itemsLoading || loansLoading;
 
     const refreshGuests = useCallback(async (search?: string) => {
@@ -111,17 +114,26 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
     const refresh = useCallback(async () => {
         const [myResult, ownedResult, allResult, itemsResult] = await Promise.all([
-            listLoans({ scope: 'my', status: statusFilter }),
+            isObserver ? Promise.resolve({ success: true, loans: [] as Loan[] }) : listLoans({ scope: 'my', status: statusFilter }),
             isOwnerUser ? listLoans({ scope: 'owned', status: statusFilter }) : Promise.resolve({ success: true, loans: [] as Loan[] }),
-            isAdmin ? listLoans({ scope: 'all', status: statusFilter }) : Promise.resolve({ success: true, loans: [] as Loan[] }),
-            listItems({ status: 'available', limit: 100 }),
+            isAdmin || isObserver ? listLoans({ scope: 'all', status: statusFilter }) : Promise.resolve({ success: true, loans: [] as Loan[] }),
+            isObserver ? Promise.resolve({ success: true, items: [] as InventoryItem[] }) : listItems({ status: 'available', limit: 100 }),
         ]);
 
         if (myResult.success) setMyLoans(myResult.loans);
         if (ownedResult.success) setOwnedLoans(ownedResult.loans);
         if (allResult.success) setAllLoans(allResult.loans);
         if (itemsResult.success) setAvailableItems(itemsResult.items);
-    }, [isAdmin, isOwnerUser, listItems, listLoans, statusFilter]);
+    }, [isAdmin, isObserver, isOwnerUser, listItems, listLoans, statusFilter]);
+
+    const refreshAfterInventoryChange = useCallback(async () => {
+        await refresh();
+        await onInventoryChanged?.();
+    }, [onInventoryChanged, refresh]);
+
+    useEffect(() => {
+        if (isObserver) setActiveTab('all');
+    }, [isObserver]);
 
     useEffect(() => { void refresh(); }, [refresh]);
 
@@ -159,7 +171,7 @@ export default function RentalCenter({ user }: RentalCenterProps) {
         });
         if (result.success) {
             setIsBorrowDialogOpen(false);
-            void refresh();
+            void refreshAfterInventoryChange();
         }
     };
 
@@ -202,13 +214,13 @@ export default function RentalCenter({ user }: RentalCenterProps) {
         });
         if (result.success) {
             setIsExternalDialogOpen(false);
-            void refresh();
+            void refreshAfterInventoryChange();
         }
     };
 
     const approve = async (loan: Loan) => {
         const result = await approveLoan(loan.id);
-        if (result.success) void refresh();
+        if (result.success) void refreshAfterInventoryChange();
     };
 
     const openActionDialog = (loan: Loan, type: ActionType) => {
@@ -229,20 +241,20 @@ export default function RentalCenter({ user }: RentalCenterProps) {
 
         if (result?.success) {
             setIsActionDialogOpen(false);
-            void refresh();
+            void refreshAfterInventoryChange();
         }
     };
 
-    const canApprove = (loan: Loan) => activeTab !== 'my' && loan.status === 'pending_approval';
-    const canReturn = (loan: Loan) => loan.status === 'active' && (activeTab === 'my' || loan.item.owner.id === userId || isAdmin);
-    const canConfirmReturn = (loan: Loan) => activeTab !== 'my' && loan.status === 'return_pending_confirmation';
+    const canApprove = (loan: Loan) => canModifyLoans && activeTab !== 'my' && loan.status === 'pending_approval';
+    const canReturn = (loan: Loan) => canModifyLoans && loan.status === 'active' && (activeTab === 'my' || loan.item.owner.id === userId || isAdmin);
+    const canConfirmReturn = (loan: Loan) => canModifyLoans && activeTab !== 'my' && loan.status === 'return_pending_confirmation';
 
     const renderLoanList = (loans: Loan[]) => (
         <Card>
             <CardHeader>
                 <CardTitle className="text-sm">{t(`rentalCenter.tabs.${activeTab}`, { defaultValue: t('rentalCenter.myRequests') })}</CardTitle>
                 <CardDescription className="text-xs">
-                    {loans.length} {t('rentalCenter.requests', { defaultValue: 'wniosków' })}
+                    {loans.length} {t('rentalCenter.requests')}
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -258,15 +270,15 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                                         </Badge>
                                     </div>
                                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                                        <span>{t('rentalCenter.borrower', { defaultValue: 'Wnioskujący' })}: {borrowerName(loan)}</span>
-                                        <span>{t('rentalCenter.owner', { defaultValue: 'Właściciel' })}: {loan.item.owner.name}</span>
-                                        <span>{t('rentalCenter.dueDate', { defaultValue: 'Data zwrotu' })}: {formatDate(loan.declared_return_date)}</span>
-                                        <span>{t('rentalCenter.requested', { defaultValue: 'Złożono' })}: {formatDate(loan.created_at)}</span>
+                                        <span>{t('rentalCenter.borrower')}: {borrowerName(loan)}</span>
+                                        <span>{t('rentalCenter.owner')}: {loan.item.owner.name}</span>
+                                        <span>{t('rentalCenter.dueDate')}: {formatDate(loan.declared_return_date)}</span>
+                                        <span>{t('rentalCenter.requested')}: {formatDate(loan.created_at)}</span>
                                     </div>
                                     {loanNote(loan) && <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{loanNote(loan)}</div>}
                                     {loan.return_condition && (
                                         <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {t('rentalCenter.returnCondition', { defaultValue: 'Stan przy zwrocie' })}: {conditionLabel(loan.return_condition)}
+                                            {t('rentalCenter.returnCondition')}: {conditionLabel(loan.return_condition)}
                                         </div>
                                     )}
                                 </div>
@@ -274,25 +286,25 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                                     {canApprove(loan) && (
                                         <>
                                             <Button size="sm" onClick={() => void approve(loan)} disabled={isLoading}>
-                                                {t('rentalCenter.approve', { defaultValue: 'Zatwierdź' })}
+                                                {t('rentalCenter.approve')}
                                             </Button>
                                             <Button size="sm" variant="destructive" onClick={() => openActionDialog(loan, 'reject')} disabled={isLoading}>
-                                                {t('rentalCenter.deny', { defaultValue: 'Odrzuć' })}
+                                                {t('rentalCenter.deny')}
                                             </Button>
                                         </>
                                     )}
                                     {canReturn(loan) && (
                                         <Button size="sm" variant="outline" onClick={() => openActionDialog(loan, 'return')} disabled={isLoading}>
-                                            {activeTab === 'my' ? t('rentalCenter.reportReturn', { defaultValue: 'Zgłoś zwrot' }) : t('rentalCenter.confirmReturn', { defaultValue: 'Potwierdź zwrot' })}
+                                            {activeTab === 'my' ? t('rentalCenter.reportReturn') : t('rentalCenter.confirmReturn')}
                                         </Button>
                                     )}
                                     {canConfirmReturn(loan) && (
                                         <>
                                             <Button size="sm" onClick={() => openActionDialog(loan, 'confirm-return')} disabled={isLoading}>
-                                                {t('rentalCenter.confirmReturn', { defaultValue: 'Potwierdź zwrot' })}
+                                                {t('rentalCenter.confirmReturn')}
                                             </Button>
                                             <Button size="sm" variant="outline" onClick={() => openActionDialog(loan, 'reject-return')} disabled={isLoading}>
-                                                {t('rentalCenter.rejectReturn', { defaultValue: 'Odrzuć zwrot' })}
+                                                {t('rentalCenter.rejectReturn')}
                                             </Button>
                                         </>
                                     )}
@@ -301,7 +313,7 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                         ))}
                     </div>
                 ) : (
-                    <div className="py-8 text-center text-slate-400">{t('rentalCenter.noRequests', { defaultValue: 'Brak wniosków' })}</div>
+                    <div className="py-8 text-center text-slate-400">{t('rentalCenter.noRequests')}</div>
                 )}
             </CardContent>
         </Card>
@@ -312,30 +324,36 @@ export default function RentalCenter({ user }: RentalCenterProps) {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.loans')}</h2>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('rentalCenter.subtitle', { defaultValue: 'Zarządzaj wnioskami o wypożyczenie sprzętu' })}</p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        {isObserver
+                            ? t('rentalCenter.observerSubtitle')
+                            : t('rentalCenter.subtitle')}
+                    </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <select
                         value={statusFilter}
                         onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
                         className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                        aria-label={t('rentalCenter.statusFilter', { defaultValue: 'Filtr statusu' })}
+                        aria-label={t('rentalCenter.statusFilter')}
                     >
                         {LOAN_STATUSES.map((status) => (
                             <option key={status} value={status}>{statusLabel(status)}</option>
                         ))}
                     </select>
-                    <Button variant="outline" size="icon" onClick={() => void refresh()} disabled={isLoading} aria-label={t('rentalCenter.refresh', { defaultValue: 'Odśwież' })}>
+                    <Button variant="outline" size="icon" onClick={() => void refresh()} disabled={isLoading} aria-label={t('rentalCenter.refresh')}>
                         <RefreshCw className={isLoading ? 'size-4 animate-spin' : 'size-4'} />
                     </Button>
-                    {isOwnerUser && (
+                    {canModifyLoans && isOwnerUser && (
                         <Button variant="secondary" onClick={() => void openExternalDialog()}>
-                            {t('rentalCenter.externalRent', { defaultValue: 'Wypożycz dla gościa' })}
+                            {t('rentalCenter.externalRent')}
                         </Button>
                     )}
-                    <Button onClick={openBorrowDialog} disabled={borrowableAvailableItems.length === 0}>
-                        {t('rentalCenter.openRequestForm', { defaultValue: 'Złóż wniosek' })}
-                    </Button>
+                    {canModifyLoans && (
+                        <Button onClick={openBorrowDialog} disabled={borrowableAvailableItems.length === 0}>
+                            {t('rentalCenter.openRequestForm')}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -344,49 +362,49 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                     <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
                     <AlertDescription className="flex items-center justify-between gap-3">
                         <span>{error}</span>
-                        <Button variant="ghost" size="sm" onClick={clearError}>x</Button>
+                        <Button variant="ghost" size="sm" onClick={clearError} aria-label={t('common.close')}>x</Button>
                     </AlertDescription>
                 </Alert>
             )}
 
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
                 <TabsList className="w-full flex-wrap justify-start h-auto">
-                    <TabsTrigger value="my">{t('rentalCenter.tabs.my', { defaultValue: 'Moje wypożyczenia' })}</TabsTrigger>
-                    {isOwnerUser && <TabsTrigger value="owned">{t('rentalCenter.tabs.owned', { defaultValue: 'Mój sprzęt' })}</TabsTrigger>}
-                    {isAdmin && <TabsTrigger value="all">{t('rentalCenter.tabs.all', { defaultValue: 'Wszystkie' })}</TabsTrigger>}
+                    {!isObserver && <TabsTrigger value="my">{t('rentalCenter.tabs.my')}</TabsTrigger>}
+                    {isOwnerUser && <TabsTrigger value="owned">{t('rentalCenter.tabs.owned')}</TabsTrigger>}
+                    {(isAdmin || isObserver) && <TabsTrigger value="all">{t('rentalCenter.tabs.all')}</TabsTrigger>}
                 </TabsList>
-                <TabsContent value="my">{renderLoanList(currentLoans)}</TabsContent>
+                {!isObserver && <TabsContent value="my">{renderLoanList(currentLoans)}</TabsContent>}
                 {isOwnerUser && <TabsContent value="owned">{renderLoanList(currentLoans)}</TabsContent>}
-                {isAdmin && <TabsContent value="all">{renderLoanList(currentLoans)}</TabsContent>}
+                {(isAdmin || isObserver) && <TabsContent value="all">{renderLoanList(currentLoans)}</TabsContent>}
             </Tabs>
 
             <Dialog open={isBorrowDialogOpen} onOpenChange={(open) => !open && setIsBorrowDialogOpen(false)}>
                 <DialogContent className="max-w-md" onOpenAutoFocus={(event) => event.preventDefault()}>
                     <DialogHeader>
-                        <DialogTitle>{t('rentalCenter.requestTitle', { defaultValue: 'Nowy wniosek o wypożyczenie' })}</DialogTitle>
-                        <DialogDescription>{t('rentalCenter.requestInfo', { defaultValue: 'Wniosek trafi do właściciela sprzętu do zatwierdzenia.' })}</DialogDescription>
+                        <DialogTitle>{t('rentalCenter.requestTitle')}</DialogTitle>
+                        <DialogDescription>{t('rentalCenter.requestInfo')}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="borrow-item">{t('rentalCenter.itemLabel', { defaultValue: 'Sprzęt' })}</Label>
+                            <Label htmlFor="borrow-item">{t('rentalCenter.itemLabel')}</Label>
                             <select id="borrow-item" value={selectedItemId} onChange={(event) => setSelectedItemId(event.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                                <option value="">{t('rentalCenter.itemPlaceholder', { defaultValue: 'Wybierz sprzęt' })}</option>
+                                <option value="">{t('rentalCenter.itemPlaceholder')}</option>
                                 {borrowableAvailableItems.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="borrow-date">{t('rentalCenter.selectDueDate', { defaultValue: 'Planowana data zwrotu' })}</Label>
+                            <Label htmlFor="borrow-date">{t('rentalCenter.selectDueDate')}</Label>
                             <Input id="borrow-date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} min={new Date().toISOString().split('T')[0]} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="borrow-note">{t('rentalCenter.noteLabel', { defaultValue: 'Notatka (opcjonalnie)' })}</Label>
+                            <Label htmlFor="borrow-note">{t('rentalCenter.noteLabel')}</Label>
                             <Textarea id="borrow-note" value={note} onChange={(event) => setNote(event.target.value)} rows={3} />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsBorrowDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel', { defaultValue: 'Anuluj' })}</Button>
+                        <Button variant="outline" onClick={() => setIsBorrowDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel')}</Button>
                         <Button onClick={() => void submitBorrow()} disabled={isLoading || !selectedItemId || !dueDate}>
-                            {isLoading ? t('rentalCenter.submitting', { defaultValue: 'Wysyłanie...' }) : t('rentalCenter.submitRequest', { defaultValue: 'Złóż wniosek' })}
+                            {isLoading ? t('rentalCenter.submitting') : t('rentalCenter.submitRequest')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -395,50 +413,50 @@ export default function RentalCenter({ user }: RentalCenterProps) {
             <Dialog open={isExternalDialogOpen} onOpenChange={(open) => !open && setIsExternalDialogOpen(false)}>
                 <DialogContent className="max-w-lg" onOpenAutoFocus={(event) => event.preventDefault()}>
                     <DialogHeader>
-                        <DialogTitle>{t('rentalCenter.externalRentTitle', { defaultValue: 'Wypożyczenie dla gościa' })}</DialogTitle>
-                        <DialogDescription>{t('rentalCenter.externalRentDesc', { defaultValue: 'Wydaj przedmiot bezpośrednio gościowi zewnętrznemu.' })}</DialogDescription>
+                        <DialogTitle>{t('rentalCenter.externalRentTitle')}</DialogTitle>
+                        <DialogDescription>{t('rentalCenter.externalRentDesc')}</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="external-item">{t('rentalCenter.itemLabel', { defaultValue: 'Sprzęt' })}</Label>
+                            <Label htmlFor="external-item">{t('rentalCenter.itemLabel')}</Label>
                             <select id="external-item" value={externalItemId} onChange={(event) => setExternalItemId(event.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                                <option value="">{t('rentalCenter.itemPlaceholder', { defaultValue: 'Wybierz sprzęt' })}</option>
+                                <option value="">{t('rentalCenter.itemPlaceholder')}</option>
                                 {ownedAvailableItems.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
                             </select>
-                            {ownedAvailableItems.length === 0 && <p className="text-xs text-slate-400">{t('rentalCenter.noOwnedAvailable', { defaultValue: 'Brak dostępnych przedmiotów, których jesteś właścicielem.' })}</p>}
+                            {ownedAvailableItems.length === 0 && <p className="text-xs text-slate-400">{t('rentalCenter.noOwnedAvailable')}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label>{t('rentalCenter.guestLabel', { defaultValue: 'Gość' })}</Label>
-                            <Input placeholder={t('rentalCenter.guestSearch', { defaultValue: 'Szukaj gościa...' })} value={guestSearch} onChange={(event) => { setGuestSearch(event.target.value); void refreshGuests(event.target.value); }} />
+                            <Label>{t('rentalCenter.guestLabel')}</Label>
+                            <Input placeholder={t('rentalCenter.guestSearch')} value={guestSearch} onChange={(event) => { setGuestSearch(event.target.value); void refreshGuests(event.target.value); }} />
                             <select value={externalGuestId} onChange={(event) => setExternalGuestId(event.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                                <option value="">{t('rentalCenter.guestPlaceholder', { defaultValue: 'Wybierz gościa' })}</option>
+                                <option value="">{t('rentalCenter.guestPlaceholder')}</option>
                                 {filteredGuests.map((guest) => <option key={guest.id} value={String(guest.id)}>{getEntryName(guest)}</option>)}
                             </select>
                         </div>
                         <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-                            <div className="mb-3 text-xs font-semibold text-slate-600 dark:text-slate-300">{t('rentalCenter.addGuestInline', { defaultValue: 'Dodaj nowego gościa' })}</div>
+                            <div className="mb-3 text-xs font-semibold text-slate-600 dark:text-slate-300">{t('rentalCenter.addGuestInline')}</div>
                             <div className="grid gap-2 sm:grid-cols-3">
-                                <Input placeholder={t('userDirectory.firstName', { defaultValue: 'Imię' })} value={newGuestFirstName} onChange={(event) => setNewGuestFirstName(event.target.value)} />
-                                <Input placeholder={t('userDirectory.lastName', { defaultValue: 'Nazwisko' })} value={newGuestLastName} onChange={(event) => setNewGuestLastName(event.target.value)} />
-                                <Input placeholder={t('userDirectory.email', { defaultValue: 'E-mail' })} value={newGuestEmail} onChange={(event) => setNewGuestEmail(event.target.value)} />
+                                <Input placeholder={t('guests.firstName')} value={newGuestFirstName} onChange={(event) => setNewGuestFirstName(event.target.value)} />
+                                <Input placeholder={t('guests.lastName')} value={newGuestLastName} onChange={(event) => setNewGuestLastName(event.target.value)} />
+                                <Input placeholder={t('guests.email')} value={newGuestEmail} onChange={(event) => setNewGuestEmail(event.target.value)} />
                             </div>
                             <Button className="mt-3" variant="outline" size="sm" onClick={() => void submitNewGuest()} disabled={isLoading || !newGuestFirstName.trim()}>
-                                {t('rentalCenter.addGuest', { defaultValue: 'Dodaj gościa' })}
+                                {t('rentalCenter.addGuest')}
                             </Button>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="external-date">{t('rentalCenter.selectDueDate', { defaultValue: 'Planowana data zwrotu' })}</Label>
+                            <Label htmlFor="external-date">{t('rentalCenter.selectDueDate')}</Label>
                             <Input id="external-date" type="date" value={externalDueDate} onChange={(event) => setExternalDueDate(event.target.value)} min={new Date().toISOString().split('T')[0]} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="external-note">{t('rentalCenter.noteLabel', { defaultValue: 'Notatka (opcjonalnie)' })}</Label>
+                            <Label htmlFor="external-note">{t('rentalCenter.noteLabel')}</Label>
                             <Textarea id="external-note" value={externalNote} onChange={(event) => setExternalNote(event.target.value)} rows={3} />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsExternalDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel', { defaultValue: 'Anuluj' })}</Button>
+                        <Button variant="outline" onClick={() => setIsExternalDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel')}</Button>
                         <Button onClick={() => void submitExternal()} disabled={isLoading || !externalItemId || !externalDueDate || !externalGuestId}>
-                            {isLoading ? t('rentalCenter.submitting', { defaultValue: 'Wysyłanie...' }) : t('rentalCenter.confirmHandoverBtn', { defaultValue: 'Wypożycz' })}
+                            {isLoading ? t('rentalCenter.submitting') : t('rentalCenter.confirmHandoverBtn')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -452,20 +470,20 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                     </DialogHeader>
                     {(actionType === 'return' || actionType === 'confirm-return') && (
                         <div className="space-y-2">
-                            <Label htmlFor="return-condition">{t('rentalCenter.returnCondition', { defaultValue: 'Stan przy zwrocie' })}</Label>
+                            <Label htmlFor="return-condition">{t('rentalCenter.returnCondition')}</Label>
                             <select id="return-condition" value={actionCondition} onChange={(event) => setActionCondition(event.target.value as ReturnCondition)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
                                 {CONDITION_OPTIONS.map((condition) => <option key={condition} value={condition}>{conditionLabel(condition)}</option>)}
                             </select>
                         </div>
                     )}
                     <div className="space-y-2">
-                        <Label htmlFor="action-note">{t('rentalCenter.noteLabel', { defaultValue: 'Notatka (opcjonalnie)' })}</Label>
+                        <Label htmlFor="action-note">{t('rentalCenter.noteLabel')}</Label>
                         <Textarea id="action-note" value={actionNote} onChange={(event) => setActionNote(event.target.value)} rows={3} />
                     </div>
                     {showActionAttachments && (
                         <div>
                             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                {t('rentalCenter.returnDocumentationHint', { defaultValue: 'Podczas odbioru przedmiotu możesz udokumentować jego aktualny stan zdjęciami lub plikami.' })}
+                                {t('rentalCenter.returnDocumentationHint')}
                             </p>
                             <ItemAttachmentsPanel
                                 attachments={actionAttachments}
@@ -480,9 +498,9 @@ export default function RentalCenter({ user }: RentalCenterProps) {
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsActionDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel', { defaultValue: 'Anuluj' })}</Button>
+                        <Button variant="outline" onClick={() => setIsActionDialogOpen(false)} disabled={isLoading}>{t('rentalCenter.cancel')}</Button>
                         <Button variant={actionType === 'reject' ? 'destructive' : 'default'} onClick={() => void submitAction()} disabled={isLoading}>
-                            {isLoading ? t('rentalCenter.submitting', { defaultValue: 'Wysyłanie...' }) : t('rentalCenter.saveAction', { defaultValue: 'Zapisz' })}
+                            {isLoading ? t('rentalCenter.submitting') : t('rentalCenter.saveAction')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

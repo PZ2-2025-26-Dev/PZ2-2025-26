@@ -1,8 +1,9 @@
 from datetime import datetime
-from typing import Annotated
+from enum import StrEnum
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.auth.schemas import Name as UserName
 from src.auth.schemas import UserID
@@ -16,6 +17,7 @@ from src.items.constants import (
     ITEM_HISTORY_PAGE_LIMIT_MAX,
     ITEM_NAME_LENGTH,
     ItemChangeLogType,
+    ItemPermissionType,
     ItemStatus,
 )
 from src.locations.schemas import LocationID, LocationPath
@@ -25,6 +27,8 @@ type ItemName = Annotated[str, Field(min_length=1, max_length=ITEM_NAME_LENGTH)]
 type ItemDescription = Annotated[str, Field(min_length=1, max_length=ITEM_DESC_LENGTH)]
 type StringBasic = Annotated[str, Field(min_length=1, max_length=BASIC_LENGTH)]
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
+type SortOrder = Literal["asc", "desc"]
+type ItemSortField = Literal["name", "id", "status", "category", "location", "status", "owner"]
 
 
 class ItemCreate(BaseModel):
@@ -59,14 +63,25 @@ class ItemOwner(BaseModel):
 
 
 class ItemSearch(BaseModel):
+    uuid: UUID | None = None
     name: SearchStr | None = None
     description: SearchStr | None = None
+
     category_id: CategoryID | None = None
     location_id: LocationID | None = None
     owner_id: UserID | None = None
+
     status: ItemStatus | None = None
+
+    borrower_id: UserID | None = None
+    search: SearchStr | None = None
+
+    sort: str = "name:asc"
+
     page: Annotated[int, Field(ge=1)] = 1
     limit: Annotated[int, Field(ge=1, le=100)] = 20
+
+    custom_params: str | None = None
 
 
 class ItemSearchResponse(BaseModel):
@@ -78,6 +93,8 @@ class ItemSearchResponse(BaseModel):
     location: ItemLocation
     owner: ItemOwner
     description: ItemDescription | None
+    borrower: str | None = None
+    dueDate: str | None = None
 
 
 class ItemGetResponse(BaseModel):
@@ -106,6 +123,7 @@ class ItemsPaged(BaseModel):
 class ItemUpdate(BaseModel):
     name: ItemName | None = None
     description: ItemDescription | None = None
+    status: ItemStatus | None = None
     category_id: CategoryID | None = None
     location_id: LocationID | None = None
     owner_id: UserID | None = None
@@ -122,6 +140,68 @@ class ItemUpdateResponse(BaseModel):
     status: ItemStatus
     parameters: dict | None = None
     updated_at: datetime
+
+
+class ItemLabelField(StrEnum):
+    NAME = "name"
+    DESCRIPTION = "description"
+    STATUS = "status"
+    CATEGORY = "category"
+    LOCATION = "location"
+    OWNER = "owner"
+    OLD_ID = "oldID"
+
+
+class ItemLabelRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "fields": [],
+                    "width_mm": 76.2,
+                    "height_mm": 30.48,
+                },
+                {
+                    "fields": ["name", "category", "location", "parameters.serial_number"],
+                    "width_mm": 50,
+                    "height_mm": 25,
+                },
+            ]
+        }
+    )
+
+    fields: list[str] = Field(
+        default_factory=list,
+        examples=[["name", "category", "location", "parameters.serial_number"]],
+    )
+    width_mm: Annotated[float, Field(ge=20, le=200)] = 76.2
+    height_mm: Annotated[float, Field(ge=10, le=150)] = 30.48
+
+
+class ItemBatchLabelRequest(ItemLabelRequest):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "item_ids": [
+                        "00000000-0000-0000-0000-000000040001",
+                        "00000000-0000-0000-0000-000000040002",
+                    ],
+                    "fields": ["name", "category", "location", "parameters.serial_number"],
+                    "width_mm": 76.2,
+                    "height_mm": 30.48,
+                }
+            ]
+        }
+    )
+
+    item_ids: Annotated[list[ItemID], Field(min_length=1, max_length=100)]
+
+    @model_validator(mode="after")
+    def validate_unique_item_ids(self) -> ItemBatchLabelRequest:
+        if len(self.item_ids) != len(set(self.item_ids)):
+            raise ValueError("Item IDs must be unique")
+        return self
 
 
 class ItemDeleteResponse(BaseModel):
@@ -170,3 +250,24 @@ class ItemAttachmentResponse(BaseModel):
 
 class ItemAttachmentsListResponse(BaseModel):
     attachments: list[ItemAttachmentResponse]
+
+
+class ItemACLUser(BaseModel):
+    id: UserID
+    name: UserName
+
+
+class ItemACLCreate(BaseModel):
+    user_id: UserID
+    permission: ItemPermissionType
+
+
+class ItemACLResponse(BaseModel):
+    id: int
+    user_id: UserID
+    user: ItemACLUser
+    permission: ItemPermissionType
+
+
+class ItemACLListResponse(BaseModel):
+    entries: list[ItemACLResponse]

@@ -97,8 +97,12 @@ class UserService:
         page: int,
         limit: int,
         search: str | None = None,
+        role: UserRole | None = None,
     ) -> tuple[list[UserBasicBrowse | GuestBrowse], int]:
         filters = [User.status == UserStatus.ACTIVE, User.id != NOBODY_USER_ID]
+
+        if role is not None:
+            filters.append(User.role == role)
 
         if search is not None:
             search_pattern = f"%{search.lower()}%"
@@ -138,6 +142,7 @@ class UserService:
             elif user.role in {UserRole.ADMIN, UserRole.USER, UserRole.OBSERVER}:
                 result.append(
                     UserBasicBrowse(
+                        id=user.id,
                         first_name=user.first_name,
                         last_name=user.last_name,
                         role=user.role.value,

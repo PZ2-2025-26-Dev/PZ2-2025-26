@@ -294,7 +294,9 @@ def migrate_items(connection: Connection) -> int:
                 category_id,
                 owner_id,
                 status,
-                description
+                description,
+                oldID,
+                parameters
             )
             SELECT
                 d.id,
@@ -342,7 +344,9 @@ def migrate_items(connection: Connection) -> int:
                         ''
                     ),
                     {ITEM_DESC_LENGTH}
-                )
+                ),
+                CAST(d.id AS CHAR),
+                NULL
             {joins}
             INNER JOIN {ITEM_UUID_STAGING_TABLE} AS uuid_map ON uuid_map.device_id = d.id
             {where_clause}
@@ -353,7 +357,8 @@ def migrate_items(connection: Connection) -> int:
                 category_id = VALUES(category_id),
                 owner_id = VALUES(owner_id),
                 status = VALUES(status),
-                description = VALUES(description)
+                description = VALUES(description),
+                oldID = VALUES(oldID)
             """
         ),
         {

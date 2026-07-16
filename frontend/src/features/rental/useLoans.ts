@@ -114,7 +114,7 @@ export const useLoans = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await axiosClient.post(ENDPOINTS.LOANS.BASE, data);
+            const response = await axiosClient.post(ENDPOINTS.LOANS.EXTERNAL, data);
             return { success: true, loan: response.data as Loan };
         } catch (err) {
             const errorMessage = parseApiError(err);

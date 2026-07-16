@@ -1,11 +1,18 @@
+import re
+from io import BytesIO
+from zipfile import ZipFile
+
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.items.constants import ItemChangeLogType, ItemPermissionType, ItemStatus
+from src.auth.constants import UserRole, UserStatus
+from src.items.constants import BASIC_LENGTH, ItemChangeLogType, ItemPermissionType, ItemStatus
 from src.items.models import Item, ItemACL, ItemHistory
 from src.seed import SEED_IDS, SEED_LAPTOP_OLD_ID, SEED_LAPTOP_PARAMETERS
+from src.users.models import User
 from tests.helpers import (
     admin_headers,
     assert_item_created_with_history,
@@ -15,6 +22,19 @@ from tests.helpers import (
 )
 
 pytestmark = pytest.mark.integration
+
+
+def _create_delegate_user(db: Session) -> User:
+    user = User(
+        email="delegate.acl@test.example",
+        first_name="Delegat",
+        last_name="ACL",
+        role=UserRole.USER,
+        status=UserStatus.ACTIVE,
+    )
+    db.add(user)
+    db.flush()
+    return user
 
 
 def test_create_item_endpoint_persists_item_and_history(api_client: TestClient, seeded_db: Session):
@@ -42,10 +62,24 @@ def test_update_item_endpoint_updates_live_database(api_client: TestClient, seed
     assert response.status_code == 200
     body = response.json()
     item = seeded_db.get(Item, SEED_IDS.laptop)
-    assert body["description"] == item.description
+    assert body["name"] == item.name
     assert body["owner_id"] == item.owner_id
     assert body["category_id"] == item.category_id
     assert body["location_id"] == item.location_id
+
+
+def test_update_item_endpoint_updates_status(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"status": ItemStatus.BROKEN.value},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert body["status"] == ItemStatus.BROKEN.value
+    assert item.status == ItemStatus.BROKEN
 
 
 def test_item_history_endpoint_reads_database_rows(api_client: TestClient, seeded_db: Session):
@@ -87,6 +121,682 @@ def test_get_item_endpoint_returns_item_details(
     assert body["location"]["path"]
 
 
+def test_scan_item_endpoint_returns_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Czytnik QR"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.get(f"/items/scan/{created['id']}", headers=auth_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == created["id"]
+    assert body["name"] == created["name"]
+
+
+def test_scan_item_endpoint_returns_seed_item_by_uuid(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/scan/{SEED_IDS.laptop_uuid}", headers=auth_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == str(SEED_IDS.laptop_uuid)
+    assert body["name"] == "Laptop developerski"
+
+
+def test_scan_item_endpoint_returns_seed_item_by_legacy_old_id(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/scan/{SEED_LAPTOP_OLD_ID}", headers=auth_headers())
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == str(SEED_IDS.laptop_uuid)
+    assert body["oldID"] == SEED_LAPTOP_OLD_ID
+
+
+def test_scan_item_endpoint_returns_400_for_invalid_code(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get("/items/scan/%20", headers=auth_headers())
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Invalid QR code"}
+
+
+def test_scan_item_endpoint_returns_400_for_non_canonical_uuid(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(
+        "/items/scan/00000000000000000000000000040001",
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Invalid QR code"}
+
+
+def test_scan_item_endpoint_returns_404_for_missing_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(
+        "/items/scan/018f6f23-5b56-7b88-9ac1-5a02c63c5c11",
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_scan_item_endpoint_returns_404_for_missing_legacy_old_id(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get("/items/scan/LEG-MISSING-001", headers=auth_headers())
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_scan_item_endpoint_returns_400_for_code_exceeding_length_limit(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(
+        f"/items/scan/{'A' * (BASIC_LENGTH + 1)}",
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Invalid QR code"}
+
+
+def test_download_item_qr_png_endpoint_returns_png(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Terminal mobilny"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.get(f"/items/{created['id']}/qr.png", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+
+
+def test_download_item_qr_pdf_endpoint_returns_pdf(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/qr.pdf",
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+@pytest.mark.parametrize(
+    ("method", "path_suffix"),
+    [
+        ("GET", "qr.png"),
+        ("GET", "qr.pdf"),
+        ("POST", "label.pdf"),
+        ("POST", "label.png"),
+    ],
+)
+def test_item_asset_endpoints_allow_admin(
+    api_client: TestClient,
+    seeded_db: Session,
+    method: str,
+    path_suffix: str,
+):
+    response = api_client.request(
+        method,
+        f"/items/{SEED_IDS.laptop_uuid}/{path_suffix}",
+        headers=admin_headers(),
+        json={"fields": []},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("method", "path_suffix"),
+    [
+        ("GET", "qr.png"),
+        ("GET", "qr.pdf"),
+        ("POST", "label.pdf"),
+        ("POST", "label.png"),
+    ],
+)
+def test_item_asset_endpoints_reject_non_owner(
+    api_client: TestClient,
+    seeded_db: Session,
+    method: str,
+    path_suffix: str,
+):
+    response = api_client.request(
+        method,
+        f"/items/{SEED_IDS.projector_uuid}/{path_suffix}",
+        headers=auth_headers(),
+        json={"fields": []},
+    )
+
+    assert response.status_code == 403
+
+
+def test_item_asset_endpoint_requires_authentication(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.get(f"/items/{SEED_IDS.laptop_uuid}/qr.png")
+
+    assert response.status_code == 401
+
+
+def test_download_item_label_pdf_endpoint_returns_pdf(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Projektor mobilny"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.pdf",
+        json={"fields": ["name", "category", "location"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_download_item_label_png_endpoint_returns_png(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Adapter HDMI"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["status", "description"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+
+
+def test_download_item_label_endpoint_accepts_empty_fields(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Statyw"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": []},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_pdf_endpoint_accepts_missing_body(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Etykieta bez konfiguracji"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(f"/items/{created['id']}/label.pdf", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_download_item_label_png_endpoint_accepts_missing_body(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="PNG bez konfiguracji"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(f"/items/{created['id']}/label.png", headers=auth_headers())
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+
+
+def test_download_item_label_endpoint_supports_parameters_fields(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Router", parameters={"serial_number": "SN-123"}),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.serial_number"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_endpoint_supports_nested_parameters_fields(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(
+            name="Serwer",
+            parameters={
+                "hardware": {"cpu": "AMD EPYC", "ram": {"size_gb": 128}},
+                "interfaces": [{"mac": "00:11:22:33:44:55"}],
+            },
+        ),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={
+            "fields": [
+                "parameters.hardware.cpu",
+                "parameters.hardware.ram.size_gb",
+                "parameters.interfaces.0.mac",
+            ]
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_download_item_label_endpoint_returns_400_for_missing_nested_parameter(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Serwer", parameters={"hardware": {"cpu": "AMD EPYC"}}),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.hardware.gpu"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "code": 400,
+        "detail": "Unsupported label parameter: hardware.gpu",
+    }
+
+
+def test_download_item_label_endpoint_returns_400_for_missing_parameter_key(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Router", parameters={"serial_number": "SN-123"}),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.asset_tag"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Unsupported label parameter: asset_tag"}
+
+
+def test_download_item_label_endpoint_returns_400_for_parameter_field_without_parameters(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Router bez parametrów"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["parameters.serial_number"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Unsupported label parameter: serial_number"}
+
+
+def test_download_item_label_pdf_endpoint_uses_requested_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Etykieta PDF"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.pdf",
+        json={"fields": ["name"], "width_mm": 50, "height_mm": 25},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    pdf_text = response.content.decode("latin-1")
+    media_box = re.search(r"/MediaBox \[ 0 0 ([0-9.]+) ([0-9.]+) \]", pdf_text)
+    assert media_box is not None
+    assert round(float(media_box.group(1)), 1) == 141.7
+    assert round(float(media_box.group(2)), 1) == 70.9
+
+
+def test_download_item_label_png_endpoint_uses_requested_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Etykieta PNG"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["name"], "width_mm": 50, "height_mm": 25},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    image = Image.open(BytesIO(response.content))
+    assert image.size == (591, 295)
+
+
+def test_download_item_label_png_endpoint_handles_minimum_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Minimalna etykieta"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": [], "width_mm": 20, "height_mm": 10},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    image = Image.open(BytesIO(response.content))
+    assert image.size == (236, 118)
+
+
+def test_download_item_label_png_endpoint_handles_maximum_size(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Maksymalna etykieta"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["name", "category", "location", "owner"], "width_mm": 200, "height_mm": 150},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    image = Image.open(BytesIO(response.content))
+    assert image.size == (2362, 1772)
+
+
+def test_download_item_labels_pdf_endpoint_returns_one_page_per_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.adapter_uuid)],
+            "fields": ["name", "category", "location"],
+            "width_mm": 50,
+            "height_mm": 25,
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"] == 'attachment; filename="item-labels.pdf"'
+    assert response.content.startswith(b"%PDF")
+    assert len(re.findall(rb"/Type /Page\b", response.content)) == 2
+
+
+def test_download_item_labels_zip_endpoint_returns_png_for_each_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    item_ids = [SEED_IDS.laptop_uuid, SEED_IDS.adapter_uuid]
+
+    response = api_client.post(
+        "/items/labels/batch.zip",
+        json={
+            "item_ids": [str(item_id) for item_id in item_ids],
+            "fields": ["name"],
+            "width_mm": 50,
+            "height_mm": 25,
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["content-disposition"] == 'attachment; filename="item-labels.zip"'
+
+    with ZipFile(BytesIO(response.content)) as archive:
+        assert archive.namelist() == [f"item-{item_id}-label.png" for item_id in item_ids]
+        for filename in archive.namelist():
+            image = Image.open(BytesIO(archive.read(filename)))
+            assert image.format == "PNG"
+            assert image.size == (591, 295)
+
+
+def test_download_item_labels_endpoints_allow_admin_for_items_with_different_owners(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.projector_uuid)],
+            "fields": [],
+        },
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+
+
+def test_download_item_labels_endpoint_rejects_batch_with_item_owned_by_another_user(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.projector_uuid)],
+            "fields": [],
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 403
+
+
+def test_download_item_labels_endpoint_returns_404_when_any_item_is_missing(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.zip",
+        json={
+            "item_ids": [
+                str(SEED_IDS.laptop_uuid),
+                "00000000-0000-0000-0000-000099999999",
+            ],
+            "fields": [],
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_download_item_labels_endpoint_returns_400_when_field_is_not_available_for_every_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.zip",
+        json={
+            "item_ids": [str(SEED_IDS.laptop_uuid), str(SEED_IDS.adapter_uuid)],
+            "fields": ["parameters.cpu"],
+        },
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "item_ids",
+    [
+        [],
+        [str(SEED_IDS.laptop_uuid)] * 2,
+        [str(SEED_IDS.laptop_uuid)] * 101,
+    ],
+)
+def test_download_item_labels_endpoint_validates_item_ids(
+    api_client: TestClient,
+    seeded_db: Session,
+    item_ids: list[str],
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={"item_ids": item_ids, "fields": []},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 422
+
+
+def test_download_item_labels_endpoint_requires_authentication(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/labels/batch.pdf",
+        json={"item_ids": [str(SEED_IDS.laptop_uuid)], "fields": []},
+    )
+
+    assert response.status_code == 401
+
+
+def test_download_item_label_endpoint_returns_error_response_for_missing_item(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    response = api_client.post(
+        "/items/00000000-0000-0000-0000-000099999999/label.pdf",
+        json={"fields": ["name"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"code": 404, "detail": "Item not found"}
+
+
+def test_download_item_label_endpoint_returns_error_response_for_unknown_field(
+    api_client: TestClient,
+    seeded_db: Session,
+):
+    created = api_client.post(
+        "/items",
+        json=make_item_payload(name="Nieznane pole"),
+        headers=auth_headers(),
+    ).json()
+
+    response = api_client.post(
+        f"/items/{created['id']}/label.png",
+        json={"fields": ["unknown"]},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"code": 400, "detail": "Unsupported label field: unknown"}
+
+
 def test_get_item_endpoint_returns_404_for_missing_item(
     api_client: TestClient,
     seeded_db: Session,
@@ -123,14 +833,22 @@ def test_read_items_filters_by_owner(
         headers=auth_headers(SEED_IDS.observer_user),
     )
 
+    print("\nSTATUS:", response.status_code)
+    print("\nRAW BODY:", response.text)
+
     assert response.status_code == 200
 
     body = response.json()
+
+    print("\nPARSED BODY:", body)
+    print("\nOWNERS IN RESPONSE:", [item.get("owner", {}).get("id") for item in body.get("items", [])])
 
     assert "items" in body
     assert len(body["items"]) > 0
 
     item = body["items"][0]
+
+    print("\nFIRST ITEM OWNER:", item.get("owner"))
 
     assert item["owner"]["id"] == SEED_IDS.regular_user
 
@@ -281,7 +999,7 @@ def test_item_history_endpoint_allows_admin(api_client: TestClient, seeded_db: S
     assert response.status_code == 200
 
 
-def test_item_history_endpoint_rejects_non_owner(api_client: TestClient, seeded_db: Session):
+def test_item_history_endpoint_rejects_non_owner_reader(api_client: TestClient, seeded_db: Session):
     response = api_client.get(
         f"/items/{SEED_IDS.projector_uuid}/history",
         headers=auth_headers(SEED_IDS.regular_user),
@@ -290,13 +1008,14 @@ def test_item_history_endpoint_rejects_non_owner(api_client: TestClient, seeded_
     assert response.status_code == 403
 
 
-def test_item_history_endpoint_rejects_observer(api_client: TestClient, seeded_db: Session):
+def test_item_history_endpoint_allows_observer(api_client: TestClient, seeded_db: Session):
     response = api_client.get(
         f"/items/{SEED_IDS.laptop_uuid}/history",
         headers=auth_headers(SEED_IDS.observer_user),
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert len(response.json()["entries"]) >= 1
 
 
 def test_item_history_endpoint_supports_pagination_and_type_filter(api_client: TestClient, seeded_db: Session):
@@ -495,16 +1214,6 @@ def test_delete_item_blocked_when_loaned(api_client: TestClient, seeded_db: Sess
     assert seeded_db.get(Item, SEED_IDS.laptop) is not None
 
 
-def test_owner_cannot_update_category(api_client: TestClient, seeded_db: Session):
-    response = api_client.patch(
-        f"/items/{SEED_IDS.laptop_uuid}",
-        json={"category_id": SEED_IDS.accessories},
-        headers=auth_headers(SEED_IDS.regular_user),
-    )
-
-    assert response.status_code == 403
-
-
 def test_owner_can_update_name_and_location(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
@@ -533,6 +1242,44 @@ def test_admin_can_set_nobody_owner(api_client: TestClient, seeded_db: Session):
 def test_user_cannot_delete_item_owned_by_someone_else(api_client: TestClient, seeded_db: Session):
     response = api_client.delete(
         f"/items/{SEED_IDS.projector_uuid}",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
+
+
+def test_owner_can_update_name_location_description_and_parameters(api_client: TestClient, seeded_db: Session):
+    new_parameters = {"cpu": "Intel i9", "ram_gb": 32}
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={
+            "name": "Laptop zaktualizowany",
+            "location_id": SEED_IDS.room,
+            "description": "Nowy opis właściciela",
+            "parameters": new_parameters,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Laptop zaktualizowany"
+    assert body["location_id"] == SEED_IDS.room
+    assert body["description"] == "Nowy opis właściciela"
+    assert body["parameters"] == new_parameters
+
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert item.name == "Laptop zaktualizowany"
+    assert item.location_id == SEED_IDS.room
+    assert item.description == "Nowy opis właściciela"
+    assert item.parameters == new_parameters
+
+
+def test_owner_cannot_update_category(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"category_id": SEED_IDS.accessories},
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
@@ -733,3 +1480,242 @@ def test_delegated_user_cannot_update_critical_fields(api_client: TestClient, se
     )
 
     assert response.status_code == 403
+
+
+def test_owner_can_update_item_name(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"name": "Laptop po aktualizacji nazwy"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Laptop po aktualizacji nazwy"
+    assert seeded_db.get(Item, SEED_IDS.laptop).name == "Laptop po aktualizacji nazwy"
+
+
+def test_owner_can_list_item_acl(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
+    seeded_db.add(
+        ItemACL(
+            item_id=SEED_IDS.laptop,
+            user_id=delegate.id,
+            permission=ItemPermissionType.EDIT_DESCRIPTION,
+        )
+    )
+    seeded_db.flush()
+
+    response = api_client.get(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["entries"]) == 1
+    assert body["entries"][0]["permission"] == ItemPermissionType.EDIT_DESCRIPTION.value
+
+
+def test_owner_can_grant_item_acl(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
+
+    response = api_client.post(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        json={
+            "user_id": delegate.id,
+            "permission": ItemPermissionType.EDIT_LOCATION.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["user_id"] == delegate.id
+    assert body["permission"] == ItemPermissionType.EDIT_LOCATION.value
+
+
+def test_owner_can_revoke_item_acl(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
+    acl = ItemACL(
+        item_id=SEED_IDS.laptop,
+        user_id=delegate.id,
+        permission=ItemPermissionType.EDIT_PARAMETERS,
+    )
+    seeded_db.add(acl)
+    seeded_db.flush()
+
+    response = api_client.delete(
+        f"/items/{SEED_IDS.laptop_uuid}/acl/{acl.id}",
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 204
+    assert seeded_db.execute(select(ItemACL).where(ItemACL.id == acl.id)).scalar_one_or_none() is None
+
+
+def test_cannot_grant_item_acl_to_observer(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        json={
+            "user_id": SEED_IDS.observer_user,
+            "permission": ItemPermissionType.EDIT_LOCATION.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 400
+
+
+def test_non_owner_cannot_grant_item_acl(api_client: TestClient, seeded_db: Session):
+    response = api_client.post(
+        f"/items/{SEED_IDS.projector_uuid}/acl",
+        json={
+            "user_id": SEED_IDS.regular_user,
+            "permission": ItemPermissionType.EDIT_DESCRIPTION.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
+
+
+def test_delegated_user_sees_only_own_acl_entries(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
+    seeded_db.add_all(
+        [
+            ItemACL(
+                item_id=SEED_IDS.projector,
+                user_id=delegate.id,
+                permission=ItemPermissionType.EDIT_DESCRIPTION,
+            ),
+            ItemACL(
+                item_id=SEED_IDS.projector,
+                user_id=SEED_IDS.admin_user,
+                permission=ItemPermissionType.EDIT_LOCATION,
+            ),
+        ]
+    )
+    seeded_db.flush()
+
+    response = api_client.get(
+        f"/items/{SEED_IDS.projector_uuid}/acl",
+        headers=auth_headers(delegate.id),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["entries"]) == 1
+    assert body["entries"][0]["user_id"] == delegate.id
+    assert body["entries"][0]["permission"] == ItemPermissionType.EDIT_DESCRIPTION.value
+
+
+def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db: Session):
+    delegate = _create_delegate_user(seeded_db)
+    seeded_db.add(
+        ItemACL(
+            item_id=SEED_IDS.laptop,
+            user_id=delegate.id,
+            permission=ItemPermissionType.AUTO_APPROVED_LOAN,
+        )
+    )
+    seeded_db.flush()
+
+    response = api_client.post(
+        f"/items/{SEED_IDS.laptop_uuid}/acl",
+        json={
+            "user_id": delegate.id,
+            "permission": ItemPermissionType.AUTO_APPROVED_LOAN.value,
+        },
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 400
+
+
+def test_owner_can_change_status_from_broken_to_available(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.adapter_uuid}",
+        json={"status": "available"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "available"
+
+    item = seeded_db.get(Item, SEED_IDS.adapter)
+    assert item.status == ItemStatus.AVAILABLE
+
+    history = (
+        seeded_db.query(ItemHistory)
+        .filter_by(item_id=SEED_IDS.adapter, change_type=ItemChangeLogType.STATUS_CHANGED)
+        .one()
+    )
+    assert history.description == "Status changed from broken to available"
+
+
+def test_admin_can_change_status_of_missing_item(api_client: TestClient, seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.adapter)
+    item.status = ItemStatus.MISSING
+    seeded_db.flush()
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.adapter_uuid}",
+        json={"status": "available"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert seeded_db.get(Item, SEED_IDS.adapter).status == ItemStatus.AVAILABLE
+
+
+def test_admin_can_mark_available_item_as_broken(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"status": "broken"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.BROKEN
+
+
+def test_non_owner_cannot_change_status(api_client: TestClient, seeded_db: Session):
+    # projector is owned by the admin; the regular user has no ACL on it
+    item = seeded_db.get(Item, SEED_IDS.projector)
+    item.status = ItemStatus.BROKEN
+    seeded_db.flush()
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.projector_uuid}",
+        json={"status": "available"},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 403
+    assert seeded_db.get(Item, SEED_IDS.projector).status == ItemStatus.BROKEN
+
+
+def test_loaned_item_status_cannot_be_changed_manually(api_client: TestClient, seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    item.status = ItemStatus.LOANED
+    seeded_db.flush()
+
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"status": "available"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 409
+    assert seeded_db.get(Item, SEED_IDS.laptop).status == ItemStatus.LOANED
+
+
+def test_status_cannot_be_changed_manually_into_loan_cycle(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.adapter_uuid}",
+        json={"status": "loaned"},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 409
+    assert seeded_db.get(Item, SEED_IDS.adapter).status == ItemStatus.BROKEN

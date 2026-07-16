@@ -111,9 +111,9 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onBack }
                             </svg>
                         </div>
                     </div>
-                    <CardTitle className="text-2xl">Aparatura AGH</CardTitle>
+                    <CardTitle className="text-2xl">{t('auth.productTitle')}</CardTitle>
                     <CardDescription>
-                        Zintegrowany system zarządzania aparaturą pomiarową
+                        {t('auth.productDescription')}
                     </CardDescription>
                 </CardHeader>
 
@@ -179,7 +179,7 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onBack }
                             )}
                         </div>
 
-                        <Button type="submit" disabled={loading || !email || !password} className="flex w-full items-center justify-center rounded-xl bg-emerald-700 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:bg-emerald-600 dark:hover:bg-emerald-500">
+                        <Button type="submit" disabled={loading || !email || !password} className="flex w-full items-center justify-center rounded-xl bg-accent-700 px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-accent-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:bg-accent-600 dark:hover:bg-accent-500">
                             {loading ? t('auth.loggingIn') : t('auth.loginButton')}
                         </Button>
 

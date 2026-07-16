@@ -9,6 +9,7 @@ from src.auth.constants import UserRole
 from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.constants import (
+    ITEM_MANUAL_STATUSES,
     ITEM_UPDATE_CRITICAL_FIELDS,
     ITEM_UPDATE_FIELD_PERMISSIONS,
     ITEM_UPDATE_OWNER_ALLOWED_FIELDS,
@@ -75,12 +76,14 @@ ItemByUuid = Annotated[Item, Depends(get_item_by_uuid)]
 
 
 def require_item_owner_or_admin(item: ItemByUuid, user: CurrentUser) -> Item:
-    if user.role != UserRole.ADMIN and item.owner_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
-        )
-    return item
+    if user.role in (UserRole.ADMIN, UserRole.OBSERVER):
+        return item
+    if item.owner_id == user.id:
+        return item
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Historia przedmiotu jest dostępna wyłącznie dla właściciela i administratora.",
+    )
 
 
 def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
@@ -90,6 +93,8 @@ def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
         fields.add("name")
     if data.description is not None and data.description != item.description:
         fields.add("description")
+    if data.status is not None and data.status != item.status:
+        fields.add("status")
     if data.category_id is not None and data.category_id != item.category_id:
         fields.add("category_id")
     if data.location_id is not None and data.location_id != item.location_id:
@@ -105,6 +110,18 @@ def _meaningful_update_fields(data: ItemUpdate, item: Item) -> set[str]:
 def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session) -> None:
     if data.owner_id is not None and data.owner_id != item.owner_id:
         assert_can_change_owner(user)
+
+    # Statusy cyklu wypożyczeń (pending/reserved/loaned/overdue) zmienia
+    # wyłącznie moduł loans — ręczna zmiana obejmuje tylko dostępny/uszkodzony/zagubiony.
+    if (
+        data.status is not None
+        and data.status != item.status
+        and (item.status not in ITEM_MANUAL_STATUSES or data.status not in ITEM_MANUAL_STATUSES)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Status przedmiotu w cyklu wypożyczenia można zmieniać wyłącznie przez moduł wypożyczeń.",
+        )
 
     if user.role == UserRole.ADMIN:
         return
@@ -162,6 +179,29 @@ def _assert_delegated_user_can_update_fields(
             )
 
 
+def assert_can_manage_item_acl(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tylko właściciel przedmiotu lub administrator może zarządzać uprawnieniami.",
+    )
+
+
+def assert_can_manage_item_attachments(user: User, item: Item, db: Session) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    if has_item_permission(db, item.id, user.id, ItemPermissionType.EDIT_ATTACHMENTS):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Brak uprawnień do zarządzania załącznikami tego przedmiotu.",
+    )
+
+
 def assert_can_change_owner(user: User) -> None:
     if user.role != UserRole.ADMIN:
         raise HTTPException(
@@ -196,6 +236,26 @@ def assert_can_delete_item(user: User, item: Item) -> None:
     )
 
 
+def require_item_exporter(user: CurrentUser) -> User:
+    if user.role not in {UserRole.ADMIN, UserRole.USER}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnień do eksportu danych.",
+        )
+    return user
+
+
+def assert_can_generate_item_assets(user: User, item: Item) -> None:
+    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Tylko administrator lub właściciel przedmiotu może generować jego kod QR i etykiety.",
+    )
+
+
 RequireItemReader = Annotated[User, Depends(require_item_reader)]
 RequireItemWriter = Annotated[User, Depends(require_item_writer)]
+RequireItemExporter = Annotated[User, Depends(require_item_exporter)]
 RequireItemOwnerOrAdmin = Annotated[Item, Depends(require_item_owner_or_admin)]
