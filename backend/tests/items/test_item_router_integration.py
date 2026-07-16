@@ -72,7 +72,7 @@ def test_update_item_endpoint_updates_status(api_client: TestClient, seeded_db: 
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"status": ItemStatus.BROKEN.value},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -1248,32 +1248,21 @@ def test_user_cannot_delete_item_owned_by_someone_else(api_client: TestClient, s
     assert response.status_code == 403
 
 
-def test_owner_can_update_name_location_description_and_parameters(api_client: TestClient, seeded_db: Session):
-    new_parameters = {"cpu": "Intel i9", "ram_gb": 32}
-
+def test_owner_cannot_update_description_and_parameters(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={
-            "name": "Laptop zaktualizowany",
-            "location_id": SEED_IDS.room,
             "description": "Nowy opis właściciela",
-            "parameters": new_parameters,
+            "parameters": {"cpu": "Intel i9", "ram_gb": 32},
         },
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["name"] == "Laptop zaktualizowany"
-    assert body["location_id"] == SEED_IDS.room
-    assert body["description"] == "Nowy opis właściciela"
-    assert body["parameters"] == new_parameters
+    assert response.status_code == 403
 
     item = seeded_db.get(Item, SEED_IDS.laptop)
-    assert item.name == "Laptop zaktualizowany"
-    assert item.location_id == SEED_IDS.room
-    assert item.description == "Nowy opis właściciela"
-    assert item.parameters == new_parameters
+    assert item.description == "Przykładowy przedmiot dostępny do wypożyczenia"
+    assert item.parameters == SEED_LAPTOP_PARAMETERS
 
 
 def test_owner_cannot_update_category(api_client: TestClient, seeded_db: Session):
@@ -1632,25 +1621,17 @@ def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db:
     assert response.status_code == 400
 
 
-def test_owner_can_change_status_from_broken_to_available(api_client: TestClient, seeded_db: Session):
+def test_owner_cannot_change_status_from_broken_to_available(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.adapter_uuid}",
         json={"status": "available"},
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "available"
+    assert response.status_code == 403
 
     item = seeded_db.get(Item, SEED_IDS.adapter)
-    assert item.status == ItemStatus.AVAILABLE
-
-    history = (
-        seeded_db.query(ItemHistory)
-        .filter_by(item_id=SEED_IDS.adapter, change_type=ItemChangeLogType.STATUS_CHANGED)
-        .one()
-    )
-    assert history.description == "Status changed from broken to available"
+    assert item.status == ItemStatus.BROKEN
 
 
 def test_admin_can_change_status_of_missing_item(api_client: TestClient, seeded_db: Session):
