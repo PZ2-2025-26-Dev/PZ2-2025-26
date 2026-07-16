@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
-    BarChart3,
     Box,
     Download,
     MapPinned,
@@ -10,7 +9,6 @@ import {
     PackageCheck,
     Plus,
     Search,
-    Settings,
     Sun,
     Users,
     LayoutDashboard,
@@ -25,29 +23,22 @@ import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
 import QrScannerDialog from '@/components/QrScannerDialog';
+import { StatusBadge } from '@/components/StatusBadge';
 import SystemClock from '@/components/SystemClock';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { InventoryItem } from '@/types';
-import {
-    APP_ACCENT_OPTIONS,
-    APP_FONT_OPTIONS,
-    type AppPreferences,
-    type UiAccent,
-    type UiFont,
-    type UiTheme,
-} from '@/theme/appPreferences';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { AppUser, InventoryItem } from '@/types';
 import RoleGuard from '../auth/RoleGuard';
 import { PERMISSIONS, hasPermission } from '../auth/permissions';
 import { useCategories } from './useCategories';
 import { ITEM_STATUSES, useInventory } from '../inventory/useInventory';
-import { useExport } from '@/features/exports/useExport';
 import UserManager from '../users/UserManager';
 import UserDirectory from '../guests/UserDirectory';
 import LocationManager from '../locations/LocationManager';
@@ -55,170 +46,51 @@ import AddAssetModal from './AddAssetModal';
 import CategoryManager from './CategoryManager';
 import ItemDetailsModal from './ItemDetailsModal';
 import RentalCenter from '../rental/RentalCenter';
-import StatisticsView from '../statistics/StatisticsView';
-import InventoryToolbar from '../inventory/InventoryToolbar';
-import BatchLabelExportDialog from '../inventory/BatchLabelExportDialog';
-import { BATCH_LABEL_LIMIT } from '../inventory/batchLabels.config';
-import type {
-    BatchLabelFormat,
-    BatchLabelOptions,
-} from '../inventory/batchLabels.types';
-import { InventoryFiltersState } from '../inventory/InventoryFilters';
-import InventoryTable from '../inventory/InventoryTable';
-import type { SortCriteria, SortField } from '../inventory/inventoryTable.types';
-import { useBatchLabelSelection } from '../inventory/useBatchLabelSelection';
-import { useUsers } from '../users/useUsers';
-import { useLocations } from '../locations/useLocations';
-import type {
-    CategoryOption,
-    DashboardPageProps,
-    MenuSection,
-} from './dashboard.types';
+
+type CategoryOption = {
+    id: number;
+    name: string;
+    parentId: number | null;
+    path: string;
+};
+
+type MenuSection = 'dashboard' | 'inventory' | 'loans' | 'locations' | 'directory' | 'users';
 
 const DASHBOARD_ACTIVE_SECTION_KEY = 'dashboard.activeSection';
 
 function isMenuSection(value: string | null): value is MenuSection {
-    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users' || value === 'statistics';
+    return value === 'dashboard' || value === 'inventory' || value === 'loans' || value === 'locations' || value === 'directory' || value === 'users';
 }
 
-function ProfileSettingsDialog({
-    open,
-    onOpenChange,
-    preferences,
-    onPreferencesChange,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    preferences: AppPreferences;
-    onPreferencesChange: (preferences: AppPreferences) => void;
-}) {
-    const { t } = useTranslation();
+type DashboardPageProps = {
+    user: AppUser;
+    onLogout: () => void;
+    isDarkMode: boolean;
+    setIsDarkMode: (enabled: boolean) => void;
+};
 
-    const updatePreference = <Key extends keyof AppPreferences>(key: Key, value: AppPreferences[Key]) => {
-        onPreferencesChange({ ...preferences, [key]: value });
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
-                    <DialogTitle>{t('settings.title')}</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-5">
-                    <div className="space-y-2">
-                        <Label>{t('settings.theme')}</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {(['light', 'dark'] as UiTheme[]).map((theme) => (
-                                <Button
-                                    key={theme}
-                                    variant={preferences.uiTheme === theme ? 'default' : 'outline'}
-                                    onClick={() => updatePreference('uiTheme', theme)}
-                                >
-                                    {theme === 'light' ? <Sun /> : <Moon />}
-                                    {t(`settings.themes.${theme}`)}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>{t('settings.font')}</Label>
-                        <Select value={preferences.uiFont} onValueChange={(font) => updatePreference('uiFont', font as UiFont)}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {APP_FONT_OPTIONS.map((font) => (
-                                    <SelectItem key={font.value} value={font.value}>
-                                        <span className={font.previewClassName}>{t(font.labelKey)}</span>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>{t('settings.accent')}</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {APP_ACCENT_OPTIONS.map((accent) => (
-                                <Button
-                                    key={accent.value}
-                                    type="button"
-                                    variant={preferences.uiAccent === accent.value ? 'default' : 'outline'}
-                                    className="justify-start"
-                                    onClick={() => updatePreference('uiAccent', accent.value as UiAccent)}
-                                >
-                                    <span
-                                        className="size-4 rounded-full border border-white/50 shadow-sm"
-                                        style={{ backgroundColor: accent.swatch }}
-                                    />
-                                    {t(accent.labelKey)}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode, preferences, onPreferencesChange }: DashboardPageProps) {
+export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMode }: DashboardPageProps) {
     const { t, i18n } = useTranslation();
-    const {
-        listItems,
-        isLoading,
-        getItem,
-        lookupItemByQrCode,
-        downloadBatchLabels,
-        error,
-        clearError,
-    } = useInventory();
+    const { listItems, isLoading, error, clearError } = useInventory();
     const { listCategories } = useCategories();
-    const { exportItemsXlsx, isLoading: isExporting, error: exportError, clearError: clearExportError } = useExport();
 
     const [items, setItems] = useState<InventoryItem[]>([]);
-    const [total, setTotal] = useState(0);
-
-    const [locations, setLocations] = useState<Array<{ id: number; path: string }>>([]);
-    const [users, setUsers] = useState<Array<{ id: number; name: string }>>([]);
-    const { listUsers } = useUsers();
-    const { listLocations } = useLocations();
-
+    const [totalCount, setTotalCount] = useState(0);
     const [categories, setCategories] = useState<CategoryOption[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
-
-    const [filters, setFilters] = useState<InventoryFiltersState>({
-        uuid: '',
-        name: '',
-        description: '',
-        status: '',
-        categoryId: '',
-        locationId: '',
-        ownerId: '',
-        borrowerId: '',
-        search: '',
-        sort: 'name:asc',
-        page: 1,
-        limit: 15,
-        custom_params: undefined
-    });
-
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
     const [activeSection, setActiveSection] = useState<MenuSection>(() => {
         const storedSection = localStorage.getItem(DASHBOARD_ACTIVE_SECTION_KEY);
         return isMenuSection(storedSection) ? storedSection : 'dashboard';
     });
-    
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [pendingUserCount, setPendingUserCount] = useState(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-    
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
@@ -226,31 +98,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
 
     const canViewList = hasPermission(user, PERMISSIONS.ITEM_LIST);
     const canManageSystem = hasPermission(user, PERMISSIONS.SYSTEM_MANAGE);
-    const {
-        selectedItems: selectedLabelItems,
-        selectedItemsList: selectedLabelItemsList,
-        selectedCount: selectedLabelItemCount,
-        selectionError: labelSelectionError,
-        isDialogOpen: isBatchLabelDialogOpen,
-        setIsDialogOpen: setIsBatchLabelDialogOpen,
-        canSelectItem: canSelectItemForLabel,
-        selectablePageItems,
-        allSelectablePageItemsAreSelected,
-        toggleItem: toggleItemForLabel,
-        togglePage: toggleSelectablePageItems,
-        clearSelection: clearLabelSelection,
-        updateSelectedItem: updateSelectedLabelItem,
-    } = useBatchLabelSelection({
-        items,
-        filters,
-        userId: user.id,
-        canManageSystem,
-        limitErrorMessage: t('batchLabels.limitError', { limit: BATCH_LABEL_LIMIT }),
-    });
-
-    const [sortCriteria, setSortCriteria] = useState<SortCriteria[]>([
-        { field: 'name', order: 'asc' }
-    ]);
 
     useEffect(() => {
         localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
@@ -263,12 +110,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     }, [activeSection, canManageSystem]);
 
     const refreshItems = useCallback(async () => {
-        const result = await listItems({ ...filters, limit: filters.limit || 15 });
+        const result = await listItems({ limit: 50 });
         if (result.success) {
             setItems(result.items);
-            setTotal(result.total);
+            setTotalCount(result.total);
         }
-    }, [listItems, filters]);
+    }, [listItems]);
 
     const refreshCategories = useCallback(async () => {
         const result = await listCategories();
@@ -282,111 +129,179 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         }
     }, [listCategories]);
 
-    const refreshUsers = useCallback(async () => {
-        const result = await listUsers({ status: 'active', limit: 100 }, { browse: true });
-        if (result.success) {
-            setUsers(
-                result.users.map((u: { id: number; firstName?: string | null; lastName?: string | null }) => ({
-                    id: u.id,
-                    name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim(),
-                }))
-            );
-        }
-    }, [listUsers]);
-
-    const refreshLocations = useCallback(async () => {
-        const result = await listLocations();
-        if (result.success) {
-            setLocations(result.locations);
-        }
-    }, [listLocations]);
-
     useEffect(() => {
         if (!canViewList) return;
         refreshItems();
         refreshCategories();
-        refreshUsers();
-        refreshLocations();
-    }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations]);
+    }, [canViewList, refreshItems, refreshCategories]);
 
-    const handleSort = (field: SortField, event: React.MouseEvent) => {
-        setSortCriteria(prev => {
-            const isShiftPressed = event.shiftKey;
-            const existingIndex = prev.findIndex(c => c.field === field);
+    const categoryTree = useMemo(() => {
+        const emptyResult = {
+            rows: [] as Array<{ id: number; name: string; depth: number; count: number }>,
+            totalCount: 0,
+            descendantCategoryNamesById: new Map<number, Set<string>>(),
+            childrenByParent: new Map<number | null, CategoryOption[]>(),
+        };
 
-            if (isShiftPressed) {
-                if (existingIndex > -1) {
-                    const currentOrder = prev[existingIndex].order;
-                    const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-                    const updated = [...prev];
-                    updated[existingIndex] = { field, order: nextOrder };
-                    return updated;
-                } else {
-                    return [...prev, { field, order: 'asc' }];
-                }
-            } else {
-                if (prev.length === 1 && prev[0].field === field) {
-                    return [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
-                }
-                return [{ field, order: 'asc' }];
-            }
+        if (!canViewList) return emptyResult;
+
+        const query = searchQuery.toLowerCase();
+        const baseFilteredItems = items.filter((item) => {
+            const matchesSearch = !query || [
+                item.name,
+                String(item.id),
+                item.inventory_number,
+                item.description,
+                item.category,
+                item.location,
+                item.owner,
+            ].some((value) => value?.toLowerCase().includes(query));
+
+            const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+            return matchesSearch && matchesStatus;
         });
-    };
 
-    useEffect(() => {
-        const sortString = sortCriteria
-            .map(c => `${c.field}:${c.order}`)
-            .join(',');
+        const categoryById = new Map(categories.map((category) => [category.id, category]));
+        const childrenByParent = new Map<number | null, CategoryOption[]>();
 
-        setFilters(prev => ({
-            ...prev,
-            sort: sortString, 
-            page: 1, 
-        }));
-    }, [sortCriteria]);
+        categories.forEach((category) => {
+            const parentKey = category.parentId !== null && categoryById.has(category.parentId)
+                ? category.parentId
+                : null;
+            const siblings = childrenByParent.get(parentKey) ?? [];
+            siblings.push(category);
+            childrenByParent.set(parentKey, siblings);
+        });
+
+        childrenByParent.forEach((siblings) => {
+            siblings.sort((left, right) => left.name.localeCompare(right.name));
+        });
+
+        const categoryIdsByName = new Map<string, number[]>();
+        categories.forEach((category) => {
+            const ids = categoryIdsByName.get(category.name) ?? [];
+            ids.push(category.id);
+            categoryIdsByName.set(category.name, ids);
+        });
+
+        const directCountById = new Map<number, number>();
+        baseFilteredItems.forEach((item) => {
+            const matchingIds = categoryIdsByName.get(item.category) ?? [];
+            matchingIds.forEach((categoryId) => {
+                directCountById.set(categoryId, (directCountById.get(categoryId) ?? 0) + 1);
+            });
+        });
+
+        const subtreeCountById = new Map<number, number>();
+        const descendantCategoryNamesById = new Map<number, Set<string>>();
+
+        const computeSubtree = (category: CategoryOption): number => {
+            const children = childrenByParent.get(category.id) ?? [];
+            const descendantNames = new Set<string>([category.name]);
+            let total = directCountById.get(category.id) ?? 0;
+
+            children.forEach((child) => {
+                total += computeSubtree(child);
+                const childNames = descendantCategoryNamesById.get(child.id) ?? new Set<string>();
+                childNames.forEach((name) => descendantNames.add(name));
+            });
+
+            subtreeCountById.set(category.id, total);
+            descendantCategoryNamesById.set(category.id, descendantNames);
+            return total;
+        };
+
+        const roots = categories
+            .filter((category) => category.parentId === null || !categoryById.has(category.parentId))
+            .sort((left, right) => left.name.localeCompare(right.name));
+
+        roots.forEach((root) => {
+            computeSubtree(root);
+        });
+
+        const rows: Array<{ id: number; name: string; depth: number; count: number }> = [];
+
+        const appendRows = (category: CategoryOption, depth: number) => {
+            const count = subtreeCountById.get(category.id) ?? 0;
+            if (count <= 0) return;
+
+            rows.push({ id: category.id, name: category.name, depth, count });
+            (childrenByParent.get(category.id) ?? []).forEach((child) => appendRows(child, depth + 1));
+        };
+
+        roots.forEach((root) => appendRows(root, 0));
+
+        return {
+            rows,
+            totalCount: baseFilteredItems.length,
+            descendantCategoryNamesById,
+            childrenByParent,
+        };
+    }, [canViewList, categories, items, searchQuery, statusFilter]);
+
+    const selectedTreeCategoryId = useMemo(() => {
+        if (!categoryFilter.startsWith('tree:')) return null;
+        const parsedId = Number(categoryFilter.slice(5));
+        return Number.isFinite(parsedId) ? parsedId : null;
+    }, [categoryFilter]);
+
+    const filteredItems = useMemo(() => {
+        if (!canViewList) return [];
+
+        return items.filter((item) => {
+            const query = searchQuery.toLowerCase();
+            const matchesSearch = !query || [
+                item.name,
+                String(item.id),
+                item.inventory_number,
+                item.description,
+                item.category,
+                item.location,
+                item.owner,
+            ].some((value) => value?.toLowerCase().includes(query));
+
+            const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+
+            let matchesCategory = true;
+            if (categoryFilter !== 'all') {
+                if (selectedTreeCategoryId === null) {
+                    matchesCategory = item.category === categoryFilter;
+                } else {
+                    const allowedCategoryNames = categoryTree.descendantCategoryNamesById.get(selectedTreeCategoryId);
+                    matchesCategory = allowedCategoryNames?.has(item.category) ?? false;
+                }
+            }
+
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+    }, [canViewList, items, searchQuery, statusFilter, categoryFilter, selectedTreeCategoryId, categoryTree.descendantCategoryNamesById]);
 
     const stats = useMemo(() => ({
-        total: total,
+        total: totalCount,
         borrowed: items.filter((item) => item.status === 'loaned').length,
         pending: items.filter((item) => item.status === 'pending_approval').length,
         damaged: items.filter((item) => item.status === 'broken').length,
-    }), [items, total]);
+    }), [items, totalCount]);
 
-    const handleQrScan = async (decodedText: string) => {
+    const handleUpdateItemStatus = (
+        itemId: string | number,
+        newStatus: string,
+        clearBorrower = false,
+        newBorrower: string | null = null,
+        newDueDate: string | null = null,
+    ) => {
+        setItems((current) => current.map((item) => item.id === itemId ? {
+            ...item,
+            status: newStatus,
+            borrower: newBorrower ?? (clearBorrower ? null : item.borrower),
+            dueDate: newDueDate ?? (clearBorrower ? null : item.dueDate),
+        } : item));
+        setIsDetailsModalOpen(false);
+    };
+
+    const handleQrScan = (decodedText: string) => {
+        setSearchQuery(decodedText);
         setIsQrScannerOpen(false);
-        const result = await lookupItemByQrCode(decodedText);
-        if (result.success && result.item) {
-            setSelectedItem(result.item);
-            setIsDetailsModalOpen(true);
-            return;
-        }
-        setFilters(prev => ({ ...prev, search: decodedText, page: 1 }));
-    };
-
-    const openItemDetails = async (item: InventoryItem) => {
-        const result = await getItem(item.id);
-        setSelectedItem(result.success && result.item ? result.item : item);
-        setIsDetailsModalOpen(true);
-    };
-
-    const handleExportXlsx = useCallback(async () => {
-        clearExportError();
-        await exportItemsXlsx({
-            ...filters,
-            search: filters.search || searchQuery,
-        });
-    }, [clearExportError, exportItemsXlsx, filters, searchQuery]);
-
-    const handleBatchLabelExport = async (
-        itemIds: string[],
-        format: BatchLabelFormat,
-        options: BatchLabelOptions,
-    ) => downloadBatchLabels(itemIds, format, options);
-
-    const handleItemUpdated = (updatedItem: InventoryItem) => {
-        setItems((current) => current.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
-        setSelectedItem(updatedItem);
-        updateSelectedLabelItem(updatedItem);
     };
 
     const handleItemLocationChanged = (itemId: string | number, location: { id: number; path: string }) => {
@@ -403,12 +318,14 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         void refreshItems();
     };
 
+    const getStatusLabel = (status: string) => t(`dashboard.itemStatuses.${status}`);
+
+    // Menu items with role-based visibility
     const menuItems: Array<{ id: MenuSection; label: string; icon: React.ReactNode; requiresPermission?: string }> = [
         { id: 'dashboard', label: t('dashboard.mainPanel'), icon: <LayoutDashboard className="size-5" /> },
         { id: 'inventory', label: t('dashboard.tabInventory'), icon: <Box className="size-5" /> },
         { id: 'loans', label: t('dashboard.loans'), icon: <ClipboardList className="size-5" /> },
-        { id: 'locations', label: t('dashboard.locationsAndCategories'), icon: <MapPinned className="size-5" /> },
-        { id: 'statistics', label: t('dashboard.tabStatistics'), icon: <BarChart3 className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_EXPORT },
+        { id: 'locations', label: canManageSystem ? t('dashboard.locationsAndCategories') : t('dashboard.tabLocations'), icon: <MapPinned className="size-5" /> },
         { id: 'directory', label: t('dashboard.tabDirectory'), icon: <UserPlus className="size-5" />, requiresPermission: PERMISSIONS.ITEM_CREATE },
         { id: 'users', label: t('dashboard.tabUsers'), icon: <Users className="size-5" />, requiresPermission: PERMISSIONS.SYSTEM_MANAGE },
     ];
@@ -433,106 +350,203 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     <div className="space-y-5">
                         <div className="flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard.tabInventory')}</h2>
-                           
+                            <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
+                                <Button size="sm" onClick={() => setIsAddModalOpen(true)}><Plus className="size-4" />{t('dashboard.addAsset')}</Button>
+                            </RoleGuard>
                         </div>
 
-                        <div className="space-y-4">
-                            {error && (
-                                <Alert variant="destructive">
-                                    <AlertTriangle />
-                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                                    <AlertDescription className="flex items-center justify-between gap-3">
-                                        <span>{error}</span>
-                                        <Button variant="outline" size="sm" onClick={() => clearError()} aria-label={t('common.close')}>✕</Button>
-                                    </AlertDescription>
-                                </Alert>
-                            )}
+                        <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                            <Card className="h-fit">
+                                <CardContent className="space-y-2 p-4">
+                                    <div className="pb-1 text-sm font-semibold text-slate-900 dark:text-white">{t('dashboard.filterCategory')}</div>
+                                    <button
+                                        onClick={() => setCategoryFilter('all')}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                            categoryFilter === 'all'
+                                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
+                                        }`}
+                                    >
+                                        <span>{t('dashboard.all')}</span>
+                                        <Badge variant="secondary" className="text-[10px]">{categoryTree.totalCount}</Badge>
+                                    </button>
 
-                            {exportError && (
-                                <Alert variant="destructive">
-                                    <AlertTriangle />
-                                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
-                                    <AlertDescription className="flex items-center justify-between gap-3">
-                                        <span>{exportError}</span>
-                                        <Button variant="outline" size="sm" onClick={() => clearExportError()} aria-label={t('common.close')}>✕</Button>
-                                    </AlertDescription>
-                                </Alert>
-                            )}
+                                    {(() => {
+                                        const getCategoryCount = (categoryId: number) => 
+                                            categoryTree.rows.find((c) => c.id === categoryId)?.count ?? 0;
+                                        
+                                        const renderCategoryNode = (categoryId: number | null, depth = 0): React.ReactNode => {
+                                            const children = categoryTree.childrenByParent?.get(categoryId) ?? [];
+                                            
+                                            return children.map((category) => {
+                                                const isExpanded = expandedCategories.has(category.id);
+                                                const hasChildren = (categoryTree.childrenByParent?.get(category.id) ?? []).length > 0;
+                                                const count = getCategoryCount(category.id);
+                                                
+                                                return (
+                                                    <Collapsible
+                                                        key={category.id}
+                                                        open={isExpanded}
+                                                        onOpenChange={() => {
+                                                            setExpandedCategories((current) => {
+                                                                const next = new Set(current);
+                                                                if (next.has(category.id)) {
+                                                                    next.delete(category.id);
+                                                                } else {
+                                                                    next.add(category.id);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        style={{ marginLeft: depth * 12 }}
+                                                    >
+                                                        <button
+                                                            onClick={() => setCategoryFilter(`tree:${category.id}`)}
+                                                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                                                categoryFilter === `tree:${category.id}`
+                                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                                                    : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
+                                                            }`}
+                                                        >
+                                                            <div className="flex flex-1 items-center gap-2">
+                                                                {hasChildren ? (
+                                                                    <CollapsibleTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon-sm"
+                                                                            className="-ml-2"
+                                                                        >
+                                                                            {isExpanded ? (
+                                                                                <ChevronDown className="size-4" />
+                                                                            ) : (
+                                                                                <ChevronRight className="size-4" />
+                                                                            )}
+                                                                        </Button>
+                                                                    </CollapsibleTrigger>
+                                                                ) : (
+                                                                    <span className="block size-7 shrink-0" />
+                                                                )}
+                                                                <span className="truncate pr-2">{category.name}</span>
+                                                            </div>
+                                                            <Badge variant="outline" className="text-[10px]">{count}</Badge>
+                                                        </button>
 
-                            <InventoryToolbar
-                                user={user}
-                                filters={filters}
-                                onChange={setFilters}
-                                categories={categories}
-                                locations={locations}
-                                users={users}
-                                onAdd={() => setIsAddModalOpen(true)}
-                                onExport={handleExportXlsx}
-                                onBatchLabelExport={() => setIsBatchLabelDialogOpen(true)}
-                                onQrScan={() => setIsQrScannerOpen(true)}
-                                selectedCount={selectedLabelItemCount}
-                                isLoading={isLoading || isExporting}
-                            />
+                                                        {hasChildren && (
+                                                            <CollapsibleContent className="space-y-0">
+                                                                {renderCategoryNode(category.id, depth + 1)}
+                                                            </CollapsibleContent>
+                                                        )}
+                                                    </Collapsible>
+                                                );
+                                            });
+                                        };
+                                        
+                                        return renderCategoryNode(null);
+                                    })()}
 
-                            {labelSelectionError && (
-                                <Alert variant="destructive">
-                                    <AlertTriangle className="size-4" />
-                                    <AlertTitle>{t('batchLabels.selectionErrorTitle')}</AlertTitle>
-                                    <AlertDescription>{labelSelectionError}</AlertDescription>
-                                </Alert>
-                            )}
-
-                            <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                                <div className="overflow-x-auto">
-                                    <InventoryTable
-                                        items={items}
-                                        isLoading={isLoading}
-                                        sortCriteria={sortCriteria}
-                                        selectedItems={selectedLabelItems}
-                                        selectableItemCount={selectablePageItems.length}
-                                        allSelectablePageItemsAreSelected={allSelectablePageItemsAreSelected}
-                                        canSelectItem={canSelectItemForLabel}
-                                        onSort={handleSort}
-                                        onOpenItem={(item) => void openItemDetails(item)}
-                                        onToggleItem={toggleItemForLabel}
-                                        onTogglePage={toggleSelectablePageItems}
-                                    />
-                                </div>
+                                    {categoryTree.rows.length === 0 && (
+                                        <div className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-400 dark:border-slate-800">
+                                            {t('dashboard.noResults')}
+                                        </div>
+                                    )}
+                                </CardContent>
                             </Card>
 
-                            {/* Paginacja serwerowa */}
-                            <div className="flex items-center justify-between space-x-2 py-4">
-                                <div className="text-sm text-muted-foreground">
-                                    {t("dashboard.shown")} {items.length} {t("dashboard.of")} {total} {t("dashboard.items")}
-                                </div>
-                                <div className="flex space-x-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setFilters(prev => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }))}
-                                        disabled={filters.page === 1 || isLoading}
-                                    >
-                                        {t("inventoryFilters.common.previous")}
-                                    </Button>
-                                    <div className="flex items-center justify-center text-sm font-medium px-2">
-                                        {t('inventoryFilters.common.page')} {filters.page} {t('dashboard.of')} {Math.ceil(total / (filters.limit || 15))}
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
-                                        disabled={items.length < (filters.limit || 15) || isLoading}
-                                    >
-                                        {t("inventoryFilters.common.next")}
-                                    </Button>
-                                </div>
+                            <div className="space-y-4">
+                                {error && (
+                                    <Alert variant="destructive">
+                                        <AlertTriangle />
+                                        <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                                        <AlertDescription className="flex items-center justify-between gap-3">
+                                            <span>{error}</span>
+                                            <Button variant="outline" size="sm" onClick={() => clearError()}>✕</Button>
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                <Card>
+                                    <CardContent className="space-y-4 p-4">
+                                        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+                                            <div className="relative max-w-md flex-1">
+                                                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                                                <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('dashboard.searchPlaceholder')} className="pl-9" />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => setIsQrScannerOpen(true)} aria-label={t('qrScanner.button')}>
+                                                    <Search />
+                                                    {t('qrScanner.button')}
+                                                </Button>
+                                                <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
+                                                    <Button variant="secondary" size="sm"><Download />{t('dashboard.exportXlsx')}</Button>
+                                                </RoleGuard>
+                                            </div>
+                                        </div>
+                                        <div className="grid gap-3 border-t border-slate-100 pt-4 dark:border-slate-800 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="status-filter">{t('dashboard.filterStatus')}</Label>
+                                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                                    <SelectTrigger id="status-filter"><SelectValue placeholder={t('dashboard.all')} /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">{t('dashboard.all')}</SelectItem>
+                                                        {ITEM_STATUSES.map((status) => (
+                                                            <SelectItem key={status} value={status}>{getStatusLabel(status)}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="overflow-hidden">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-slate-50/80 dark:bg-slate-900/50">
+                                                <TableHead>{t('dashboard.thId')}</TableHead>
+                                                <TableHead>{t('dashboard.thName')}</TableHead>
+                                                <TableHead>{t('dashboard.thCategory')}</TableHead>
+                                                <TableHead>{t('dashboard.thLocation')}</TableHead>
+                                                <TableHead>{t('dashboard.thStatus')}</TableHead>
+                                                <TableHead>{t('dashboard.thOwner')}</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {isLoading && filteredItems.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="py-10 text-center text-slate-400">
+                                                        {t('userManager.loading')}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : filteredItems.length > 0 ? filteredItems.map((item) => (
+                                                <TableRow key={item.id} className="cursor-pointer" onClick={() => { setSelectedItem(item); setIsDetailsModalOpen(true); }}>
+                                                    <TableCell className="font-mono text-xs text-slate-400">{item.inventory_number ?? item.id}</TableCell>
+                                                    <TableCell>
+                                                        <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
+                                                        {item.description && (
+                                                            <div className="line-clamp-1 text-[10px] text-slate-400">{item.description}</div>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-600 dark:text-slate-400">{item.category}</TableCell>
+                                                    <TableCell className="max-w-[220px] whitespace-normal text-slate-600 dark:text-slate-400">{item.location}</TableCell>
+                                                    <TableCell>
+                                                        <StatusBadge status={item.status} label={getStatusLabel(item.status)} />
+                                                        {item.borrower && <div className="mt-1 text-[9px] text-slate-400">{item.borrower} ({item.dueDate})</div>}
+                                                    </TableCell>
+                                                    <TableCell className="text-slate-600 dark:text-slate-400">{item.owner}</TableCell>
+                                                </TableRow>
+                                            )) : (
+                                                <TableRow><TableCell colSpan={6} className="py-10 text-center text-slate-400">{t('dashboard.noResults')}</TableCell></TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </Card>
                             </div>
                         </div>
                     </div>
                 );
             
             case 'loans':
-                return <RentalCenter user={user} onInventoryChanged={refreshItems} />;
+                return <RentalCenter user={user} />;
             
             case 'locations':
                 return canManageSystem ? (
@@ -547,32 +561,15 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             </div>
                         </div>
                 ) : (
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <div>
-                            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
-                            <LocationManager canManage={false} canCreateRemote={false} />
-                        </div>
-                        <div>
-                            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabCategories')}</h3>
-                            <CategoryManager canManage={false} />
-                        </div>
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{t('dashboard.tabLocations')}</h3>
+                        <LocationManager
+                            canManage={false}
+                            canCreateRemote={user.role === 'user'}
+                        />
                     </div>
                 );
             
-            case 'statistics':
-                return (
-                    <RoleGuard user={user} requiredPermission={PERMISSIONS.SYSTEM_EXPORT}>
-                        <div className="hidden lg:block">
-                            <StatisticsView />
-                        </div>
-                        <Alert className="lg:hidden">
-                            <AlertTriangle />
-                            <AlertTitle>{t('statistics.title')}</AlertTitle>
-                            <AlertDescription>{t('statistics.desktopOnly')}</AlertDescription>
-                        </Alert>
-                    </RoleGuard>
-                );
-
             case 'directory':
                 return (
                     <RoleGuard user={user} requiredPermission={PERMISSIONS.ITEM_CREATE}>
@@ -593,7 +590,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
     };
 
     return (
-        <div className="flex min-h-screen flex-col bg-[rgb(var(--color-page-bg))] font-sans">
+        <div className="flex min-h-screen flex-col bg-slate-50 font-sans dark:bg-slate-900">
             {/* Header */}
             <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
                 <div className="mx-auto flex h-16 max-w-full items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -606,7 +603,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         >
                             {isSidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
                         </Button>
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-700 text-xs font-bold tracking-wider text-white dark:bg-accent-600">AGH</div>
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-xs font-bold tracking-wider text-white dark:bg-emerald-600">AGH</div>
                         <div className="min-w-0">
                             <h1 className="truncate text-xs font-bold uppercase tracking-tight text-slate-900 dark:text-white">{t('dashboard.dashboard')}</h1>
                             <div className="flex items-center gap-1 text-[10px] text-slate-500">
@@ -623,9 +620,6 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                         </Button>
                         <Button variant="ghost" size="icon-sm" onClick={() => setIsDarkMode(!isDarkMode)} aria-label={isDarkMode ? 'Tryb jasny' : 'Tryb ciemny'}>
                             {isDarkMode ? <Sun /> : <Moon />}
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => setIsSettingsOpen(true)} aria-label={t('settings.title')}>
-                            <Settings />
                         </Button>
                         <Button variant="destructive" size="sm" onClick={onLogout}>
                             <LogOut />
@@ -648,7 +642,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                             size="icon"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                             className="w-full"
-                            aria-label={t('dashboard.toggleSidebar')}
+                            aria-label="Przełącz menu boczne"
                         >
                             <Menu className="size-5" />
                         </Button>
@@ -668,7 +662,7 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                                     }}
                                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
                                         isActive
-                                            ? 'bg-accent-100 text-accent-700 dark:bg-accent-950 dark:text-accent-400'
+                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                                             : 'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-900'
                                     } ${!isSidebarOpen && 'lg:justify-center'}`}
                                     title={!isSidebarOpen ? item.label : undefined}
@@ -717,26 +711,23 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                 onClose={() => setIsDetailsModalOpen(false)}
                 item={selectedItem}
                 user={user}
-                onItemUpdated={handleItemUpdated}
+                onUpdateStatus={handleUpdateItemStatus}
+                onItemUpdated={(updatedItem) => {
+                    setItems((current) => current.map((entry) => entry.id === updatedItem.id ? updatedItem : entry));
+                    setSelectedItem(updatedItem);
+                }}
+                onItemDeleted={(itemId) => {
+                    setItems((current) => current.filter((entry) => entry.id !== itemId));
+                    setTotalCount((current) => Math.max(current - 1, 0));
+                    setSelectedItem(null);
+                    setIsDetailsModalOpen(false);
+                }}
                 onLocationChanged={handleItemLocationChanged}
-            />
-            <BatchLabelExportDialog
-                open={isBatchLabelDialogOpen}
-                onOpenChange={setIsBatchLabelDialogOpen}
-                items={selectedLabelItemsList}
-                onExport={handleBatchLabelExport}
-                onCompleted={clearLabelSelection}
             />
             <QrScannerDialog
                 isOpen={isQrScannerOpen}
                 onClose={() => setIsQrScannerOpen(false)}
                 onScan={handleQrScan}
-            />
-            <ProfileSettingsDialog
-                open={isSettingsOpen}
-                onOpenChange={setIsSettingsOpen}
-                preferences={preferences}
-                onPreferencesChange={onPreferencesChange}
             />
         </div>
     );

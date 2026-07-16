@@ -1,24 +1,4 @@
 {
-  "statistics": {
-    "title": "Statystyki zdarzeń inwentarzowych",
-    "desktopOnly": "Ten widok jest dostępny wyłącznie na komputerach stacjonarnych. Otwórz aplikację na większym ekranie.",
-    "dateFrom": "Data od",
-    "dateTo": "Data do",
-    "totalLoans": "Wypożyczenia",
-    "totalOverdue": "Opóźnienia",
-    "totalBroken": "Zwroty uszkodzone",
-    "totalMissing": "Zwroty zagubione",
-    "itemName": "Przedmiot",
-    "loanCount": "Wypożyczenia",
-    "overdueCount": "Opóźnienia",
-    "brokenCount": "Uszkodzone",
-    "missingCount": "Zagubione",
-    "exportPdf": "Eksport PDF",
-    "exportXlsx": "Eksport XLSX",
-    "loadError": "Nie udało się pobrać statystyk",
-    "exportError": "Eksport nie powiódł się",
-    "empty": "Brak danych do wyświetlenia"
-  },
   "welcome": {
     "faculty": "Wydział Fizyki i Informatyki Stosowanej",
     "language": "Język",
@@ -49,36 +29,8 @@
     "footerTeam": "Stworzone przez zespół",
     "footerRights": "Wszelkie prawa zastrzeżone"
   },
-  "settings": {
-    "title": "Ustawienia",
-    "theme": "Tryb",
-    "font": "Czcionka",
-    "accent": "Akcent",
-    "themes": {
-      "light": "Jasny",
-      "dark": "Ciemny"
-    },
-    "fonts": {
-      "sans": "Bezszeryfowa",
-      "serif": "Szeryfowa",
-      "mono": "Monospace"
-    },
-    "accents": {
-      "aghGreen": "Zieleń AGH",
-      "aghRed": "Czerwień AGH",
-      "aghGold": "Złoty",
-      "aghBlue": "Niebieski"
-    }
-  },
-  "common": {
-    "close": "Zamknij",
-    "loading": "Ładowanie..."
-  },
   "dashboard": {
     "dashboard": "Panel Inwentaryzacyjny",
-    "dashboardDesc": "Lista przedmiotów",
-    "title": "Panel Inwentaryzacyjny",
-    "description": "Lista przedmiotów",
     "welcome": "Witaj",
     "role": "Rola",
     "logout": "Wyloguj",
@@ -86,7 +38,6 @@
     "tabInventory": "Inwentarz",
     "tabUsers": "Użytkownicy",
     "tabDirectory": "Katalog osób",
-    "tabStatistics": "Statystyki",
     "tabLocations": "Lokalizacje",
     "tabCategories": "Kategorie",
     "locationsAndCategories": "Lokalizacje i Kategorie",
@@ -96,7 +47,7 @@
     "borrowedAssets": "Wypożyczone",
     "pendingApprovals": "Oczekujące wnioski",
     "damagedAssets": "Uszkodzone",
-    "searchPlaceholder": "Szukaj po nazwie, opisie...",
+    "searchPlaceholder": "Szukaj po nazwie, producencie, nr seryjnym...",
     "filterStatus": "Status",
     "filterCategory": "Kategoria",
     "all": "Wszystkie",
@@ -108,8 +59,6 @@
     "thOwner": "Opiekun",
     "noResults": "Brak przyrządów pomiarowych spełniających zadane kryteria filtrowania.",
     "exportXlsx": "Eksportuj (.xlsx)",
-    "exportingXlsx": "Eksportowanie...",
-    "exportError": "Nie udało się wyeksportować inwentarza do Excela.",
     "addAsset": "Dodaj przedmiot",
     "accessDeniedTitle": "Brak aktywnego dostępu",
     "accessDeniedDesc": "Twoje konto nie posiada uprawnień odczytu. Oczekuj na konfigurację ról przez Administratora.",
@@ -118,91 +67,12 @@
     "approveBtn": "Zatwierdź",
     "rejectBtn": "Odrzuć",
     "refresh": "Odśwież",
-    "toggleSidebar": "Przełącz menu boczne",
-    "shown": "Wyświetlane",
-    "of": "z",
-    "items": "przedmiotów",
     "itemStatuses": {
       "available": "Dostępny",
       "pending_approval": "Oczekuje akceptacji",
       "reserved": "Zarezerwowany",
       "loaned": "Wypożyczony",
-      "broken": "Uszkodzony",
-      "missing": "Zagubiony",
-      "overdue": "Po terminie"
-    }
-  },
-  "inventoryFilters": {
-    "searchPlaceholder": "Szukaj po nazwie, opisie...",
-
-    "labels": {
-      "advancedFilters": "Filtry zaawansowane"
-    },
-
-    "sections": {
-      "deviceData": "Dane urządzenia",
-      "locationTree": "Drzewo lokalizacji",
-      "users": "Użytkownicy",
-      "sorting": "Sortowanie"
-    },
-
-    "fields": {
-      "deviceId": "ID urządzenia",
-      "deviceName": "Nazwa urządzenia",
-      "category": "Kategoria",
-      "status": "Status",
-      "location": "Lokalizacja",
-      "owner": "Właściciel (Assigned Owner)",
-      "borrower": "Wypożyczający (Current Borrower)"
-    },
-
-    "placeholders": {
-      "deviceId": "np. AGH-001",
-      "deviceName": "np. Mikroskop",
-      "category": "Wybierz kategorię",
-      "status": "Wszystkie statusy",
-      "location": "Wybierz lokalizację",
-      "owner": "np. Dr. Kowalski",
-      "borrower": "np. Zieliński"
-    },
-    "common":{
-      "previous": "Poprzednia",
-      "next": "Następna",
-      "page": "Strona"
-    },
-    "options": {
-      "allCategories": "Wszystkie kategorie",
-      "allStatuses": "Wszystkie statusy",
-      "allLocations": "Wszystkie lokalizacje",
-      "allOwners": "Wszyscy właściciele",
-      "allBorrowers": "Wszyscy wypożyczający"
-    },
-
-    "status": {
-      "available": "Dostępny",
-      "reserved": "Zarezerwowany",
-      "loaned": "Wypożyczony",
-      "pendingApproval": "Oczekuje",
-      "broken": "Uszkodzony",
-      "missing": "Zaginiony",
-      "overdue": "Przeterminowany"
-    },
-
-    "buttons": {
-      "addParam": "Dodaj kryterium parametru",
-      "showSorting": "Pokaż sortowanie",
-      "hideSorting": "Ukryj sortowanie"
-    },
-
-    "parameters": {
-      "title": "Parametry techniczne",
-      "keyPlaceholder": "Nazwa parametru (np. Producent)",
-      "valuePlaceholder": "Wartość (np. Rigol)"
-    },
-    "sorting": {
-      "addColumn": "Dodaj kolumnę sortowania:",
-      "selectColumn": "Wybierz kolumnę do sortowania",
-      "noColumns": "Brak dostępnych kolumn"
+      "broken": "Uszkodzony"
     }
   },
   "rentalCenter": {
@@ -228,7 +98,6 @@
     "requestBorrow": "Wypożycz",
     "noAvailable": "Brak dostępnego sprzętu",
     "subtitle": "Zarządzaj wnioskami o wypożyczenie sprzętu",
-    "observerSubtitle": "Podgląd wszystkich wypożyczeń (tryb tylko do odczytu).",
     "purposeLabel": "Cel wypożyczenia",
     "purposePlaceholder": "Opisz cel wypożyczenia...",
     "pendingApprovals": "Oczekujące wnioski",
@@ -402,7 +271,18 @@
     "status": "Status początkowy",
     "category": "Kategoria (Struktura drzewiasta)",
     "locationTitle": "Lokalizacja docelowa",
-    "noLocationsAvailable": "Brak dostępnych lokalizacji. Skontaktuj się z administratorem systemu.",
+    "addRemoteLocation": "Dodaj zewnętrzną",
+    "noRemoteLocations": "Nie masz jeszcze lokalizacji zewnętrznej. Dodaj ją tutaj, żeby przypisać do niej przedmiot.",
+    "remoteLocationName": "Nazwa lokalizacji",
+    "remoteLocationNamePlaceholder": "np. Domowe laboratorium",
+    "remoteLocationAddress": "Adres",
+    "remoteLocationAddressPlaceholder": "np. ul. Przykładowa 1, Kraków",
+    "remoteLocationDescription": "Opis",
+    "remoteLocationDescriptionPlaceholder": "Opcjonalny opis lokalizacji",
+    "remoteLocationErrorTitle": "Nie udało się dodać lokalizacji",
+    "cancelRemoteLocation": "Anuluj",
+    "saveRemoteLocation": "Dodaj i wybierz",
+    "savingRemoteLocation": "Dodawanie...",
     "building": "Budynek",
     "room": "Pokój / Sala",
     "cabinet": "Szafa / Półka (Opcjonalnie)",
@@ -430,24 +310,8 @@
     "location": "Lokalizacja docelowa:",
     "ownerPanel": "Panel Właściciela",
     "ownerDesc": "Zarządzaj statusem i wypożyczeniami tego urządzenia.",
-    "nameLabel": "Nazwa przedmiotu",
-    "nameDesc": "Zmień nazwę widoczną w ewidencji.",
-    "nameSave": "Zapisz nazwę",
-    "nameSaving": "Zapisywanie...",
-    "parametersTitle": "Parametry dynamiczne",
-    "parametersDesc": "Edytuj dodatkowe atrybuty przedmiotu w formacie JSON.",
-    "parametersSave": "Zapisz parametry",
-    "parametersSaving": "Zapisywanie...",
-    "parametersInvalidJson": "Podaj poprawny obiekt JSON.",
-    "deleteItem": "Usuń przedmiot",
-    "deleteConfirmTitle": "Usunąć przedmiot?",
-    "deleteConfirmDesc": "Czy na pewno chcesz usunąć „{{name}}”? Tej operacji nie można cofnąć.",
-    "deleteConfirmBtn": "Usuń",
-    "deleteConfirming": "Usuwanie...",
-    "deleteErrorTitle": "Nie udało się usunąć przedmiotu",
     "itemLocationTitle": "Lokalizacja przedmiotu",
-    "itemLocationDesc": "Wybierz aktywną lokalizację z listy.",
-    "itemLocationDescAdmin": "Wybierz aktywną lokalizację lub dodaj nowe miejsce zewnętrzne.",
+    "itemLocationDesc": "Wybierz dowolną aktywną lokalizację lub dodaj nowe miejsce zewnętrzne.",
     "locationSelectPlaceholder": "Wybierz lokalizację",
     "locationSave": "Zapisz lokalizację",
     "locationSaving": "Zapisywanie...",
@@ -475,9 +339,6 @@
     "returnDesc": "Wypożyczył(a): {{borrower}}. Termin zwrotu: {{dueDate}}.",
     "btnReturn": "Potwierdź zwrot",
     "markDamaged": "Zgłoś usterkę",
-    "statusTitle": "Status przedmiotu",
-    "statusDesc": "Ręczna zmiana statusu jest możliwa tylko poza cyklem wypożyczenia (dostępny, uszkodzony, zagubiony).",
-    "statusSave": "Zmień status",
     "qrCode": "Identyfikator Systemowy",
     "close": "Zamknij",
     "borrowPanel": "Wypożycz Sprzęt",
@@ -499,8 +360,6 @@
     "historyLoadError": "Nie udało się pobrać historii zmian.",
     "historyErrorTitle": "Błąd historii",
     "historyAuthor": "Użytkownik #{{id}}",
-    "report": "Raport - Excel",
-    "downloading": "Pobieranie...",
     "historyTypes": {
       "created": "Utworzenie",
       "loaned": "Wypożyczenie",
@@ -513,90 +372,16 @@
     "noAttachments": "Brak załączników",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
     "deleteAttachment": "Usuń",
-    "editName": "Edytuj nazwę",
-    "editLocation": "Edytuj lokalizację",
-    "locationPlaceholder": "Wybierz lokalizację",
-    "saveFailed": "Nie udało się zapisać zmian.",
-    "readOnlyTitle": "Tylko do odczytu",
-    "delegatedPanel": "Twoje delegowane uprawnienia",
-    "delegatedDesc": "Możesz edytować wybrane pola tego przedmiotu.",
-    "parameters": "Parametry",
-    "noParameters": "Brak parametrów",
-    "editParameters": "Edytuj parametry",
-    "parameterKeyPlaceholder": "Klucz, np. cpu",
-    "parameterValuePlaceholder": "Wartość, np. Intel i7",
-    "parameterComplexPlaceholder": "[\"USB-C\", \"HDMI\"]",
-    "parameterValueHint": "Listy i obiekty wpisz w nawiasach — np. [\"USB-C\"] lub {\"slot\": 1}. Po wpisaniu [ lub { pole rozszerzy się do edycji.",
-    "addParameter": "Dodaj parametr",
-    "removeParameter": "Usuń parametr",
-    "duplicateParameterKeys": "Klucze parametrów muszą być unikalne.",
-    "invalidParameterValue": "Niepoprawna wartość JSON w polu „{{key}}”.",
-    "assetDownloadErrorTitle": "Nie udało się pobrać pliku",
-    "assetDownloadError": "Generowanie pliku nie powiodło się.",
-    "downloadQrPng": "QR PNG",
-    "downloadQrPdf": "QR PDF",
-    "labelExportTitle": "Etykieta przedmiotu",
-    "downloadLabelPng": "Etykieta PNG",
-    "downloadLabelPdf": "Etykieta PDF",
-    "labelFields": {
-      "name": "Nazwa",
-      "description": "Opis",
-      "status": "Status",
-      "category": "Kategoria",
-      "location": "Lokalizacja",
-      "owner": "Właściciel",
-      "oldID": "Stare ID"
-    }
-  },
-  "batchLabels": {
-    "action": "Generuj etykiety",
-    "title": "Eksport zbiorczy etykiet",
-    "description": "Skonfiguruj etykiety dla {{count}} zaznaczonych przedmiotów.",
-    "format": "Format eksportu",
-    "formatPdf": "Wielostronicowy PDF",
-    "formatZip": "ZIP z osobnymi plikami PNG",
-    "width": "Szerokość (mm)",
-    "height": "Wysokość (mm)",
-    "invalidDimensions": "Szerokość musi wynosić {{minWidth}}–{{maxWidth}} mm, a wysokość {{minHeight}}–{{maxHeight}} mm.",
-    "fields": "Pola etykiety",
-    "fieldsHint": "Pola dodatkowe są dostępne tylko wtedy, gdy występują we wszystkich zaznaczonych przedmiotach.",
-    "cancel": "Anuluj",
-    "download": "Pobierz etykiety",
-    "exporting": "Generowanie...",
-    "exportErrorTitle": "Nie udało się wygenerować etykiet",
-    "exportError": "Generowanie etykiet nie powiodło się.",
-    "selectionErrorTitle": "Nie można zaznaczyć przedmiotów",
-    "limitError": "Można wyeksportować maksymalnie {{limit}} etykiet jednocześnie.",
-    "selectPage": "Zaznacz wszystkie dozwolone przedmioty na stronie",
-    "selectItem": "Zaznacz przedmiot: {{name}}",
-    "notAllowed": "Etykiety może generować administrator lub właściciel przedmiotu."
-  },
-  "itemAcl": {
-    "title": "Delegowane uprawnienia",
-    "description": "Nadaj innym użytkownikom wybrane uprawnienia do tego przedmiotu. Obserwatorzy nie mogą otrzymywać delegacji.",
-    "empty": "Brak delegowanych uprawnień.",
-    "grantTitle": "Nadaj uprawnienie",
-    "userLabel": "Użytkownik",
-    "userPlaceholder": "Wybierz użytkownika",
-    "userSearchPlaceholder": "Szukaj po imieniu lub nazwisku...",
-    "noUsersFound": "Nie znaleziono użytkowników z rolą user.",
-    "noUsersAvailable": "Brak innych użytkowników z rolą user do delegacji.",
-    "prevPage": "Poprzednia",
-    "nextPage": "Następna",
-    "pageInfo": "Strona {{page}} z {{total}}",
-    "permissionLabel": "Uprawnienie",
-    "grantButton": "Nadaj uprawnienie",
-    "revoke": "Usuń uprawnienie",
-    "userRequired": "Wybierz użytkownika z listy.",
-    "grantFailed": "Nie udało się nadać uprawnienia.",
-    "revokeFailed": "Nie udało się usunąć uprawnienia.",
-    "permissions": {
-      "auto_approved_loan": "Automatyczna akceptacja wypożyczeń",
-      "edit_location": "Edycja lokalizacji",
-      "edit_description": "Edycja opisu",
-      "edit_parameters": "Edycja parametrów",
-      "edit_attachments": "Zarządzanie załącznikami"
-    }
+    "editDetails": "Edytuj szczegóły",
+    "editDetailsDesc": "Zmień nazwę, lokalizację lub właściciela przedmiotu.",
+    "nameLabel": "Nazwa",
+    "ownerLabel": "Właściciel",
+    "noOwner": "Brak właściciela",
+    "deleteItem": "Usuń przedmiot",
+    "deleteItemConfirm": "Czy na pewno chcesz usunąć „{{name}}”? Tej operacji nie można cofnąć.",
+    "deleteItemBlocked": "Nie można usunąć przedmiotu na wypożyczeniu.",
+    "saveChanges": "Zapisz zmiany",
+    "errorTitle": "Nie udało się wykonać operacji"
   },
   "userManager": {
     "totalUsers": "Użytkownicy ogółem",
@@ -608,6 +393,7 @@
     "allStatuses": "Wszystkie statusy",
     "search": "Szukaj",
     "refresh": "Odśwież",
+    "errorTitle": "Nie udało się wykonać operacji",
     "loading": "Ładowanie...",
     "thUser": "Użytkownik",
     "thRole": "Rola",
@@ -640,8 +426,6 @@
       "active": "Aktywny",
       "pending_approval": "Oczekuje akceptacji",
       "inactive": "Nieaktywny",
-      "blocked": "Zablokowany",
-      "rejected": "Odrzucony",
       "deactivated": "Nieaktywny"
     },
     "readOnlyDesc": "Opiekunem prawnym jest {{owner}}. Nie posiadasz uprawnień do operacji na tym sprzęcie."
@@ -657,8 +441,6 @@
     "close": "Zamknij skaner"
   },
   "auth": {
-    "productTitle": "Aparatura AGH",
-    "productDescription": "Zintegrowany system zarządzania aparaturą pomiarową",
     "login": "Logowanie",
     "register": "Rejestracja",
     "email": "Email",

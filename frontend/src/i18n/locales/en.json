@@ -1,24 +1,4 @@
 {
-  "statistics": {
-    "title": "Inventory event statistics",
-    "desktopOnly": "This view is only available on desktop devices. Please open the app on a larger screen.",
-    "dateFrom": "Date from",
-    "dateTo": "Date to",
-    "totalLoans": "Loans",
-    "totalOverdue": "Overdue",
-    "totalBroken": "Broken returns",
-    "totalMissing": "Missing returns",
-    "itemName": "Item",
-    "loanCount": "Loans",
-    "overdueCount": "Overdue",
-    "brokenCount": "Broken",
-    "missingCount": "Missing",
-    "exportPdf": "Export PDF",
-    "exportXlsx": "Export XLSX",
-    "loadError": "Failed to load statistics",
-    "exportError": "Export failed",
-    "empty": "No data to display"
-  },
   "welcome": {
     "faculty": "Faculty of Physics and Applied Computer Science",
     "language": "Language",
@@ -49,44 +29,15 @@
     "footerTeam": "Developed by team",
     "footerRights": "All rights reserved"
   },
-  "settings": {
-    "title": "Settings",
-    "theme": "Theme",
-    "font": "Font",
-    "accent": "Accent",
-    "themes": {
-      "light": "Light",
-      "dark": "Dark"
-    },
-    "fonts": {
-      "sans": "Sans",
-      "serif": "Serif",
-      "mono": "Mono"
-    },
-    "accents": {
-      "aghGreen": "AGH Green",
-      "aghRed": "AGH Red",
-      "aghGold": "Gold",
-      "aghBlue": "Blue"
-    }
-  },
-  "common": {
-    "close": "Close",
-    "loading": "Loading..."
-  },
   "dashboard": {
     "dashboard": "Inventory Dashboard",
-    "dashboardDesc": "Items list",
     "welcome": "Welcome",
-    "title": "Inventory Dashboard",      
-    "description": "Items list",        
     "role": "Role",
     "logout": "Sign Out",
     "mainPanel": "Main Dashboard",
     "tabInventory": "Inventory",
     "tabUsers": "Users",
     "tabDirectory": "People directory",
-    "tabStatistics": "Statistics",
     "tabLocations": "Locations",
     "tabCategories": "Categories",
     "locationsAndCategories": "Locations and Categories",
@@ -96,7 +47,7 @@
     "borrowedAssets": "Borrowed",
     "pendingApprovals": "Pending",
     "damagedAssets": "Damaged",
-    "searchPlaceholder": "Search by asset name, description...",
+    "searchPlaceholder": "Search by asset name, producer, serial...",
     "filterStatus": "Status",
     "filterCategory": "Category",
     "all": "All",
@@ -108,8 +59,6 @@
     "thOwner": "Supervisor",
     "noResults": "No equipment matches the chosen filter metrics.",
     "exportXlsx": "Export (.xlsx)",
-    "exportingXlsx": "Exporting...",
-    "exportError": "Failed to export inventory to Excel.",
     "addAsset": "Add Item",
     "accessDeniedTitle": "Access Restriction",
     "accessDeniedDesc": "Your account holds zero permissions. Please wait until an admin configures your role.",
@@ -118,18 +67,12 @@
     "approveBtn": "Approve",
     "rejectBtn": "Reject",
     "refresh": "Refresh",
-    "toggleSidebar": "Toggle sidebar",
-    "shown": "Shown",
-    "of": "of",
-    "items": "items",
     "itemStatuses": {
       "available": "Available",
       "pending_approval": "Pending approval",
       "reserved": "Reserved",
       "loaned": "Loaned",
-      "broken": "Broken",
-      "missing": "Missing",
-      "overdue": "Overdue"
+      "broken": "Broken"
     }
   },
   "rentalCenter": {
@@ -155,7 +98,6 @@
     "requestBorrow": "Borrow",
     "noAvailable": "No equipment available",
     "subtitle": "Manage equipment rental requests",
-    "observerSubtitle": "View all loans in read-only mode.",
     "purposeLabel": "Loan purpose",
     "purposePlaceholder": "Describe the purpose of borrowing...",
     "pendingApprovals": "Pending approvals",
@@ -329,7 +271,18 @@
     "status": "Initial Status",
     "category": "Category (Tree view)",
     "locationTitle": "Target Location",
-    "noLocationsAvailable": "No locations are available. Contact a system administrator.",
+    "addRemoteLocation": "Add remote",
+    "noRemoteLocations": "You do not have a remote location yet. Add one here to assign this item to it.",
+    "remoteLocationName": "Location name",
+    "remoteLocationNamePlaceholder": "e.g. Home laboratory",
+    "remoteLocationAddress": "Address",
+    "remoteLocationAddressPlaceholder": "e.g. Example Street 1, Krakow",
+    "remoteLocationDescription": "Description",
+    "remoteLocationDescriptionPlaceholder": "Optional location description",
+    "remoteLocationErrorTitle": "Could not add location",
+    "cancelRemoteLocation": "Cancel",
+    "saveRemoteLocation": "Add and select",
+    "savingRemoteLocation": "Adding...",
     "building": "Building",
     "room": "Room / Lab",
     "cabinet": "Cabinet / Shelf (Optional)",
@@ -357,24 +310,8 @@
     "location": "Target Location:",
     "ownerPanel": "Owner Panel",
     "ownerDesc": "Manage the status and rentals of this device.",
-    "nameLabel": "Item name",
-    "nameDesc": "Change the name shown in inventory.",
-    "nameSave": "Save name",
-    "nameSaving": "Saving...",
-    "parametersTitle": "Dynamic parameters",
-    "parametersDesc": "Edit additional item attributes as JSON.",
-    "parametersSave": "Save parameters",
-    "parametersSaving": "Saving...",
-    "parametersInvalidJson": "Provide a valid JSON object.",
-    "deleteItem": "Delete item",
-    "deleteConfirmTitle": "Delete item?",
-    "deleteConfirmDesc": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
-    "deleteConfirmBtn": "Delete",
-    "deleteConfirming": "Deleting...",
-    "deleteErrorTitle": "Failed to delete item",
     "itemLocationTitle": "Item location",
-    "itemLocationDesc": "Select an active location from the list.",
-    "itemLocationDescAdmin": "Select an active location or add a new remote place.",
+    "itemLocationDesc": "Select any active location or add a new remote place.",
     "locationSelectPlaceholder": "Select location",
     "locationSave": "Save location",
     "locationSaving": "Saving...",
@@ -402,9 +339,6 @@
     "returnDesc": "Borrowed by: {{borrower}}. Due date: {{dueDate}}.",
     "btnReturn": "Confirm Return",
     "markDamaged": "Report Damage",
-    "statusTitle": "Item status",
-    "statusDesc": "Manual status changes are only possible outside the loan cycle (available, broken, missing).",
-    "statusSave": "Change status",
     "qrCode": "System Identifier",
     "close": "Close",
     "borrowPanel": "Borrow Equipment",
@@ -426,8 +360,6 @@
     "historyLoadError": "Could not load the change history.",
     "historyErrorTitle": "History error",
     "historyAuthor": "User #{{id}}",
-    "report": "Excel Report",
-    "downloading": "Downloading...",
     "historyTypes": {
       "created": "Created",
       "loaned": "Loaned",
@@ -440,164 +372,16 @@
     "noAttachments": "No attachments",
     "attachmentMeta": "{{author}} · {{date}} · {{size}}",
     "deleteAttachment": "Delete",
-    "editName": "Edit name",
-    "editLocation": "Edit location",
-    "locationPlaceholder": "Select location",
-    "saveFailed": "Failed to save changes.",
-    "readOnlyTitle": "Read only",
-    "delegatedPanel": "Your delegated permissions",
-    "delegatedDesc": "You can edit selected fields of this item.",
-    "parameters": "Parameters",
-    "noParameters": "No parameters",
-    "editParameters": "Edit parameters",
-    "parameterKeyPlaceholder": "Key, e.g. cpu",
-    "parameterValuePlaceholder": "Value, e.g. Intel i7",
-    "parameterComplexPlaceholder": "[\"USB-C\", \"HDMI\"]",
-    "parameterValueHint": "For lists and objects use brackets — e.g. [\"USB-C\"] or {\"slot\": 1}. The field expands when you type [ or {.",
-    "addParameter": "Add parameter",
-    "removeParameter": "Remove parameter",
-    "duplicateParameterKeys": "Parameter keys must be unique.",
-    "invalidParameterValue": "Invalid JSON value in field \"{{key}}\".",
-    "assetDownloadErrorTitle": "Could not download file",
-    "assetDownloadError": "File generation failed.",
-    "downloadQrPng": "QR PNG",
-    "downloadQrPdf": "QR PDF",
-    "labelExportTitle": "Item label",
-    "downloadLabelPng": "Label PNG",
-    "downloadLabelPdf": "Label PDF",
-    "labelFields": {
-      "name": "Name",
-      "description": "Description",
-      "status": "Status",
-      "category": "Category",
-      "location": "Location",
-      "owner": "Owner",
-      "oldID": "Old ID"
-    }
-  },
-  "batchLabels": {
-    "action": "Generate labels",
-    "title": "Batch label export",
-    "description": "Configure labels for {{count}} selected items.",
-    "format": "Export format",
-    "formatPdf": "Multi-page PDF",
-    "formatZip": "ZIP with separate PNG files",
-    "width": "Width (mm)",
-    "height": "Height (mm)",
-    "invalidDimensions": "Width must be {{minWidth}}–{{maxWidth}} mm and height must be {{minHeight}}–{{maxHeight}} mm.",
-    "fields": "Label fields",
-    "fieldsHint": "Additional fields are available only when present in every selected item.",
-    "cancel": "Cancel",
-    "download": "Download labels",
-    "exporting": "Generating...",
-    "exportErrorTitle": "Could not generate labels",
-    "exportError": "Label generation failed.",
-    "selectionErrorTitle": "Could not select items",
-    "limitError": "You can export no more than {{limit}} labels at once.",
-    "selectPage": "Select all permitted items on this page",
-    "selectItem": "Select item: {{name}}",
-    "notAllowed": "Only an administrator or the item owner can generate its label."
-  },
-  "itemAcl": {
-    "title": "Delegated permissions",
-    "description": "Grant other users selected permissions for this item. Observers cannot receive delegations.",
-    "empty": "No delegated permissions yet.",
-    "grantTitle": "Grant permission",
-    "userLabel": "User",
-    "userPlaceholder": "Select user",
-    "userSearchPlaceholder": "Search by first or last name...",
-    "noUsersFound": "No users with the user role found.",
-    "noUsersAvailable": "No other users with the user role available for delegation.",
-    "prevPage": "Previous",
-    "nextPage": "Next",
-    "pageInfo": "Page {{page}} of {{total}}",
-    "permissionLabel": "Permission",
-    "grantButton": "Grant permission",
-    "revoke": "Remove permission",
-    "userRequired": "Select a user from the list.",
-    "grantFailed": "Failed to grant permission.",
-    "revokeFailed": "Failed to remove permission.",
-    "permissions": {
-      "auto_approved_loan": "Auto-approved loans",
-      "edit_location": "Edit location",
-      "edit_description": "Edit description",
-      "edit_parameters": "Edit parameters",
-      "edit_attachments": "Manage attachments"
-    }
-  },
-  "inventoryFilters": {
-    "searchPlaceholder": "Search by name, description...",
-
-    "labels": {
-      "advancedFilters": "Advanced filters"
-    },
-
-    "sections": {
-      "deviceData": "Device data",
-      "locationTree": "Location tree",
-      "users": "Users",
-      "sorting": "Sorting"
-    },
-
-    "fields": {
-      "deviceId": "Device ID",
-      "deviceName": "Device name",
-      "category": "Category",
-      "status": "Status",
-      "location": "Location",
-      "owner": "Owner (Assigned Owner)",
-      "borrower": "Borrower (Current Borrower)"
-    },
-
-    "placeholders": {
-      "deviceId": "e.g. AGH-001",
-      "deviceName": "e.g. Microscope",
-      "category": "Select category",
-      "status": "All statuses",
-      "location": "Select location",
-      "owner": "e.g. Dr. Smith",
-      "borrower": "e.g. Johnson"
-    },
-
-    "options": {
-      "allCategories": "All categories",
-      "allStatuses": "All statuses",
-      "allLocations": "All locations",
-      "allOwners": "All owners",
-      "allBorrowers": "All borrowers"
-    },
-
-    "status": {
-      "available": "Available",
-      "reserved": "Reserved",
-      "loaned": "Loaned",
-      "pendingApproval": "Pending approval",
-      "broken": "Broken",
-      "missing": "Missing",
-      "overdue": "Overdue"
-    },
-
-    "buttons": {
-      "addParam": "Add parameter filter",
-      "showSorting": "Show sorting",
-      "hideSorting": "Hide sorting"
-    },
-
-    "parameters": {
-      "title": "Technical parameters",
-      "keyPlaceholder": "Parameter name (e.g. Manufacturer)",
-      "valuePlaceholder": "Value (e.g. Rigol)"
-    },
-    "sorting": {
-      "addColumn": "Add sorting column:",
-      "selectColumn": "Select column to sort by",
-      "noColumns": "No columns available"
-    },
-    "common":{
-      "previous": "Previous",
-      "next": "Next",
-      "page": "Page"
-    }
+    "editDetails": "Edit details",
+    "editDetailsDesc": "Change item name, location, or owner.",
+    "nameLabel": "Name",
+    "ownerLabel": "Owner",
+    "noOwner": "No owner",
+    "deleteItem": "Delete item",
+    "deleteItemConfirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "deleteItemBlocked": "Cannot delete an item that is on loan.",
+    "saveChanges": "Save changes",
+    "errorTitle": "Operation failed"
   },
   "userManager": {
     "totalUsers": "Total users",
@@ -609,6 +393,7 @@
     "allStatuses": "All statuses",
     "search": "Search",
     "refresh": "Refresh",
+    "errorTitle": "Operation failed",
     "loading": "Loading...",
     "thUser": "User",
     "thRole": "Role",
@@ -641,8 +426,6 @@
       "active": "Active",
       "pending_approval": "Pending approval",
       "inactive": "Inactive",
-      "blocked": "Blocked",
-      "rejected": "Rejected",
       "deactivated": "Inactive"
     },
     "readOnlyDesc": "The legal owner is {{owner}}. You do not have permission to modify this asset."
@@ -658,8 +441,6 @@
     "close": "Close scanner"
   },
   "auth": {
-    "productTitle": "AGH Equipment",
-    "productDescription": "Integrated measuring equipment management system",
     "login": "Login",
     "register": "Register",
     "email": "Email",

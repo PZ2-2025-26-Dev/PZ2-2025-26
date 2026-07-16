@@ -11,7 +11,9 @@ from src.items.attachment_service import (
     AttachmentStorageError,
     AttachmentTooLargeError,
     ItemAttachmentService,
-    ItemNotFoundError,
+)
+from src.items.attachment_service import (
+    ItemNotFoundError as AttachmentItemNotFoundError,
 )
 from src.items.dependencies import (
     ItemByUuid,
@@ -25,6 +27,7 @@ from src.items.dependencies import (
     assert_can_manage_item_attachments,
     assert_can_update_item,
 )
+from src.items.exceptions import ItemNotFoundError, ItemOnLoanError
 from src.items.label_service import (
     generate_label_image,
     generate_label_pdf,
@@ -549,10 +552,16 @@ def update_item(
             "description": "Brak poprawnego tokena uwierzytelniającego.",
         },
         status.HTTP_403_FORBIDDEN: {
-            "description": "Operacja dostępna wyłącznie dla właściciela przedmiotu lub administratora.",
+            "model": ErrorResponse,
+            "description": "Brak uprawnień do usunięcia przedmiotu.",
         },
         status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
             "description": "Nie znaleziono przedmiotu",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": "Przedmiot jest na wypożyczeniu i nie może zostać usunięty.",
         },
     },
 )
@@ -567,10 +576,15 @@ def delete_item(
 
     try:
         service.delete_item(item_id)
-    except ValueError as err:
+    except ItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
+        ) from err
+    except ItemOnLoanError as err:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Nie można usunąć przedmiotu, ponieważ jest na wypożyczeniu.",
         ) from err
 
 
@@ -758,7 +772,7 @@ def read_item_attachments(
 
     try:
         attachments = service.list_attachments(item_id)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
@@ -807,7 +821,7 @@ def upload_item_attachments(
 
     try:
         attachments = service.upload_attachments(item_id, user.id, files)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
@@ -856,7 +870,7 @@ def download_item_attachment(
 
     try:
         file_path, original_filename, mime_type = service.get_attachment_file(item_id, attachment_id)
-    except (ItemNotFoundError, AttachmentNotFoundError) as err:
+    except (AttachmentItemNotFoundError, AttachmentNotFoundError) as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Attachment not found",
@@ -899,7 +913,7 @@ def delete_item_attachment(
 
     try:
         service.delete_attachment(item_id, attachment_id, user.id)
-    except ItemNotFoundError as err:
+    except AttachmentItemNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",

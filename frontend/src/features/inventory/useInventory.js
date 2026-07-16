@@ -3,7 +3,7 @@ import axiosClient from '../../api/axiosClient';        // 1. Klient HTTP (wstrz
 import { ENDPOINTS } from '../../api/endpoints';        // 2. Słownik ścieżek
 import { parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
 
-export const ITEM_STATUSES = ['available', 'pending_approval', 'reserved', 'loaned', 'broken', 'missing', 'overdue'];
+export const ITEM_STATUSES = ['available', 'pending_approval', 'reserved', 'loaned', 'broken'];
 export const ITEM_HISTORY_PAGE_LIMIT = 10;
 
 const cleanParams = (params) => Object.fromEntries(
@@ -21,11 +21,7 @@ const cleanParams = (params) => Object.fromEntries(
  * @property {string} owner
  * @property {number} ownerId
  * @property {string|null} description
- * @property {string|null} oldID
- * @property {Object|null} parameters
  * @property {string} status
- * @property {string|null} borrower
- * @property {string|null} dueDate
  */
 
 /**
@@ -35,42 +31,20 @@ const cleanParams = (params) => Object.fromEntries(
 export const normalizeItem = (item) => ({
     id: item.id,
     name: item.name,
-
     category: item.category?.name ?? '',
-    categoryId: item.category?.id ?? null,
-
+    categoryPath: item.category?.path ?? '',
+    categoryId: item.category?.id,
     location: item.location?.path ?? '',
-    locationId: item.location?.id ?? null,
-
+    locationId: item.location?.id,
     owner: item.owner?.name ?? '',
-    ownerId: item.owner?.id ?? null,
-
-    oldID: item.oldID ?? null,
-    parameters: item.parameters ?? null,
-
+    ownerId: item.owner?.id ?? 0,
     description: item.description ?? null,
-
     status: item.status,
-
-    // Mapowanie nowych pól zwracanych przez API do użytku w tabeli
-    borrower: item.borrower ?? null,
-    dueDate: item.dueDate ?? null,
 });
-
-const downloadBlob = (blob, filename) => {
-    const url = window.URL.createObjectURL(new Blob([blob]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-};
 
 /**
  * Hook do zarządzania operacjami na przedmiotach inwentarza
- * @returns {{createItem: Function, updateItem: Function, getItem: Function, getItemHistory: Function, listItems: Function, lookupItemByQrCode: Function, listAttachments: Function, uploadAttachments: Function, downloadAttachment: Function, deleteAttachment: Function, downloadItemQr: Function, downloadItemLabel: Function, downloadBatchLabels: Function, isLoading: boolean, error: string|null, clearError: Function}}
+ * @returns {{createItem: Function, updateItem: Function, getItemHistory: Function, listItems: Function, isLoading: boolean, error: string|null, clearError: Function}}
  */
 export const useInventory = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -99,6 +73,7 @@ export const useInventory = () => {
                 description: itemData.description || null,
             });
 
+            // HTTP 201: { id, inventory_number, status }
             return {
                 success: true,
                 data: response.data,
@@ -126,7 +101,6 @@ export const useInventory = () => {
      * @param {number} [filters.categoryId]
      * @param {number} [filters.locationId]
      * @param {number} [filters.ownerId]
-     * @param {string} [filters.sort] - Skonsolidowany ciąg sortowania, np. "status:desc,name:asc"
      * @param {number} [filters.page]
      * @param {number} [filters.limit]
      * @returns {Promise<{success: boolean, items?: InventoryItem[], total?: number, page?: number, limit?: number, error?: string}>}
@@ -136,26 +110,15 @@ export const useInventory = () => {
         setError(null);
 
         try {
-            console.log(filters)
-            console.log(filters.custom_params)
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
-                    uuid: filters.uuid,
                     name: filters.name,
-                    description: filters.description,
-                    search: filters.search,
                     status: filters.status,
                     category_id: filters.categoryId,
                     location_id: filters.locationId,
                     owner_id: filters.ownerId,
-                    borrower_id: filters.borrowerId,
-                    
-                    // Wysłanie skonsolidowanego parametru 'sort' zamiast oddzielnych 'sort_by' i 'sort_order'
-                    sort: filters.sort ?? "name:asc",
-                    
                     page: filters.page ?? 1,
-                    limit: filters.limit ?? 20,
-                    custom_params: filters.custom_params // Rozpakowanie parametrów jako query params
+                    limit: filters.limit ?? 50,
                 }),
             });
 
@@ -185,10 +148,12 @@ export const useInventory = () => {
         }
     }, []);
 
+    /**
+     * Pobiera szczegóły przedmiotu z GET /items/{id}
+     * @param {number|string} itemId
+     * @returns {Promise<{success: boolean, item?: InventoryItem, error?: string}>}
+     */
     const getItem = useCallback(async (itemId) => {
-        setIsLoading(true);
-        setError(null);
-
         try {
             const response = await axiosClient.get(ENDPOINTS.ITEMS.DETAILS(itemId));
             return {
@@ -196,91 +161,10 @@ export const useInventory = () => {
                 item: normalizeItem(response.data),
             };
         } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-            return { success: false, error: errorMessage };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    const updateItem = useCallback(async (itemId, updates) => {
-        setIsLoading(true);
-        setError(null);
-
-        const payload = {};
-        if (updates.name !== undefined) payload.name = updates.name;
-        if (updates.description !== undefined) payload.description = updates.description;
-        if (updates.status !== undefined) payload.status = updates.status;
-        if (updates.locationId !== undefined) payload.location_id = updates.locationId;
-        if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
-        if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId;
-        if (updates.parameters !== undefined) payload.parameters = updates.parameters;
-        if (updates.status !== undefined) payload.status = updates.status;
-
-        try {
-            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
-            return {
-                success: true,
-                data: response.data,
-                statusCode: response.status,
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
             return {
                 success: false,
-                error: errorMessage,
-                statusCode: err.response?.status,
+                error: parseApiError(err),
             };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    const deleteItem = useCallback(async (itemId) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            await axiosClient.delete(ENDPOINTS.ITEMS.DETAILS(itemId));
-
-            return {
-                success: true,
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-
-            return {
-                success: false,
-                error: errorMessage,
-                statusCode: err.response?.status,
-            };
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    const lookupItemByQrCode = useCallback(async (code) => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await axiosClient.get(ENDPOINTS.ITEMS.SCAN(code));
-            return {
-                success: true,
-                item: normalizeItem(response.data),
-            };
-        } catch (err) {
-            const errorMessage = parseApiError(err);
-            setError(errorMessage);
-            return {
-                success: false,
-                error: errorMessage,
-            };
-        } finally {
-            setIsLoading(false);
         }
     }, []);
 
@@ -291,6 +175,7 @@ export const useInventory = () => {
      * @param {number} [limit=ITEM_HISTORY_PAGE_LIMIT] - Liczba wpisów na stronie
      * @returns {Promise<{success: boolean, data?: Array, pagination?: Object, error?: string, statusCode?: number}>}
      */
+
     const getItemHistory = useCallback(async (itemId, page = 1, limit = ITEM_HISTORY_PAGE_LIMIT) => {
         setIsLoading(true);
         setError(null);
@@ -312,6 +197,7 @@ export const useInventory = () => {
             };
         } catch (err) {
             const errorMessage = parseApiError(err);
+
             setError(errorMessage);
 
             return {
@@ -323,7 +209,7 @@ export const useInventory = () => {
             setIsLoading(false);
         }
     }, []);
-
+    
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -397,66 +283,89 @@ export const useInventory = () => {
         }
     }, []);
 
-    const downloadItemQr = useCallback(async (itemId, format) => {
+    /**
+     * Aktualizuje przedmiot poprzez PATCH /items/{id}
+     * @param {number|string} itemId
+     * @param {Object} itemData
+     * @returns {Promise<{success: boolean, data?: Object, error?: string, statusCode?: number}>}
+     */
+    const updateItem = useCallback(async (itemId, itemData) => {
+        setIsLoading(true);
+        setError(null);
+
         try {
-            const response = await axiosClient.get(ENDPOINTS.ITEMS.QR(itemId, format), {
-                responseType: 'blob',
-            });
-            downloadBlob(response.data, `item-${itemId}-qr.${format}`);
-            return { success: true };
+            const payload = {};
+            if (itemData.name !== undefined) payload.name = itemData.name;
+            if (itemData.categoryId !== undefined) payload.category_id = itemData.categoryId;
+            if (itemData.locationId !== undefined) payload.location_id = itemData.locationId;
+            if (itemData.ownerId !== undefined) payload.owner_id = itemData.ownerId;
+            if (itemData.description !== undefined) payload.description = itemData.description;
+            if (itemData.parameters !== undefined) payload.parameters = itemData.parameters;
+
+            const response = await axiosClient.patch(ENDPOINTS.ITEMS.DETAILS(itemId), payload);
+
+            return {
+                success: true,
+                data: response.data,
+                statusCode: response.status,
+            };
         } catch (err) {
-            return { success: false, error: parseApiError(err) };
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
-    const downloadItemLabel = useCallback(async (itemId, format, options = {}) => {
-        try {
-            const response = await axiosClient.post(ENDPOINTS.ITEMS.LABEL(itemId, format), options, {
-                responseType: 'blob',
-            });
-            downloadBlob(response.data, `item-${itemId}-label.${format}`);
-            return { success: true };
-        } catch (err) {
-            return { success: false, error: parseApiError(err) };
-        }
-    }, []);
+    /**
+     * Usuwa przedmiot poprzez DELETE /items/{id}
+     * @param {number|string} itemId
+     * @returns {Promise<{success: boolean, error?: string, statusCode?: number}>}
+     */
+    const deleteItem = useCallback(async (itemId) => {
+        setIsLoading(true);
+        setError(null);
 
-    const downloadBatchLabels = useCallback(async (itemIds, format, options = {}) => {
         try {
-            const response = await axiosClient.post(
-                ENDPOINTS.ITEMS.BATCH_LABELS(format),
-                {
-                    item_ids: itemIds,
-                    ...options,
-                },
-                {
-                    responseType: 'blob',
-                },
-            );
-            downloadBlob(response.data, `item-labels.${format}`);
-            return { success: true };
+            await axiosClient.delete(ENDPOINTS.ITEMS.DETAILS(itemId));
+
+            return {
+                success: true,
+                statusCode: 204,
+            };
         } catch (err) {
-            return { success: false, error: parseApiError(err) };
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+
+            return {
+                success: false,
+                error: errorMessage,
+                statusCode: err.response?.status,
+            };
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
     return {
         createItem,
         updateItem,
-        deleteItem,
-        getItem,
         listItems,
+        getItem,
+        deleteItem,
         isLoading,
         error,
         clearError,
         getItemHistory,
-        lookupItemByQrCode,
         listAttachments,
         uploadAttachments,
         downloadAttachment,
         deleteAttachment,
-        downloadItemQr,
-        downloadItemLabel,
-        downloadBatchLabels,
     };
 };

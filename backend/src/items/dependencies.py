@@ -10,9 +10,9 @@ from src.auth.dependencies import CurrentUser
 from src.dependencies import DBDep
 from src.items.constants import (
     ITEM_MANUAL_STATUSES,
-    ITEM_OWNER_EDITABLE_FIELDS,
     ITEM_UPDATE_CRITICAL_FIELDS,
     ITEM_UPDATE_FIELD_PERMISSIONS,
+    ITEM_UPDATE_OWNER_ALLOWED_FIELDS,
     ItemPermissionType,
 )
 from src.items.models import Item, ItemACL
@@ -128,11 +128,13 @@ def assert_can_update_item(user: User, item: Item, data: ItemUpdate, db: Session
 
     if user.role == UserRole.USER and item.owner_id == user.id:
         updated_fields = _meaningful_update_fields(data, item)
-        forbidden = updated_fields - ITEM_OWNER_EDITABLE_FIELDS
-        if forbidden:
+        if not updated_fields:
+            return
+        disallowed = updated_fields - ITEM_UPDATE_OWNER_ALLOWED_FIELDS
+        if disallowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Właściciel może modyfikować wyłącznie nazwę, status, lokalizację, opis i parametry przedmiotu.",
+                detail="Właściciel może edytować wyłącznie nazwę i lokalizację przedmiotu.",
             )
         return
 
@@ -222,7 +224,10 @@ def assert_can_assign_owner_on_create(user: User, owner_id: int) -> None:
 
 
 def assert_can_delete_item(user: User, item: Item) -> None:
-    if user.role == UserRole.ADMIN or item.owner_id == user.id:
+    if user.role == UserRole.ADMIN:
+        return
+
+    if user.role == UserRole.USER and item.owner_id == user.id:
         return
 
     raise HTTPException(

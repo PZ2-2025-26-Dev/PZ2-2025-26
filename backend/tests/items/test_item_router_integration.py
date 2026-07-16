@@ -55,8 +55,8 @@ def test_create_item_endpoint_persists_item_and_history(api_client: TestClient, 
 def test_update_item_endpoint_updates_live_database(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
-        json={"name": "Laptop zaktualizowany przez API"},
-        headers=auth_headers(),
+        json={"description": "Opis zmieniony przez API"},
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -72,7 +72,7 @@ def test_update_item_endpoint_updates_status(api_client: TestClient, seeded_db: 
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"status": ItemStatus.BROKEN.value},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -946,7 +946,7 @@ def test_update_item_endpoint_updates_parameters(api_client: TestClient, seeded_
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={"parameters": new_parameters},
-        headers=auth_headers(),
+        headers=admin_headers(),
     )
 
     assert response.status_code == 200
@@ -1189,7 +1189,7 @@ def test_user_cannot_modify_item_owned_by_someone_else(api_client: TestClient, s
     assert response.status_code == 403
 
 
-def test_user_can_delete_own_item(api_client: TestClient, seeded_db: Session):
+def test_owner_can_delete_own_available_item(api_client: TestClient, seeded_db: Session):
     response = api_client.delete(
         f"/items/{SEED_IDS.adapter_uuid}",
         headers=auth_headers(SEED_IDS.regular_user),
@@ -1197,6 +1197,46 @@ def test_user_can_delete_own_item(api_client: TestClient, seeded_db: Session):
 
     assert response.status_code == 204
     assert seeded_db.get(Item, SEED_IDS.adapter) is None
+
+
+def test_delete_item_blocked_when_loaned(api_client: TestClient, seeded_db: Session):
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    item.status = ItemStatus.LOANED
+    seeded_db.flush()
+
+    response = api_client.delete(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 409
+    assert "wypożyczeniu" in response.json()["detail"]
+    assert seeded_db.get(Item, SEED_IDS.laptop) is not None
+
+
+def test_owner_can_update_name_and_location(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"name": "Laptop po edycji", "location_id": SEED_IDS.cabinet},
+        headers=auth_headers(SEED_IDS.regular_user),
+    )
+
+    assert response.status_code == 200
+    item = seeded_db.get(Item, SEED_IDS.laptop)
+    assert item.name == "Laptop po edycji"
+    assert item.location_id == SEED_IDS.cabinet
+
+
+def test_admin_can_set_nobody_owner(api_client: TestClient, seeded_db: Session):
+    response = api_client.patch(
+        f"/items/{SEED_IDS.laptop_uuid}",
+        json={"owner_id": SEED_IDS.nobody_user},
+        headers=admin_headers(),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["owner_id"] == SEED_IDS.nobody_user
+    assert seeded_db.get(Item, SEED_IDS.laptop).owner_id == SEED_IDS.nobody_user
 
 
 def test_user_cannot_delete_item_owned_by_someone_else(api_client: TestClient, seeded_db: Session):
@@ -1208,32 +1248,21 @@ def test_user_cannot_delete_item_owned_by_someone_else(api_client: TestClient, s
     assert response.status_code == 403
 
 
-def test_owner_can_update_name_location_description_and_parameters(api_client: TestClient, seeded_db: Session):
-    new_parameters = {"cpu": "Intel i9", "ram_gb": 32}
-
+def test_owner_cannot_update_description_and_parameters(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.laptop_uuid}",
         json={
-            "name": "Laptop zaktualizowany",
-            "location_id": SEED_IDS.room,
             "description": "Nowy opis właściciela",
-            "parameters": new_parameters,
+            "parameters": {"cpu": "Intel i9", "ram_gb": 32},
         },
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["name"] == "Laptop zaktualizowany"
-    assert body["location_id"] == SEED_IDS.room
-    assert body["description"] == "Nowy opis właściciela"
-    assert body["parameters"] == new_parameters
+    assert response.status_code == 403
 
     item = seeded_db.get(Item, SEED_IDS.laptop)
-    assert item.name == "Laptop zaktualizowany"
-    assert item.location_id == SEED_IDS.room
-    assert item.description == "Nowy opis właściciela"
-    assert item.parameters == new_parameters
+    assert item.description == "Przykładowy przedmiot dostępny do wypożyczenia"
+    assert item.parameters == SEED_LAPTOP_PARAMETERS
 
 
 def test_owner_cannot_update_category(api_client: TestClient, seeded_db: Session):
@@ -1592,25 +1621,17 @@ def test_grant_duplicate_item_acl_returns_400(api_client: TestClient, seeded_db:
     assert response.status_code == 400
 
 
-def test_owner_can_change_status_from_broken_to_available(api_client: TestClient, seeded_db: Session):
+def test_owner_cannot_change_status_from_broken_to_available(api_client: TestClient, seeded_db: Session):
     response = api_client.patch(
         f"/items/{SEED_IDS.adapter_uuid}",
         json={"status": "available"},
         headers=auth_headers(SEED_IDS.regular_user),
     )
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "available"
+    assert response.status_code == 403
 
     item = seeded_db.get(Item, SEED_IDS.adapter)
-    assert item.status == ItemStatus.AVAILABLE
-
-    history = (
-        seeded_db.query(ItemHistory)
-        .filter_by(item_id=SEED_IDS.adapter, change_type=ItemChangeLogType.STATUS_CHANGED)
-        .one()
-    )
-    assert history.description == "Status changed from broken to available"
+    assert item.status == ItemStatus.BROKEN
 
 
 def test_admin_can_change_status_of_missing_item(api_client: TestClient, seeded_db: Session):

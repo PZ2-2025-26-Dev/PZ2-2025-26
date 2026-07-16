@@ -73,3 +73,16 @@ ITEM_MANUAL_STATUSES: frozenset[ItemStatus] = frozenset(
         ItemStatus.MISSING,
     }
 )
+
+# Pola edytowalne przez właściciela przedmiotu (bez administratora).
+ITEM_UPDATE_OWNER_ALLOWED_FIELDS: frozenset[str] = frozenset({"name", "location_id"})
+
+# Statusy przedmiotu blokujące usunięcie.
+ITEM_DELETE_BLOCKED_STATUSES: frozenset[ItemStatus] = frozenset(
+    {
+        ItemStatus.PENDING_APPROVAL,
+        ItemStatus.RESERVED,
+        ItemStatus.LOANED,
+        ItemStatus.OVERDUE,
+    }
+)

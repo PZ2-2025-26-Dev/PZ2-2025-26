@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.categories.models import Category
 from src.categories.service import build_category_path
-from src.items.constants import BASIC_LENGTH, ItemChangeLogType, ItemStatus
+from src.items.constants import BASIC_LENGTH, ITEM_DELETE_BLOCKED_STATUSES, ItemChangeLogType, ItemStatus
+from src.items.exceptions import ItemNotFoundError, ItemOnLoanError
 from src.items.helpers import build_location_path
 from src.items.models import Item, ItemHistory
 from src.items.schemas import (
@@ -251,7 +252,27 @@ class ItemService:
         item = self._get_item_by_uuid(item_id)
 
         if item is None:
-            raise ValueError("Item not found")
+            raise ItemNotFoundError()
+
+        if item.status in ITEM_DELETE_BLOCKED_STATUSES:
+            raise ItemOnLoanError()
+
+        active_loan = self.db.scalar(
+            select(Loan.id)
+            .where(
+                Loan.item_id == item.id,
+                Loan.status.in_(
+                    (
+                        LoanStatus.PENDING_APPROVAL,
+                        LoanStatus.ACTIVE,
+                        LoanStatus.RETURN_PENDING_CONFIRMATION,
+                    )
+                ),
+            )
+            .limit(1)
+        )
+        if active_loan is not None:
+            raise ItemOnLoanError()
 
         self.db.delete(item)
         self.db.commit()
