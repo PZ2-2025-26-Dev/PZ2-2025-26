@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { AlertCircle, ChevronDown, ChevronRight, Pencil, Plus, RefreshCw, Tag, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -247,7 +247,32 @@ export default function CategoryManager({ canManage = true }: { canManage?: bool
         });
     };
 
-    
+    const handleCategoryNodeKeyDown = (
+        event: KeyboardEvent<HTMLDivElement>,
+        node: CategoryNode,
+        hasChildren: boolean,
+        isExpanded: boolean,
+    ) => {
+        if (event.target !== event.currentTarget || !hasChildren) return;
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleCategory(node.id);
+            return;
+        }
+
+        if (event.key === 'ArrowRight' && !isExpanded) {
+            event.preventDefault();
+            toggleCategory(node.id);
+            return;
+        }
+
+        if (event.key === 'ArrowLeft' && isExpanded) {
+            event.preventDefault();
+            toggleCategory(node.id);
+        }
+    };
+
 
     const renderCategoryNode = (node: CategoryNode, level = 0) => {
         const hasChildren = node.children.length > 0;
@@ -257,16 +282,20 @@ export default function CategoryManager({ canManage = true }: { canManage?: bool
         return (
             <Collapsible key={node.id} open={isExpanded} onOpenChange={() => toggleCategory(node.id)}>
                 <div
-                    className="group flex items-center justify-between rounded-lg border border-transparent px-3 py-2 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900"
+                    className="group flex items-center justify-between rounded-lg border border-transparent px-3 py-2 outline-none hover:border-slate-200 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-accent-500 dark:hover:border-slate-800 dark:hover:bg-slate-900"
+                    tabIndex={0}
+                    role="treeitem"
+                    aria-expanded={hasChildren ? isExpanded : undefined}
+                    onKeyDown={(event) => handleCategoryNodeKeyDown(event, node, hasChildren, isExpanded)}
                     style={{ marginLeft: level * 20 }}
                 >
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             {hasChildren ? (
                                 <CollapsibleTrigger asChild>
-                                    <span className="-ml-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" aria-label={node.name}>
+                                    <button type="button" className="-ml-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-accent-500 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" aria-label={node.name}>
                                         <ChevronIcon />
-                                    </span>
+                                    </button>
                                 </CollapsibleTrigger>
                             ) : (
                                 <span className="block size-7 shrink-0" />
@@ -287,13 +316,13 @@ export default function CategoryManager({ canManage = true }: { canManage?: bool
                     <div className="flex shrink-0 items-center gap-2">
                         {canManage && (
                             <>
-                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={() => { setSelectedParentId(String(node.id)); setNewCategoryName(''); setIsAddDialogOpen(true); }} aria-label={t('categoryManager.addTitle')}>
                                     <Plus />
                                 </Button>
-                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={() => openEditDialog(node)} aria-label={t('categoryManager.edit')}>
                                     <Pencil />
                                 </Button>
-                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
+                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 dark:text-rose-300" onClick={() => openDeleteDialog(node)} aria-label={t('categoryManager.delete')}>
                                     <Trash2 />
                                 </Button>
                             </>
@@ -334,7 +363,7 @@ export default function CategoryManager({ canManage = true }: { canManage?: bool
                         </Alert>
                     )}
 
-                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30" role="tree">
                         {categoryTree.length > 0
                             ? categoryTree.map((node) => renderCategoryNode(node))
                             : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('categoryManager.loading') : t('categoryManager.emptyTree')}</p>}

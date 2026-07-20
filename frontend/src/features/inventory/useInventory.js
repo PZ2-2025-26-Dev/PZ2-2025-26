@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import axiosClient from '../../api/axiosClient';        // 1. Klient HTTP (wstrzykuje tokeny)
 import { ENDPOINTS } from '../../api/endpoints';        // 2. Słownik ścieżek
-import { parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
+import { parseApiBlobError, parseApiError } from '../../api/apiUtils';     // 3. Parser błędów
 
 export const ITEM_STATUSES = ['available', 'pending_approval', 'reserved', 'loaned', 'broken', 'missing', 'overdue'];
 export const ITEM_HISTORY_PAGE_LIMIT = 10;
@@ -136,8 +136,6 @@ export const useInventory = () => {
         setError(null);
 
         try {
-            console.log(filters)
-            console.log(filters.custom_params)
             const response = await axiosClient.get(ENDPOINTS.ITEMS.BASE, {
                 params: cleanParams({
                     uuid: filters.uuid,
@@ -384,7 +382,7 @@ export const useInventory = () => {
             window.URL.revokeObjectURL(url);
             return { success: true };
         } catch (err) {
-            return { success: false, error: parseApiError(err) };
+            return { success: false, error: await parseApiBlobError(err) };
         }
     }, []);
 
@@ -405,7 +403,10 @@ export const useInventory = () => {
             downloadBlob(response.data, `item-${itemId}-qr.${format}`);
             return { success: true };
         } catch (err) {
-            return { success: false, error: parseApiError(err) };
+            return {
+                success: false,
+                error: await parseApiBlobError(err, 'Serwer przerwał generowanie etykiety. Sprawdź log backendu.'),
+            };
         }
     }, []);
 
@@ -413,11 +414,15 @@ export const useInventory = () => {
         try {
             const response = await axiosClient.post(ENDPOINTS.ITEMS.LABEL(itemId, format), options, {
                 responseType: 'blob',
+                timeout: 60000,
             });
             downloadBlob(response.data, `item-${itemId}-label.${format}`);
             return { success: true };
         } catch (err) {
-            return { success: false, error: parseApiError(err) };
+            return {
+                success: false,
+                error: await parseApiBlobError(err, 'Serwer przerwał generowanie etykiet. Sprawdź log backendu.'),
+            };
         }
     }, []);
 
@@ -431,12 +436,16 @@ export const useInventory = () => {
                 },
                 {
                     responseType: 'blob',
+                    timeout: 60000,
                 },
             );
             downloadBlob(response.data, `item-labels.${format}`);
             return { success: true };
         } catch (err) {
-            return { success: false, error: parseApiError(err) };
+            return {
+                success: false,
+                error: await parseApiBlobError(err, 'Serwer przerwał generowanie etykiet. Sprawdź log backendu.'),
+            };
         }
     }, []);
 

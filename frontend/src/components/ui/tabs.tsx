@@ -24,6 +24,7 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
     return (
         <TabsPrimitive.Trigger
+            tabIndex={0}
             className={cn(
                 'inline-flex h-8 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-accent-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-accent-300',
                 className,

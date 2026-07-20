@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,6 +36,7 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onBack }
     const [loading, setLoading] = useState(false);
     const [loginError, setLoginError] = useState('');
     const [errors, setErrors] = useState<FieldErrors>({});
+    const [showPassword, setShowPassword] = useState(false);
 
     const validate = () => {
         const newErrors: FieldErrors = {};
@@ -160,20 +162,33 @@ export default function LoginForm({ onSwitchToRegister, onLoginSuccess, onBack }
 
                         <div>
                             <Label htmlFor="login-password" className="sr-only">{t('auth.password')}</Label>
-                            <Input
-                                id="login-password"
-                                type="password"
-                                autoComplete="current-password"
-                                aria-invalid={Boolean(errors.password)}
-                                aria-describedby={errors.password ? 'login-password-error' : undefined}
-                                placeholder={t('auth.password')}
-                                value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    clearLoginError();
-                                    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-                                }}
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="login-password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    autoComplete="current-password"
+                                    aria-invalid={Boolean(errors.password)}
+                                    aria-describedby={errors.password ? 'login-password-error' : undefined}
+                                    placeholder={t('auth.password')}
+                                    value={password}
+                                    className="pr-10"
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        clearLoginError();
+                                        if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                                    onClick={() => setShowPassword((current) => !current)}
+                                    aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                                >
+                                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                </Button>
+                            </div>
                             {errors.password && (
                                 <p id="login-password-error" className="mt-1 text-sm text-rose-600 dark:text-rose-400">{errors.password}</p>
                             )}

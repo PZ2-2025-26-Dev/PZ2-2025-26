@@ -80,13 +80,22 @@ export default function InventoryTable({
                     {columns.map((column) => (
                         <TableHead
                             key={column.field}
-                            className="cursor-pointer select-none whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-                            onClick={(event) => onSort(column.field, event)}
+                            className="whitespace-nowrap px-4 py-3"
                         >
-                            <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600 outline-none hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-accent-500 dark:text-slate-300 dark:hover:text-white"
+                                onClick={(event) => onSort(column.field, event)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        onSort(column.field, event);
+                                    }
+                                }}
+                            >
                                 {column.label}
                                 {renderSortIcon(column.field)}
-                            </div>
+                            </button>
                         </TableHead>
                     ))}
                 </TableRow>
@@ -102,11 +111,21 @@ export default function InventoryTable({
                     <TableRow
                         key={item.id}
                         className="group cursor-pointer border-b border-slate-100 transition-colors duration-150 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900/40"
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`${t('dashboard.viewDetails', { defaultValue: 'Pokaż szczegóły' })}: ${item.name}`}
                         onClick={() => onOpenItem(item)}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                onOpenItem(item);
+                            }
+                        }}
                     >
                         <TableCell
                             className="w-12 px-4 py-3"
                             onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
                         >
                             <input
                                 type="checkbox"

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { AppUser, InventoryItem } from '@/types';
@@ -106,7 +107,7 @@ export default function RentalCenter({ user, onInventoryChanged }: RentalCenterP
     const isLoading = itemsLoading || loansLoading;
 
     const refreshGuests = useCallback(async (search?: string) => {
-        const result = await browseUsers({ search, limit: 100 });
+        const result = await browseUsers({ search, limit: 100, role: 'guest' });
         if (result.success) {
             setGuests(result.entries.filter((entry: DirectoryEntry): entry is Guest => entry.role === 'guest'));
         }
@@ -359,7 +360,7 @@ export default function RentalCenter({ user, onInventoryChanged }: RentalCenterP
 
             {error && (
                 <Alert variant="destructive">
-                    <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                    <AlertTitle>{t('rentalCenter.errorTitle')}</AlertTitle>
                     <AlertDescription className="flex items-center justify-between gap-3">
                         <span>{error}</span>
                         <Button variant="ghost" size="sm" onClick={clearError} aria-label={t('common.close')}>x</Button>
@@ -419,19 +420,35 @@ export default function RentalCenter({ user, onInventoryChanged }: RentalCenterP
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="external-item">{t('rentalCenter.itemLabel')}</Label>
-                            <select id="external-item" value={externalItemId} onChange={(event) => setExternalItemId(event.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                                <option value="">{t('rentalCenter.itemPlaceholder')}</option>
-                                {ownedAvailableItems.map((item) => <option key={item.id} value={String(item.id)}>{item.name}</option>)}
-                            </select>
+                            <Select value={externalItemId || undefined} onValueChange={setExternalItemId}>
+                                <SelectTrigger id="external-item">
+                                    <SelectValue placeholder={t('rentalCenter.itemPlaceholder')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ownedAvailableItems.map((item) => (
+                                        <SelectItem key={item.id} value={String(item.id)}>
+                                            {item.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             {ownedAvailableItems.length === 0 && <p className="text-xs text-slate-400">{t('rentalCenter.noOwnedAvailable')}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label>{t('rentalCenter.guestLabel')}</Label>
                             <Input placeholder={t('rentalCenter.guestSearch')} value={guestSearch} onChange={(event) => { setGuestSearch(event.target.value); void refreshGuests(event.target.value); }} />
-                            <select value={externalGuestId} onChange={(event) => setExternalGuestId(event.target.value)} className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
-                                <option value="">{t('rentalCenter.guestPlaceholder')}</option>
-                                {filteredGuests.map((guest) => <option key={guest.id} value={String(guest.id)}>{getEntryName(guest)}</option>)}
-                            </select>
+                            <Select value={externalGuestId || undefined} onValueChange={setExternalGuestId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={t('rentalCenter.guestPlaceholder')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {filteredGuests.map((guest) => (
+                                        <SelectItem key={guest.id} value={String(guest.id)}>
+                                            {getEntryName(guest)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
                             <div className="mb-3 text-xs font-semibold text-slate-600 dark:text-slate-300">{t('rentalCenter.addGuestInline')}</div>

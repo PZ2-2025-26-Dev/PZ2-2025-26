@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from src.auth.constants import AuthProvider, UserRole, UserStatus
-from src.auth.schemas import Name, UserID
+from src.auth.schemas import Name, Password, UserID
 
 type SearchStr = Annotated[str, Field(min_length=1, max_length=255)]
 
@@ -26,7 +26,9 @@ class UserBasicBrowse(BaseModel):
     id: UserID
     first_name: Name
     last_name: str | None = None
+    email: EmailStr | None = None
     role: Literal["admin", "user", "observer"]
+    status: UserStatus | None = None
 
 
 class GuestBrowse(BaseModel):
@@ -60,6 +62,18 @@ class UserDetails(BaseUserDetails):
 
 class UserStatusUpdate(BaseModel):
     status: UserStatus
+
+
+class UserPasswordUpdate(BaseModel):
+    password: Password
+
+
+class GuestPromote(BaseModel):
+    email: EmailStr
+    password: Password
+    first_name: Name | None = None
+    last_name: Name | None = None
+    role: Literal["admin", "user", "observer"] = "user"
 
 
 class UsersPaged(BaseModel):

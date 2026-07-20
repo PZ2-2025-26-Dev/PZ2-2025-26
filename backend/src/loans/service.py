@@ -210,7 +210,6 @@ class LoanService:
             )
             item.status = ItemStatus.LOANED
         else:
-            self._assert_borrower_is_not_owner(item, user.id)
             status = LoanStatus.PENDING_APPROVAL
             item_status = ItemStatus.PENDING_APPROVAL
             ts = now()

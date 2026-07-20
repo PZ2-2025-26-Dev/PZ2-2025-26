@@ -167,7 +167,7 @@ class ExportService:
     def export_item_report_xlsx(self, item_uuid: UUID):
         item_stmt = (
             select(Item)
-            .where(Item.id == item_uuid)
+            .where(Item.uuid == item_uuid)
             .options(
                 selectinload(Item.category),
                 selectinload(Item.location),
@@ -178,30 +178,29 @@ class ExportService:
         if not item:
             raise ValueError("Item not found")
 
-        stats_stmt = select(
-            func.count(Loan.id).label("total_loans"),
-            func.count(func.distinct(func.coalesce(Loan.user_id, Loan.guest_id))).label("unique_borrowers"),
-            func.avg(func.datediff(Loan.returned_at, Loan.borrowed_at)).label("avg_duration"),
-            func.sum(func.if_(Loan.return_condition == ReturnCondition.BROKEN, 1, 0)).label("broken_count"),
-        ).where(Loan.item_id == item.id)
-        stats = self.db.execute(stats_stmt).one()
-
-        total_loans = stats.total_loans or 0
-        unique_borrowers = stats.unique_borrowers or 0
-        broken_count = stats.broken_count or 0
-
-        avg_duration_str = "N/A"
-        if stats.avg_duration is not None:
-            days = int(stats.avg_duration)
-            avg_duration_str = f"{days} dni" if days > 0 else "mniej niż 1 dzień"
-        else:
-            avg_duration_str = "N/A"
-
-        failure_rate = f"{(broken_count / total_loans) * 100:.1f}%" if total_loans > 0 else "0.0%"
-
         history_stmt = select(Loan).where(Loan.item_id == item.id).order_by(Loan.created_at.desc())
         loans_history = self.db.execute(history_stmt).scalars().all()
-        print(loans_history)
+
+        total_loans = len(loans_history)
+        unique_borrowers = len(
+            {
+                (loan.user_id, loan.guest_id)
+                for loan in loans_history
+                if loan.user_id is not None or loan.guest_id is not None
+            }
+        )
+        broken_count = sum(1 for loan in loans_history if loan.return_condition == ReturnCondition.BROKEN)
+        completed_durations = [
+            (loan.returned_at - loan.borrowed_at).total_seconds() / 86400
+            for loan in loans_history
+            if loan.returned_at is not None and loan.borrowed_at is not None
+        ]
+
+        avg_duration_str = "N/A"
+        if completed_durations:
+            days = int(sum(completed_durations) / len(completed_durations))
+            avg_duration_str = f"{days} dni" if days > 0 else "mniej niż 1 dzień"
+        failure_rate = f"{(broken_count / total_loans) * 100:.1f}%" if total_loans > 0 else "0.0%"
 
         # # 4. Budowanie pliku Excel
         workbook = Workbook()

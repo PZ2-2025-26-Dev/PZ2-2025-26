@@ -58,6 +58,7 @@ export default function App() {
     const [appError, setAppError] = useState('');
 
     const currentPath = window.location.pathname;
+    const isGoogleCallbackPath = currentPath === '/auth/google/callback' || currentPath === '/google/complete';
 
     useEffect(() => {
         applyPreferences(preferences);
@@ -148,10 +149,10 @@ export default function App() {
     }, [resetAuth]);
 
     useEffect(() => {
-        if (isAuthenticated && currentPath !== '/auth/google/callback') {
+        if (isAuthenticated && !isGoogleCallbackPath) {
             window.history.replaceState(null, '', '/');
         }
-    }, [isAuthenticated, currentPath]);
+    }, [isAuthenticated, isGoogleCallbackPath]);
 
     const handleLoginSuccess = useCallback(async (_user: AppUser, token: string) => {
         setAppError('');
@@ -182,7 +183,7 @@ export default function App() {
         }
     }, [resetAuth, t]);
 
-    if (currentPath === '/auth/google/callback') {
+    if (isGoogleCallbackPath) {
         return <GoogleCallbackPage onLoginSuccess={handleLoginSuccess} />;
     }
 

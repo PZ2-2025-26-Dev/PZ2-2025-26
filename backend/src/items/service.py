@@ -1,6 +1,7 @@
 from uuid import UUID, uuid7
 
 from sqlalchemy import exists, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from src.categories.models import Category
@@ -34,6 +35,10 @@ from src.utils import now
 
 
 class InvalidScanCodeError(ValueError):
+    pass
+
+
+class ItemDeleteConflictError(ValueError):
     pass
 
 
@@ -253,8 +258,32 @@ class ItemService:
         if item is None:
             raise ValueError("Item not found")
 
+        blocking_loan = self.db.execute(
+            select(Loan).where(
+                Loan.item_id == item.id,
+                Loan.status.not_in((LoanStatus.CLOSED, LoanStatus.REJECTED)),
+            )
+        ).scalar_one_or_none()
+        if blocking_loan is not None:
+            raise ItemDeleteConflictError(
+                "Nie można usunąć przedmiotu, ponieważ ma aktywny albo oczekujący wniosek o wypożyczenie."
+            )
+
+        historical_loan = self.db.execute(select(Loan.id).where(Loan.item_id == item.id).limit(1)).scalar_one_or_none()
+        if historical_loan is not None:
+            raise ItemDeleteConflictError(
+                "Nie można usunąć przedmiotu, ponieważ ma historię wypożyczeń. "
+                "Zmień status na zagubiony lub nieaktywny zamiast usuwać."
+            )
+
         self.db.delete(item)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError as err:
+            self.db.rollback()
+            raise ItemDeleteConflictError(
+                "Nie można usunąć przedmiotu, ponieważ jest powiązany z innymi danymi."
+            ) from err
 
         return ItemDeleteResponse(deleted=True)
 

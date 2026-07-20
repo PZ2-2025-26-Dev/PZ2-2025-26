@@ -231,7 +231,7 @@ export default function ItemDetailsModal({
     const canManageAttachments = !isObserver && (isOwnerOrAdmin || aclPermissions.includes('edit_attachments'));
     const canManageAcl = !isObserver && isOwnerOrAdmin;
     const canDeleteItem = (isOwner && hasPermission(user, PERMISSIONS.ITEM_DELETE_OWN)) || isAdmin;
-    const canRequestLoan = !isObserver && item?.status === 'available';
+    const canRequestLoan = !isObserver && !isOwner && item?.status === 'available';
     const ownerOptions = useMemo(() => {
         if (!item) return owners;
         if (owners.some((owner) => owner.id === item.ownerId)) return owners;
@@ -677,7 +677,6 @@ export default function ItemDetailsModal({
         if (isOwnerOrAdmin) {
             return (
                 <div className="space-y-4">
-                    {loanRequestCard()}
                     <Card className="border-accent-200 dark:border-accent-900/50">
                         <CardHeader>
                             <div className="flex items-center gap-2 text-accent-700 dark:text-accent-400">

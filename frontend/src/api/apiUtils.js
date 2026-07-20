@@ -32,3 +32,28 @@ export const parseApiError = (error, fallbackMsg = 'Wystąpił nieoczekiwany bł
 
     return fallbackMsg;
 };
+
+export const parseApiBlobError = async (error, fallbackMsg = 'Wystąpił nieoczekiwany błąd serwera.') => {
+    if (!error.response) {
+        return fallbackMsg;
+    }
+
+    const data = error.response?.data;
+    if (data instanceof Blob) {
+        const text = await data.text();
+        if (text) {
+            try {
+                return parseApiError({
+                    response: {
+                        ...error.response,
+                        data: JSON.parse(text),
+                    },
+                }, fallbackMsg);
+            } catch {
+                return text;
+            }
+        }
+    }
+
+    return parseApiError(error, fallbackMsg);
+};

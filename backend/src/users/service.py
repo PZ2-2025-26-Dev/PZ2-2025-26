@@ -1,13 +1,15 @@
+from argon2 import PasswordHasher
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.auth.constants import UserRole, UserStatus
+from src.auth.constants import AuthProvider, UserRole, UserStatus
 from src.auth.models import UserAccount
 from src.items.models import Item, ItemACL, ItemHistory
+from src.loans.constants import LoanStatus
 from src.loans.models import Loan
 from src.users.models import User
-from src.users.schemas import BaseUserDetails, GuestBrowse, GuestUserCreate, GuestUserUpdate, UserBasicBrowse
+from src.users.schemas import BaseUserDetails, GuestBrowse, GuestPromote, GuestUserCreate, GuestUserUpdate, UserBasicBrowse
 
 
 class UserNotFoundError(Exception):
@@ -30,6 +32,10 @@ class UserOwnsItemsError(Exception):
     pass
 
 
+class UserHasActiveLoansError(Exception):
+    pass
+
+
 class UserHasHistoricalReferencesError(Exception):
     pass
 
@@ -37,6 +43,7 @@ class UserHasHistoricalReferencesError(Exception):
 class UserService:
     def __init__(self, db: Session):
         self.db = db
+        self.password_hasher = PasswordHasher()
 
     def _assert_email_free(self, email: str, exclude_user_id: int | None = None) -> None:
         stmt = select(User.id).where(User.email == email)
@@ -79,6 +86,43 @@ class UserService:
 
         if data.last_name is not None:
             guest.last_name = data.last_name
+
+        self.db.commit()
+        self.db.refresh(guest)
+        return guest
+
+    def promote_guest_user(self, user_id: int, data: GuestPromote) -> User:
+        guest = self._get_guest_user(user_id)
+        self._assert_email_free(data.email, exclude_user_id=guest.id)
+
+        if data.first_name is not None:
+            guest.first_name = data.first_name
+        if data.last_name is not None:
+            guest.last_name = data.last_name
+
+        guest.email = data.email
+        guest.role = UserRole(data.role)
+        guest.status = UserStatus.ACTIVE
+
+        account = self.db.execute(
+            select(UserAccount).where(
+                UserAccount.user_id == guest.id,
+                UserAccount.provider == AuthProvider.LOCAL,
+            )
+        ).scalar_one_or_none()
+        password_hash = self.password_hasher.hash(data.password)
+
+        if account is None:
+            self.db.add(
+                UserAccount(
+                    user_id=guest.id,
+                    provider=AuthProvider.LOCAL,
+                    provider_user_id=None,
+                    pwd_hash=password_hash,
+                )
+            )
+        else:
+            account.pwd_hash = password_hash
 
         self.db.commit()
         self.db.refresh(guest)
@@ -138,7 +182,9 @@ class UserService:
                         id=user.id,
                         first_name=user.first_name,
                         last_name=user.last_name,
+                        email=user.email,
                         role=user.role.value,
+                        status=user.status,
                     )
                 )
 
@@ -215,6 +261,17 @@ class UserService:
     def delete_user(self, user_id: int) -> None:
         user = self.get_user(user_id)
 
+        if self._has_records(
+            Loan,
+            or_(Loan.user_id == user_id, Loan.guest_id == user_id),
+            Loan.status.in_([
+                LoanStatus.PENDING_APPROVAL,
+                LoanStatus.ACTIVE,
+                LoanStatus.RETURN_PENDING_CONFIRMATION,
+            ]),
+        ):
+            raise UserHasActiveLoansError()
+
         if self._has_records(Item, Item.owner_id == user_id):
             raise UserOwnsItemsError()
 
@@ -236,8 +293,8 @@ class UserService:
             Loan, or_(Loan.user_id == user_id, Loan.guest_id == user_id, Loan.decision_by == user_id)
         )
 
-    def _has_records(self, model: type, condition) -> bool:
-        return bool(self.db.scalar(select(model.id).where(condition).limit(1)))
+    def _has_records(self, model: type, *conditions) -> bool:
+        return bool(self.db.scalar(select(model.id).where(*conditions).limit(1)))
 
     def update_status(self, user_id: int, status: UserStatus) -> User:
         if status not in {
@@ -254,4 +311,32 @@ class UserService:
         self.db.commit()
         self.db.refresh(user)
 
+        return user
+
+    def set_local_password(self, user_id: int, password: str) -> User:
+        user = self.get_user(user_id)
+        if user.role == UserRole.GUEST:
+            raise UserNotFoundError()
+
+        password_hash = self.password_hasher.hash(password)
+        account = self.db.execute(
+            select(UserAccount).where(
+                UserAccount.user_id == user.id,
+                UserAccount.provider == AuthProvider.LOCAL,
+            )
+        ).scalar_one_or_none()
+
+        if account is None:
+            account = UserAccount(
+                user_id=user.id,
+                provider=AuthProvider.LOCAL,
+                provider_user_id=None,
+                pwd_hash=password_hash,
+            )
+            self.db.add(account)
+        else:
+            account.pwd_hash = password_hash
+
+        self.db.commit()
+        self.db.refresh(user)
         return user

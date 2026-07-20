@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Query, status
 from sqlalchemy import select
 
-from src.auth.constants import UserRole, UserStatus
+from src.auth.constants import AuthProvider, UserRole, UserStatus
 from src.auth.dependencies import CurrentUser, RequireAdmin, RequireUserOrAdmin
 from src.auth.models import UserAccount
 from src.dependencies import DBDep
@@ -12,10 +12,12 @@ from src.schemas import ErrorResponse
 from .schemas import (
     BaseUserDetails,
     GuestBrowse,
+    GuestPromote,
     GuestUserCreate,
     GuestUserUpdate,
     SearchStr,
     UserDetails,
+    UserPasswordUpdate,
     UsersBrowsePaged,
     UsersPaged,
     UserStatusUpdate,
@@ -24,6 +26,7 @@ from .service import (
     GuestUserNotFoundError,
     InvalidUserApprovalRoleError,
     UserEmailTakenError,
+    UserHasActiveLoansError,
     UserHasHistoricalReferencesError,
     UserNotFoundError,
     UserOwnsItemsError,
@@ -239,6 +242,71 @@ def update_user_approval(
     return to_user_details(user)
 
 
+@router.patch(
+    "/{user_id}/password",
+    response_model=UserDetails,
+    status_code=status.HTTP_200_OK,
+    summary="Ustaw lokalne hasło użytkownika",
+)
+def set_user_password(
+    user_id: int,
+    data: UserPasswordUpdate,
+    db: DBDep,
+    admin: RequireAdmin,
+) -> UserDetails:
+    service = UserService(db)
+    try:
+        user = service.set_local_password(user_id, data.password)
+    except UserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono użytkownika.",
+        ) from exc
+
+    account = db.execute(
+        select(UserAccount).where(
+            UserAccount.user_id == user_id,
+            UserAccount.provider == AuthProvider.LOCAL,
+        )
+    ).scalar_one_or_none()
+    return to_user_details(user, account)
+
+
+@router.patch(
+    "/{user_id}/promote",
+    response_model=UserDetails,
+    status_code=status.HTTP_200_OK,
+    summary="Przekształć gościa w użytkownika",
+)
+def promote_guest(
+    user_id: int,
+    data: GuestPromote,
+    db: DBDep,
+    admin: RequireAdmin,
+) -> UserDetails:
+    service = UserService(db)
+    try:
+        user = service.promote_guest_user(user_id, data)
+    except GuestUserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nie znaleziono gościa.",
+        ) from exc
+    except UserEmailTakenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Podany adres email jest już zajęty.",
+        ) from exc
+
+    account = db.execute(
+        select(UserAccount).where(
+            UserAccount.user_id == user_id,
+            UserAccount.provider == AuthProvider.LOCAL,
+        )
+    ).scalar_one_or_none()
+    return to_user_details(user, account)
+
+
 @router.delete(
     "/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -264,6 +332,14 @@ def delete_user(
             detail=(
                 "Nie można usunąć użytkownika, ponieważ jest właścicielem przedmiotów. "
                 "Najpierw przepisz przedmioty do innego użytkownika."
+            ),
+        ) from exc
+    except UserHasActiveLoansError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Nie można usunąć użytkownika, ponieważ ma aktywne albo oczekujące wypożyczenia. "
+                "Najpierw zamknij wypożyczenia albo dezaktywuj konto."
             ),
         ) from exc
     except UserHasHistoricalReferencesError as exc:

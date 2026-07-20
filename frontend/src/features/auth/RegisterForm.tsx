@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react';
-import { AlertCircle, ArrowLeft, UserPlus } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -28,6 +28,7 @@ export default function RegisterForm({ onSwitchToLogin, onBack, onRegisterSucces
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [errors, setErrors] = useState<FieldErrors>({});
+    const [showPassword, setShowPassword] = useState(false);
     const [form, setForm] = useState({
         first_name: '',
         last_name: '',
@@ -120,18 +121,33 @@ export default function RegisterForm({ onSwitchToLogin, onBack, onRegisterSucces
                         return (
                         <div key={name} className="space-y-2">
                             <Label htmlFor={`register-${name}`}>{label}</Label>
-                            <Input
-                                id={`register-${name}`}
-                                name={name}
-                                type={type}
-                                autoComplete={autoComplete}
-                                value={form[name as keyof typeof form]}
-                                onChange={handleChange}
-                                aria-invalid={Boolean(fieldError)}
-                                aria-describedby={fieldError ? `register-${name}-error` : undefined}
-                                required
-                                disabled={isLoading}
-                            />
+                            <div className="relative">
+                                <Input
+                                    id={`register-${name}`}
+                                    name={name}
+                                    type={name === 'password' && showPassword ? 'text' : type}
+                                    autoComplete={autoComplete}
+                                    value={form[name as keyof typeof form]}
+                                    onChange={handleChange}
+                                    aria-invalid={Boolean(fieldError)}
+                                    aria-describedby={fieldError ? `register-${name}-error` : undefined}
+                                    required
+                                    disabled={isLoading}
+                                    className={name === 'password' ? 'pr-10' : undefined}
+                                />
+                                {name === 'password' && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                                        onClick={() => setShowPassword((current) => !current)}
+                                        aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                                    >
+                                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    </Button>
+                                )}
+                            </div>
                             {fieldError && (
                                 <p id={`register-${name}-error`} className="text-sm text-rose-600 dark:text-rose-400">
                                     {fieldError}

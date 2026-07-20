@@ -50,7 +50,7 @@ from src.items.schemas import (
     ItemUpdate,
     ItemUpdateResponse,
 )
-from src.items.service import InvalidScanCodeError, ItemService
+from src.items.service import InvalidScanCodeError, ItemDeleteConflictError, ItemService
 from src.schemas import ErrorResponse
 
 router = APIRouter(prefix="/items", tags=["items"])
@@ -199,6 +199,11 @@ def download_item_labels_pdf(
         labels = generate_labels_pdf(items, data.fields, data.width_mm, data.height_mm)
     except ValueError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+    except Exception as err:
+        return error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"Nie udało się wygenerować etykiet PDF: {err}",
+        )
 
     return StreamingResponse(
         labels,
@@ -249,6 +254,11 @@ def download_item_labels_zip(
         labels = generate_labels_zip(items, data.fields, data.width_mm, data.height_mm)
     except ValueError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+    except Exception as err:
+        return error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"Nie udało się wygenerować etykiet ZIP: {err}",
+        )
 
     return StreamingResponse(
         labels,
@@ -391,6 +401,11 @@ def download_item_label_pdf(
         label = generate_label_pdf(item, label_request.fields, label_request.width_mm, label_request.height_mm)
     except ValueError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+    except Exception as err:
+        return error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"Nie udało się wygenerować etykiety PDF: {err}",
+        )
 
     filename = f"item-{item.uuid}-label.pdf"
 
@@ -447,6 +462,11 @@ def download_item_label_png(
         label = generate_label_image(item, label_request.fields, "PNG", label_request.width_mm, label_request.height_mm)
     except ValueError as err:
         return error_response(status.HTTP_400_BAD_REQUEST, str(err))
+    except Exception as err:
+        return error_response(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"Nie udało się wygenerować etykiety PNG: {err}",
+        )
 
     filename = f"item-{item.uuid}-label.png"
 
@@ -475,6 +495,10 @@ def download_item_label_png(
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Nie znaleziono przedmiotu",
+        },
+        status.HTTP_409_CONFLICT: {
+            "model": ErrorResponse,
+            "description": "Przedmiot ma powiązane wypożyczenia lub inne dane.",
         },
     },
 )
@@ -567,10 +591,15 @@ def delete_item(
 
     try:
         service.delete_item(item_id)
+    except ItemDeleteConflictError as err:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(err),
+        ) from err
     except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
+            detail="Nie znaleziono przedmiotu",
         ) from err
 
 

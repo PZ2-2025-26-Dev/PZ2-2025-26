@@ -11,7 +11,7 @@ from sqlalchemy.engine import Connection
 
 from src.import_koidc.constants import LEGACY_STAGING_SCHEMA, ImportStage
 from src.import_koidc.loader import LEGACY_TABLES, find_repo_root, legacy_table, staging_table_names
-from src.import_koidc.sql_migrate import LEGACY_EMAIL_DOMAIN
+from src.import_koidc.sql_migrate import LEGACY_EMAIL_DOMAIN, LEGACY_GUEST_GROUP_ID
 
 ISSUE_MISSING_EMAIL = "brak_email"
 ISSUE_MISSING_FIRST_NAME = "brak_imienia"
@@ -38,7 +38,7 @@ class ImportIssue:
 
 
 _REASON_LABELS: dict[str, str] = {
-    ISSUE_MISSING_EMAIL: "Brak adresu e-mail (zostanie wygenerowany)",
+    ISSUE_MISSING_EMAIL: "Brak adresu e-mail (rola GUEST, e-mail techniczny zostanie wygenerowany)",
     ISSUE_MISSING_FIRST_NAME: "Brak imienia (zostanie ustawione „Nieznany”)",
     ISSUE_DUPLICATE_EMAIL_IN_SOURCE: "Duplikat e-maila w źródle (zostanie zmodyfikowany)",
     ISSUE_EMAIL_CONFLICT_IN_TARGET: "Konflikt e-maila z istniejącym użytkownikiem w bazie",
@@ -248,12 +248,45 @@ def preview_users(connection: Connection) -> StagePreview:
     total = _legacy_row_count(connection, "pracownicy")
     existing_ids = fetch_existing_ids(connection, "user")
     source_ids = _source_ids(connection, "pracownicy")
+    guest_count = connection.execute(
+        text(
+            f"""
+            SELECT COUNT(*)
+            FROM {legacy_table("pracownicy")}
+            WHERE id_grupy = :guest_group_id
+            """
+        ),
+        {"guest_group_id": LEGACY_GUEST_GROUP_ID},
+    ).scalar_one()
+    missing_email_count = connection.execute(
+        text(
+            f"""
+            SELECT COUNT(*)
+            FROM {legacy_table("pracownicy")}
+            WHERE NULLIF(TRIM(email), '') IS NULL
+            """
+        )
+    ).scalar_one()
+    imported_guest_count = connection.execute(
+        text(
+            f"""
+            SELECT COUNT(*)
+            FROM {legacy_table("pracownicy")}
+            WHERE id_grupy = :guest_group_id
+               OR NULLIF(TRIM(email), '') IS NULL
+            """
+        ),
+        {"guest_group_id": LEGACY_GUEST_GROUP_ID},
+    ).scalar_one()
 
     summary = [
         f"Rekordów w źródle (pracownicy): {total}",
         f"Nowych użytkowników: {len(source_ids - existing_ids)}",
         f"Do aktualizacji (istniejące ID): {len(source_ids & existing_ids)}",
-        "Domyślny status importowanych użytkowników: INACTIVE",
+        f"Goście legacy (id_grupy={LEGACY_GUEST_GROUP_ID}): {guest_count}",
+        f"Osoby bez e-maila importowane jako GUEST: {missing_email_count}",
+        f"Łącznie rekordów do roli GUEST: {imported_guest_count}",
+        "Domyślny status importowanych użytkowników: INACTIVE; goście i osoby bez e-maila: ACTIVE",
     ]
     return StagePreview(
         stage=ImportStage.USERS,
@@ -497,7 +530,7 @@ def _collect_user_issues(connection: Connection) -> list[ImportIssue]:
                 entity="user",
                 legacy_id=str(row["id"]),
                 reason=ISSUE_MISSING_EMAIL,
-                detail=f"zostanie użyty brak_maila_{{id}}@{LEGACY_EMAIL_DOMAIN}",
+                detail=f"rola GUEST; zostanie użyty brak_maila_{{id}}@{LEGACY_EMAIL_DOMAIN}",
             )
         )
 

@@ -20,6 +20,7 @@ class Config(BaseSettings):
     google_client_id: str = "id"
     google_client_secret: str = "secret"
     google_redirect_uri: str = "does.not.resolve"
+    frontend_url: str = "http://localhost:5173"
 
     access_token_expire_minutes: int = 30
     jwt_algorithm: str = "HS256"

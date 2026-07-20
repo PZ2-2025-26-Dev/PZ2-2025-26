@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import {
     AlertTriangle,
     BarChart3,
@@ -248,9 +248,19 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         limitErrorMessage: t('batchLabels.limitError', { limit: BATCH_LABEL_LIMIT }),
     });
 
-    const [sortCriteria, setSortCriteria] = useState<SortCriteria[]>([
-        { field: 'name', order: 'asc' }
-    ]);
+    const sortCriteria = useMemo<SortCriteria[]>(() => {
+        const sort = filters.sort || 'name:asc';
+        return sort
+            .split(',')
+            .map((part) => {
+                const [field, order] = part.split(':');
+                return {
+                    field: field as SortField,
+                    order: order === 'desc' ? 'desc' : 'asc',
+                };
+            })
+            .filter((criteria) => criteria.field) as SortCriteria[];
+    }, [filters.sort]);
 
     useEffect(() => {
         localStorage.setItem(DASHBOARD_ACTIVE_SECTION_KEY, activeSection);
@@ -309,10 +319,12 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
         refreshLocations();
     }, [canViewList, refreshItems, refreshCategories, refreshUsers, refreshLocations]);
 
-    const handleSort = (field: SortField, event: React.MouseEvent) => {
-        setSortCriteria(prev => {
+    const handleSort = (field: SortField, event: MouseEvent | KeyboardEvent) => {
+        setFilters((currentFilters) => {
+            const prev = sortCriteria;
             const isShiftPressed = event.shiftKey;
             const existingIndex = prev.findIndex(c => c.field === field);
+            let nextCriteria: SortCriteria[];
 
             if (isShiftPressed) {
                 if (existingIndex > -1) {
@@ -320,30 +332,25 @@ export default function DashboardPage({ user, onLogout, isDarkMode, setIsDarkMod
                     const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
                     const updated = [...prev];
                     updated[existingIndex] = { field, order: nextOrder };
-                    return updated;
+                    nextCriteria = updated;
                 } else {
-                    return [...prev, { field, order: 'asc' }];
+                    nextCriteria = [...prev, { field, order: 'asc' }];
                 }
             } else {
                 if (prev.length === 1 && prev[0].field === field) {
-                    return [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
+                    nextCriteria = [{ field, order: prev[0].order === 'asc' ? 'desc' : 'asc' }];
+                } else {
+                    nextCriteria = [{ field, order: 'asc' }];
                 }
-                return [{ field, order: 'asc' }];
             }
+
+            return {
+                ...currentFilters,
+                sort: nextCriteria.map(c => `${c.field}:${c.order}`).join(','),
+                page: 1,
+            };
         });
     };
-
-    useEffect(() => {
-        const sortString = sortCriteria
-            .map(c => `${c.field}:${c.order}`)
-            .join(',');
-
-        setFilters(prev => ({
-            ...prev,
-            sort: sortString, 
-            page: 1, 
-        }));
-    }, [sortCriteria]);
 
     const stats = useMemo(() => ({
         total: total,
