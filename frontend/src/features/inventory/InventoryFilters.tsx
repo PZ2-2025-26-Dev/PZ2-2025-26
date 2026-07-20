@@ -115,8 +115,10 @@ function SortableItem({ item, onToggleOrder }: {
       className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800"
     >
       <button
+        type="button"
         {...attributes}
         {...listeners}
+        aria-label={`${item.label} sort order`}
         className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
       >
         <GripVertical className="h-4 w-4" />
@@ -127,7 +129,9 @@ function SortableItem({ item, onToggleOrder }: {
       </span>
 
       <button
+        type="button"
         onClick={() => onToggleOrder(item.field)}
+        aria-label={`${item.label}: ${item.order === "asc" ? "ascending" : "descending"}`}
         className="p-1 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
       >
         {item.order === "asc" ? (
@@ -204,6 +208,47 @@ export default function InventoryFilters({
       updateFiltersSort(sortCriteria);
     }
   }, []);
+
+  React.useEffect(() => {
+    if (!filters.sort) return;
+
+    const activeCriteria: SortCriteriaItem[] = [];
+    const activeFields = new Set<string>();
+
+    filters.sort.split(",").forEach((part) => {
+      const [field, order] = part.split(":");
+      const trimmedField = field.trim();
+      const column = SORTABLE_COLUMNS.find((col) => col.field === trimmedField);
+
+      if (column) {
+        activeCriteria.push({
+          field: trimmedField,
+          order: (order?.trim() || "asc") as "asc" | "desc",
+          label: t(column.labelKey),
+        });
+        activeFields.add(trimmedField);
+      }
+    });
+
+    SORTABLE_COLUMNS.forEach((col) => {
+      if (!activeFields.has(col.field)) {
+        activeCriteria.push({
+          field: col.field,
+          order: "asc",
+          label: t(col.labelKey),
+        });
+      }
+    });
+
+    const isSame = sortCriteria.length === activeCriteria.length
+      && sortCriteria.every((current, index) => (
+        current.field === activeCriteria[index]?.field
+        && current.order === activeCriteria[index]?.order
+        && current.label === activeCriteria[index]?.label
+      ));
+
+    if (!isSame) setSortCriteria(activeCriteria);
+  }, [filters.sort, t]);
 
   // DnD context sensors
   const sensors = useSensors(

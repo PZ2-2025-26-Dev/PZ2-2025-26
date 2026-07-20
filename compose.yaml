@@ -1,6 +1,6 @@
 services:
   db:
-    image: mysql:9.7.0
+    image: mysql:8.0.32
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${PZ_DB_ROOT_PWD:?Variable not set}
@@ -24,7 +24,7 @@ services:
       target: runtime
     restart: unless-stopped
     ports:
-      - "${PZ_API_PORT:?Variable not set}:8000"
+     - "${PZ_API_PORT:?Variable not set}:8000"
     environment:
       PZ_DATABASE_URL: ${PZ_DATABASE_URL:?Variable not set}
       PZ_DEBUG: ${PZ_DEBUG:?Variable not set}
@@ -55,8 +55,8 @@ services:
       dockerfile: Dockerfile
       target: dev
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:?Variable not set}:5173"
+    #ports:
+    #  - "${FRONTEND_PORT:?Variable not set}:5173"
     environment:
       VITE_API_URL: ${PZ_VITE_API_URL:?Variable not set}
     depends_on:
@@ -73,7 +73,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
 volumes:
   mysql_data:
   upload_data:

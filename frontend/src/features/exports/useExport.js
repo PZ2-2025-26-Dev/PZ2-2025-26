@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import axiosClient from '../../api/axiosClient';
 import { ENDPOINTS } from '../../api/endpoints';
-import { parseApiError } from '../../api/apiUtils';
+import { parseApiBlobError } from '../../api/apiUtils';
 
 const cleanParams = (params) => Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '' && value !== 'all'),
@@ -86,7 +86,7 @@ export const useExport = () => {
 
             return { success: true };
         } catch (err) {
-            const errorMessage = parseApiError(err, 'Export failed');
+            const errorMessage = await parseApiBlobError(err, 'Export failed');
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -130,7 +130,7 @@ export const useExport = () => {
 
             return { success: true };
         } catch (err) {
-            const errorMessage = parseApiError(err, 'Export item report failed');
+            const errorMessage = await parseApiBlobError(err, 'Export item report failed');
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {
@@ -174,7 +174,7 @@ export const useExport = () => {
 
             return { success: true };
         } catch (err) {
-            const errorMessage = parseApiError(err, 'Export failed');
+            const errorMessage = await parseApiBlobError(err, 'Export failed');
             setError(errorMessage);
             return { success: false, error: errorMessage };
         } finally {

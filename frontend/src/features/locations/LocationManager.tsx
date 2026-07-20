@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { AlertCircle, Archive, Building2, ChevronDown, ChevronRight, DoorOpen, Layers3, MapPin, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -322,6 +322,32 @@ export default function LocationManager({
         });
     };
 
+    const handleLocationNodeKeyDown = (
+        event: KeyboardEvent<HTMLDivElement>,
+        node: LocationNode,
+        hasChildren: boolean,
+        isExpanded: boolean,
+    ) => {
+        if (event.target !== event.currentTarget) return;
+
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            void handleSelectLocation(node);
+            return;
+        }
+
+        if (event.key === 'ArrowRight' && hasChildren && !isExpanded) {
+            event.preventDefault();
+            toggleLocation(node.id);
+            return;
+        }
+
+        if (event.key === 'ArrowLeft' && hasChildren && isExpanded) {
+            event.preventDefault();
+            toggleLocation(node.id);
+        }
+    };
+
     const renderLocationNode = (node: LocationNode, level = 0) => {
         const LocationIcon = LOCATION_TYPE_ICONS[node.type] ?? MapPin;
         const hasChildren = node.children.length > 0;
@@ -331,21 +357,26 @@ export default function LocationManager({
         return (
             <Collapsible key={node.id} open={isExpanded} onOpenChange={() => toggleLocation(node.id)}>
                 <div
-                    className={`group flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 hover:border-slate-200 hover:bg-slate-50 dark:hover:border-slate-800 dark:hover:bg-slate-900 ${
+                    className={`group flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 outline-none hover:border-slate-200 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-accent-500 dark:hover:border-slate-800 dark:hover:bg-slate-900 ${
                         selectedLocation?.id === node.id
                             ? 'border-accent-200 bg-accent-50 dark:border-accent-900 dark:bg-accent-950/30'
                             : 'border-transparent'
                     }`}
+                    tabIndex={0}
+                    role="treeitem"
+                    aria-selected={selectedLocation?.id === node.id}
+                    aria-expanded={hasChildren ? isExpanded : undefined}
                     onClick={() => void handleSelectLocation(node)}
+                    onKeyDown={(event) => handleLocationNodeKeyDown(event, node, hasChildren, isExpanded)}
                     style={{ marginLeft: level * 20 }}
                 >
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             {hasChildren ? (
                                 <CollapsibleTrigger asChild>
-                                    <span className="-ml-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" onClick={(event) => event.stopPropagation()} aria-label={node.name}>
+                                    <button type="button" className="-ml-1 inline-flex size-8 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-accent-500 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white" onClick={(event) => event.stopPropagation()} aria-label={node.name}>
                                         <ChevronIcon />
-                                    </span>
+                                    </button>
                                 </CollapsibleTrigger>
                             ) : (
                                 <span className="block size-7 shrink-0" />
@@ -368,7 +399,7 @@ export default function LocationManager({
                     <div className="flex shrink-0 items-center gap-2">
                         {canManage && (
                             <>
-                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={(event) => {
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={(event) => {
                                     event.stopPropagation();
                                     const allowedChildTypes = LOCATION_TYPES.filter((type) => LOCATION_PARENT_TYPES[type].includes(node.type));
                                     const defaultType = (allowedChildTypes[0] ?? 'room') as LocationType;
@@ -381,13 +412,13 @@ export default function LocationManager({
                                 }} aria-label={t('locationManager.addTitle')}>
                                     <Plus />
                                 </Button>
-                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100" onClick={(event) => {
+                                <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100" onClick={(event) => {
                                     event.stopPropagation();
                                     openEditDialog(node);
                                 }} aria-label={t('locationManager.edit')}>
                                     <Pencil />
                                 </Button>
-                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 dark:text-rose-300" onClick={(event) => {
+                                <Button variant="ghost" size="icon-sm" className="text-rose-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 dark:text-rose-300" onClick={(event) => {
                                     event.stopPropagation();
                                     setDeletingLocation(node);
                                 }} aria-label={t('locationManager.delete')}>
@@ -437,7 +468,7 @@ export default function LocationManager({
                         </Alert>
                     )}
 
-                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30">
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-slate-800 dark:bg-slate-900/30" role="tree">
                         {locationTree.length > 0
                             ? locationTree.map((node) => renderLocationNode(node))
                             : <p className="py-8 text-center text-sm text-slate-400">{isLoading ? t('locationManager.loading') : t('locationManager.emptyTree')}</p>}
@@ -486,7 +517,12 @@ export default function LocationManager({
                                         </TableCell>
                                     </TableRow>
                                 ) : locationItems.length > 0 ? locationItems.map((item) => (
-                                    <TableRow key={item.id}>
+                                    <TableRow
+                                        key={item.id}
+                                        tabIndex={0}
+                                        aria-label={`${item.name}, ${item.category}, ${t(`dashboard.itemStatuses.${item.status}`, { defaultValue: item.status })}, ${item.owner}`}
+                                        className="outline-none focus-visible:bg-slate-50 focus-visible:ring-2 focus-visible:ring-accent-500 dark:focus-visible:bg-slate-900/50"
+                                    >
                                         <TableCell>
                                             <div className="font-medium text-slate-900 dark:text-white">{item.name}</div>
                                             {item.description && (

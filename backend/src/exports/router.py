@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.dependencies import DBDep
 from src.exports.schemas import InventoryStatsResponse
@@ -40,7 +40,15 @@ def export_item_report_xlsx(
     db: DBDep,
     _reader: RequireItemReader,
 ):
-    return ExportService(db).export_item_report_xlsx(item_uuid)
+    try:
+        return ExportService(db).export_item_report_xlsx(item_uuid)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nie znaleziono przedmiotu.") from err
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Nie udało się wygenerować raportu.",
+        ) from err
 
 
 @router.get(

@@ -67,10 +67,30 @@ function SelectLabel({ className, ...props }: React.ComponentProps<typeof Select
 function SelectItem({
     className,
     children,
+    onKeyDown,
     ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
     return (
         <SelectPrimitive.Item
+            data-slot="select-item"
+            tabIndex={0}
+            onKeyDown={(event) => {
+                onKeyDown?.(event);
+                if (event.defaultPrevented || event.key !== 'Tab') return;
+
+                const content = event.currentTarget.closest('[data-slot="select-content"]');
+                const items = Array.from(
+                    content?.querySelectorAll<HTMLElement>('[data-slot="select-item"]:not([data-disabled])') ?? [],
+                );
+                const currentIndex = items.indexOf(event.currentTarget);
+                const nextIndex = event.shiftKey ? currentIndex - 1 : currentIndex + 1;
+
+                if (nextIndex >= 0 && nextIndex < items.length) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    items[nextIndex]?.focus();
+                }
+            }}
             className={cn(
                 'relative flex w-full cursor-default select-none items-center rounded-md py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent-50 focus:text-accent-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:bg-accent-950/50 dark:focus:text-accent-100',
                 className,

@@ -17,6 +17,7 @@ export type BasicUser = {
     lastName: string;
     email?: string;
     role: string;
+    status?: string;
 };
 
 export type DirectoryEntry = Guest | BasicUser;
@@ -35,7 +36,9 @@ const normalizeBasicUser = (user: Record<string, unknown>): BasicUser => ({
     id: Number(user.id),
     firstName: String(user.first_name ?? ''),
     lastName: String(user.last_name ?? ''),
+    email: user.email == null ? '' : String(user.email),
     role: String(user.role ?? ''),
+    status: user.status == null ? undefined : String(user.status),
 });
 
 const toCreatePayload = (guest: Pick<Guest, 'firstName' | 'lastName' | 'email'>) => ({

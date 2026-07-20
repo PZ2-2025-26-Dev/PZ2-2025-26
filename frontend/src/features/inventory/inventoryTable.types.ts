@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
 import type { InventoryItem } from '@/types';
 
@@ -22,7 +22,7 @@ export type InventoryTableProps = {
     selectableItemCount: number;
     allSelectablePageItemsAreSelected: boolean;
     canSelectItem: (item: InventoryItem) => boolean;
-    onSort: (field: SortField, event: MouseEvent) => void;
+    onSort: (field: SortField, event: MouseEvent | KeyboardEvent) => void;
     onOpenItem: (item: InventoryItem) => void;
     onToggleItem: (item: InventoryItem) => void;
     onTogglePage: () => void;

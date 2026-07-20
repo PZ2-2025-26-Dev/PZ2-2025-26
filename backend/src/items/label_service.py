@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from io import BytesIO
 from math import ceil
 from pathlib import Path
@@ -34,6 +35,7 @@ def _mm_to_pdf_points(value: float) -> float:
     return value / MM_PER_INCH * PDF_POINTS_PER_INCH
 
 
+@lru_cache(maxsize=256)
 def _load_font(size: int) -> LabelFont:
     try:
         return ImageFont.truetype(str(LABEL_FONT_PATH), size)
@@ -86,7 +88,8 @@ def _field_value(item: Item, field: str) -> tuple[str, str]:
         case ItemLabelField.LOCATION:
             return "Location", build_location_path(item.location)
         case ItemLabelField.OWNER:
-            return "Owner", item.owner.first_name
+            owner_name = f"{item.owner.first_name} {item.owner.last_name or ''}".strip()
+            return "Owner", owner_name
         case ItemLabelField.OLD_ID:
             return "Old ID", item.oldID or ""
 
@@ -275,7 +278,10 @@ def generate_labels_pdf(items: list[Item], fields: list[str], width_mm: float, h
     pdf = canvas.Canvas(pdf_buffer, pagesize=(width, height))
 
     for item in items:
-        image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
+        try:
+            image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
+        except Exception as err:
+            raise RuntimeError(f"Nie udało się wygenerować etykiety dla „{item.name}” ({item.uuid}): {err}") from err
         image = Image.open(image_buffer)
         pdf.drawImage(ImageReader(image), 0, 0, width=width, height=height)
         pdf.showPage()
@@ -291,7 +297,11 @@ def generate_labels_zip(items: list[Item], fields: list[str], width_mm: float, h
 
     with ZipFile(zip_buffer, mode="w", compression=ZIP_DEFLATED) as archive:
         for item in items:
-            image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
+            try:
+                image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
+            except Exception as err:
+                msg = f"Nie udało się wygenerować etykiety dla „{item.name}” ({item.uuid}): {err}"
+                raise RuntimeError(msg) from err
             archive.writestr(f"item-{item.uuid}-label.png", image_buffer.getvalue())
 
     zip_buffer.seek(0)

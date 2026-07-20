@@ -90,6 +90,52 @@ export const useUsers = () => {
         }
     }, []);
 
+    const setUserPassword = useCallback(async (userId, password) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.USERS.PASSWORD(userId), { password });
+
+            return {
+                success: true,
+                user: normalizeUser(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const promoteGuest = useCallback(async (userId, guestData) => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await axiosClient.patch(ENDPOINTS.USERS.PROMOTE(userId), {
+                email: guestData.email,
+                password: guestData.password,
+                first_name: guestData.firstName,
+                last_name: guestData.lastName || null,
+                role: guestData.role || 'user',
+            });
+
+            return {
+                success: true,
+                user: normalizeUser(response.data),
+            };
+        } catch (err) {
+            const errorMessage = parseApiError(err);
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     const clearError = useCallback(() => {
         setError(null);
     }, []);
@@ -97,6 +143,8 @@ export const useUsers = () => {
     return {
         listUsers,
         updateUser,
+        setUserPassword,
+        promoteGuest,
         deleteUser,
         isLoading,
         error,

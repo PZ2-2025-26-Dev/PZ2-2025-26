@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, RefreshCw, Search, ShieldCheck, UserCheck, Users } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, RefreshCw, Search, ShieldCheck, UserCheck, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { StatCard } from '@/components/StatCard';
@@ -31,13 +31,15 @@ const getUserName = (user: ManagedUser) => `${user.firstName} ${user.lastName}`.
 
 export default function UserManager({ onPendingCountChange }: { onPendingCountChange?: (count: number) => void }) {
     const { t } = useTranslation();
-    const { listUsers, updateUser, deleteUser, isLoading, error, clearError } = useUsers();
+    const { listUsers, updateUser, setUserPassword, deleteUser, isLoading, error, clearError } = useUsers();
     const [users, setUsers] = useState<ManagedUser[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [filters, setFilters] = useState({ search: '', role: 'all', status: 'all', page: 1, limit: 20 });
     const [approvalRoles, setApprovalRoles] = useState<Record<string, string>>({});
     const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
     const [editForm, setEditForm] = useState<ManagedUser | null>(null);
+    const [editPassword, setEditPassword] = useState('');
+    const [showEditPassword, setShowEditPassword] = useState(false);
     const [userToDelete, setUserToDelete] = useState<ManagedUser | null>(null);
 
     const pendingCount = useMemo(() => users.filter((user) => user.status === 'pending_approval').length, [users]);
@@ -76,9 +78,15 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
         if (!editingUser || !editForm) return;
         const result = await updateUser(editingUser.id, editForm);
         if (result.success && result.user) {
+            if (editPassword.trim()) {
+                const passwordResult = await setUserPassword(editingUser.id, editPassword);
+                if (!passwordResult.success) return;
+            }
             patchUser(result.user);
             setEditingUser(null);
             setEditForm(null);
+            setEditPassword('');
+            setShowEditPassword(false);
         }
     };
 
@@ -128,7 +136,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                     {error && (
                         <Alert variant="destructive">
                             <AlertCircle />
-                            <AlertTitle>{t('auth.loginErrorTitle')}</AlertTitle>
+                            <AlertTitle>{t('userManager.errorTitle')}</AlertTitle>
                             <AlertDescription>{error}</AlertDescription>
                             <Button variant="ghost" size="icon-sm" className="absolute right-2 top-2" onClick={clearError}>×</Button>
                         </Alert>
@@ -168,7 +176,7 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                                             </>
                                         )}
                                         {user.status !== 'inactive' && <Button variant="warning" size="sm" onClick={() => void handleDeactivate(user)}>{t('userManager.deactivate')}</Button>}
-                                        <Button variant="secondary" size="sm" onClick={() => { setEditingUser(user); setEditForm({ ...user }); clearError(); }}>{t('userManager.edit')}</Button>
+                                        <Button variant="secondary" size="sm" onClick={() => { setEditingUser(user); setEditForm({ ...user }); setEditPassword(''); setShowEditPassword(false); clearError(); }}>{t('userManager.edit')}</Button>
                                         <Button variant="destructive" size="sm" onClick={() => setUserToDelete(user)}>{t('userManager.delete')}</Button>
                                     </div>
                                 </TableCell>
@@ -196,6 +204,30 @@ export default function UserManager({ onPendingCountChange }: { onPendingCountCh
                                 <div className="space-y-2"><Label>{t('userManager.lastName')}</Label><Input value={editForm.lastName} onChange={(event) => setEditForm({ ...editForm, lastName: event.target.value })} required /></div>
                             </div>
                             <div className="space-y-2"><Label>{t('userManager.email')}</Label><Input type="email" value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} required /></div>
+                            <div className="space-y-2">
+                                <Label htmlFor="admin-user-password">{t('userManager.newPassword')}</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="admin-user-password"
+                                        type={showEditPassword ? 'text' : 'password'}
+                                        value={editPassword}
+                                        onChange={(event) => setEditPassword(event.target.value)}
+                                        placeholder={t('userManager.passwordUnchanged')}
+                                        minLength={8}
+                                        className="pr-10"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                                        onClick={() => setShowEditPassword((current) => !current)}
+                                        aria-label={showEditPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                                    >
+                                        {showEditPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    </Button>
+                                </div>
+                            </div>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label>{t('userManager.thRole')}</Label>

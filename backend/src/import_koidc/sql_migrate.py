@@ -15,6 +15,7 @@ from src.locations.constants import LocationType
 LEGACY_OWNER_ID = 999_999
 LEGACY_EMAIL_DOMAIN = "import.example.com"
 LEGACY_OWNER_EMAIL = f"legacy.import@{LEGACY_EMAIL_DOMAIN}"
+LEGACY_GUEST_GROUP_ID = 103
 FALLBACK_CATEGORY_ID = 9_999
 ROOM_ID_OFFSET = 10_000
 ITEM_UUID_STAGING_TABLE = "_koidc_item_uuid"
@@ -149,8 +150,18 @@ def migrate_users(connection: Connection) -> int:
                     END,
                     512
                 ),
-                :role,
-                :status
+                CASE
+                    WHEN p.id_grupy = :guest_group_id
+                        OR NULLIF(TRIM(p.email), '') IS NULL
+                        THEN :guest_role
+                    ELSE :user_role
+                END,
+                CASE
+                    WHEN p.id_grupy = :guest_group_id
+                        OR NULLIF(TRIM(p.email), '') IS NULL
+                        THEN :guest_status
+                    ELSE :user_status
+                END
             FROM {pracownicy} AS p
             INNER JOIN (
                 SELECT
@@ -172,12 +183,16 @@ def migrate_users(connection: Connection) -> int:
                 first_name = IF(user.id = VALUES(id), VALUES(first_name), user.first_name),
                 last_name = IF(user.id = VALUES(id), VALUES(last_name), user.last_name),
                 email = IF(user.id = VALUES(id), VALUES(email), user.email),
+                role = IF(user.id = VALUES(id), VALUES(role), user.role),
                 status = IF(user.id = VALUES(id), VALUES(status), user.status)
             """
         ),
         {
-            "role": UserRole.USER.name,
-            "status": UserStatus.INACTIVE.name,
+            "guest_group_id": LEGACY_GUEST_GROUP_ID,
+            "guest_role": UserRole.GUEST.name,
+            "guest_status": UserStatus.ACTIVE.name,
+            "user_role": UserRole.USER.name,
+            "user_status": UserStatus.INACTIVE.name,
         },
     )
     return connection.execute(text(f"SELECT COUNT(*) FROM {pracownicy}")).scalar_one()

@@ -1,5 +1,5 @@
 from typing import Annotated
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.concurrency import run_in_threadpool
@@ -35,6 +35,41 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/auth")
+
+
+def _frontend_url_from_request(request: Request) -> str:
+    session_frontend_url = request.session.get("frontend_url")
+    if isinstance(session_frontend_url, str) and session_frontend_url:
+        return session_frontend_url.rstrip("/")
+
+    return config.frontend_url.rstrip("/")
+
+
+def _frontend_google_callback_url(request: Request, **params: str) -> str:
+    frontend_url = _frontend_url_from_request(request)
+    query = urlencode({key: value for key, value in params.items() if value})
+    return f"{frontend_url}/google/complete?{query}"
+
+
+def _remember_frontend_url(request: Request) -> None:
+    explicit_frontend_url = request.query_params.get("frontend_url")
+    referer = request.headers.get("referer")
+    parsed_referer = urlparse(referer) if referer else None
+    referer_origin = (
+        f"{parsed_referer.scheme}://{parsed_referer.netloc}"
+        if parsed_referer and parsed_referer.scheme in {"http", "https"} and parsed_referer.netloc
+        else None
+    )
+    frontend_url = explicit_frontend_url or referer_origin
+
+    if not frontend_url:
+        return
+
+    parsed_frontend_url = urlparse(frontend_url)
+    if parsed_frontend_url.scheme not in {"http", "https"} or not parsed_frontend_url.netloc:
+        return
+
+    request.session["frontend_url"] = frontend_url.rstrip("/")
 
 
 def to_current_user_response(user: UserModel) -> CurrentUserResponse:
@@ -196,35 +231,73 @@ async def refresh_token(data: TokenRefreshIn) -> TokenResponse:
     },
 )
 async def google_authorize(request: Request):
+    _remember_frontend_url(request)
     redirect_uri = config.google_redirect_uri
     return await oauth.google.authorize_redirect(request, redirect_uri, prompt="select_account")
 
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: DBDep):
-    token = await oauth.google.authorize_access_token(request)
+    google_error = request.query_params.get("error")
+    if google_error:
+        return RedirectResponse(
+            url=_frontend_google_callback_url(
+                request,
+                error=google_error,
+                error_description=request.query_params.get("error_description", ""),
+            )
+        )
 
-    userinfo = token["userinfo"]
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except Exception:
+        return RedirectResponse(
+            url=_frontend_google_callback_url(
+                request,
+                error="google_callback_failed",
+                error_description="Nie udało się dokończyć logowania przez Google.",
+            )
+        )
 
-    email = userinfo["email"]
-    google_id = userinfo["sub"]
-    first_name = userinfo["given_name"]
-    last_name = userinfo["family_name"]
+    userinfo = token.get("userinfo") or {}
 
-    user = await run_in_threadpool(
-        get_or_create_google_user,
-        db,
-        email,
-        google_id,
-        first_name,
-        last_name,
-    )
+    email = userinfo.get("email")
+    google_id = userinfo.get("sub")
+    first_name = userinfo.get("given_name") or ""
+    last_name = userinfo.get("family_name") or ""
+
+    if not email or not google_id:
+        return RedirectResponse(
+            url=_frontend_google_callback_url(
+                request,
+                error="google_profile_missing",
+                error_description="Google nie zwrócił wymaganych danych profilu.",
+            )
+        )
+
+    try:
+        user = await run_in_threadpool(
+            get_or_create_google_user,
+            db,
+            email,
+            google_id,
+            first_name,
+            last_name,
+        )
+    except HTTPException as exc:
+        detail = exc.detail
+        message = detail.get("message") if isinstance(detail, dict) else str(detail)
+        return RedirectResponse(
+            url=_frontend_google_callback_url(
+                request,
+                error="google_user_error",
+                error_description=message,
+            )
+        )
 
     access_token = create_access_token(user.id)
 
-    params = urlencode({"token": access_token})
-
-    return RedirectResponse(url=f"http://localhost:5173/auth/google/callback?{params}")
+    return RedirectResponse(url=_frontend_google_callback_url(request, token=access_token))
 
 
 @router.get(
