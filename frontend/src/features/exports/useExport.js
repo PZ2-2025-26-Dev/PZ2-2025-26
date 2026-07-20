@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import axiosClient from '../../api/axiosClient';
 import { ENDPOINTS } from '../../api/endpoints';
-import { parseApiBlobError, parseApiError } from '../../api/apiUtils';
+import { parseApiBlobError } from '../../api/apiUtils';
 
 const cleanParams = (params) => Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '' && value !== 'all'),

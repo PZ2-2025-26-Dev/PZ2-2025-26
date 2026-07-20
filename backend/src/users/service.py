@@ -9,7 +9,14 @@ from src.items.models import Item, ItemACL, ItemHistory
 from src.loans.constants import LoanStatus
 from src.loans.models import Loan
 from src.users.models import User
-from src.users.schemas import BaseUserDetails, GuestBrowse, GuestPromote, GuestUserCreate, GuestUserUpdate, UserBasicBrowse
+from src.users.schemas import (
+    BaseUserDetails,
+    GuestBrowse,
+    GuestPromote,
+    GuestUserCreate,
+    GuestUserUpdate,
+    UserBasicBrowse,
+)
 
 
 class UserNotFoundError(Exception):
@@ -264,11 +271,13 @@ class UserService:
         if self._has_records(
             Loan,
             or_(Loan.user_id == user_id, Loan.guest_id == user_id),
-            Loan.status.in_([
-                LoanStatus.PENDING_APPROVAL,
-                LoanStatus.ACTIVE,
-                LoanStatus.RETURN_PENDING_CONFIRMATION,
-            ]),
+            Loan.status.in_(
+                [
+                    LoanStatus.PENDING_APPROVAL,
+                    LoanStatus.ACTIVE,
+                    LoanStatus.RETURN_PENDING_CONFIRMATION,
+                ]
+            ),
         ):
             raise UserHasActiveLoansError()
 

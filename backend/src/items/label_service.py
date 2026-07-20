@@ -300,7 +300,8 @@ def generate_labels_zip(items: list[Item], fields: list[str], width_mm: float, h
             try:
                 image_buffer = generate_label_image(item, fields, "PNG", width_mm, height_mm)
             except Exception as err:
-                raise RuntimeError(f"Nie udało się wygenerować etykiety dla „{item.name}” ({item.uuid}): {err}") from err
+                msg = f"Nie udało się wygenerować etykiety dla „{item.name}” ({item.uuid}): {err}"
+                raise RuntimeError(msg) from err
             archive.writestr(f"item-{item.uuid}-label.png", image_buffer.getvalue())
 
     zip_buffer.seek(0)
